@@ -1,10 +1,12 @@
 ---@meta Source.Scenes.SceneTitle
 ---@class Source.Scenes.SceneTitle: GlobalCore.SceneBase
----@field new             fun(): Source.Scenes.SceneTitle
----@field _ui             Source.Scenes.SceneTitle.Controller
----@field _windowCommand  Source.Windows.WindowCommand
----@field _windowSaveLoad Internal.UIBase.LazyWindow<Source.Windows.WindowSaveLoad>
----@field _configWindow   Internal.UIBase.LazyWindow<Source.Windows.ConfigWindow>
+---@field new                   fun(): Source.Scenes.SceneTitle
+---@field _ui                   Source.Scenes.SceneTitle.Controller
+---@field _windowCommand        Source.Windows.WindowCommand
+---@field _windowSaveLoad       Internal.UIBase.LazyWindow<Source.Windows.WindowSaveLoad>
+---@field _configWindow         Internal.UIBase.LazyWindow<Source.Windows.ConfigWindow>
+---@field private _mapEntryTask AsyncioTask | nil
+---@field private _mapEntryCue  sf.Sound | nil
 local Scene = {}
 
 ---@brief Start with a blind transition effect.

@@ -4,6 +4,7 @@
 #include <Runtime/AssetStore.hpp>
 
 #include <unordered_map>
+#include <unordered_set>
 
 namespace ludork::engine::materials {
 
@@ -12,7 +13,7 @@ public:
     struct Program {
         std::shared_ptr<sf::Shader> shader;
         MaterialCompiler::Sources sources;
-        std::unordered_map<std::string, bool> activeUniforms;
+        std::unordered_set<std::string> activeUniforms;
     };
     struct TextureEntry {
         std::shared_ptr<sf::Texture> texture;
@@ -22,7 +23,6 @@ public:
     Program& program(const MaterialResource& material,
                      const MaterialResource* layer,
                      MaterialCompiler::Pass pass);
-    bool hasUniform(Program& program, const std::string& name);
     std::shared_ptr<sf::Texture> texture(const std::string& path);
     void parameters(Program& program, const RuntimeData::Map& material,
                     const RuntimeData::Map& layer);
@@ -30,7 +30,7 @@ public:
 
     template <typename Value>
     void set(Program& program, const std::string& name, const Value& value) {
-        if (hasUniform(program, name)) {
+        if (program.activeUniforms.contains(name)) {
             program.shader->setUniform(name, value);
         }
     }

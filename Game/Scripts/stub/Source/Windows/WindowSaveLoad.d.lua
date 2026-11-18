@@ -19,11 +19,11 @@ local Controller = {}
 --- - @param loadOnly When True, tabs are omitted and the slot list remains in load mode.
 --- - @param getSaveSource Callable returning the GameInstance to persist when saving.
 --- - @param onClose Callback invoked after the UI closes, with the close reason.
---- - @param onLoaded Callback invoked with the loaded GameInstance after a successful load.
+--- - @param onLoaded Callback invoked after a successful load with the loaded GameInstance and its confirmation sound, if any.
 ---@param loadOnly      boolean | nil
 ---@param getSaveSource function | nil
 ---@param onClose       fun(reason: Enums.SaveLoadCloseReason) | nil
----@param onLoaded      function | nil
+---@param onLoaded      fun(instance: Source.GameInstance.GameInstance, cue: sf.Sound | nil) | nil
 function Controller:init(loadOnly, getSaveSource, onClose, onLoaded) end
 
 ---@brief Get the load/save tab window.

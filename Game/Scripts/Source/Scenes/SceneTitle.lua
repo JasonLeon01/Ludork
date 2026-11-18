@@ -18,6 +18,16 @@ local SceneBase = GlobalCore.SceneBase
 ---@class Source.Scenes.SceneTitle: GlobalCore.SceneBase
 local Scene = {}
 
+---@param inst Source.GameInstance.GameInstance | nil
+---@return Source.Scenes.SceneMap.SceneMap
+local function createMapScene(inst)
+    local SceneMap = require("Source.Scenes.SceneMap")
+
+    local nextScene = SceneMap.new()
+    nextScene:setInst(inst or GameInstance.new())
+    return nextScene
+end
+
 ---@diagnostic disable-next-line: unused
 function Scene:onEnter()
     Transition.setTransition(ManagerFunctions.loadTransition("Flat.png"))
@@ -39,8 +49,8 @@ function Scene:onCreate()
             function (reason)
                 self:_onSaveLoadClose(reason)
             end,
-            function (inst)
-                self:_onSaveLoadLoaded(inst)
+            function (inst, cue)
+                self:_onSaveLoadLoaded(inst, cue)
             end
         )
         window:mount(assert(self:getUIManager()))
@@ -72,13 +82,13 @@ function Scene:onCreate()
 end
 
 function Scene:onQuit()
-    ManagerFunctions.stopMusic("BGM")
-    self._titleBGM = nil
+    self:_cancelMapEntry()
+    self:_stopTitleMusic()
 end
 
 function Scene:onDestroy()
-    ManagerFunctions.stopMusic("BGM")
-    self._titleBGM = nil
+    self:_cancelMapEntry()
+    self:_stopTitleMusic()
     self._windowSaveLoad:dispose()
     self._configWindow:dispose()
     self._ui:dispose()
@@ -86,13 +96,7 @@ end
 
 ---@diagnostic disable-next-line: unused
 function Scene:startGame()
-    local SceneMap = require("Source.Scenes.SceneMap")
-
-    AudioManager.playSound(SourceSystem.GetDecisionSE())
-    ManagerFunctions.stopMusic("BGM")
-    local nextScene = SceneMap.new()
-    nextScene:setInst(GameInstance.new())
-    SceneManager.setScene(nextScene)
+    self:_startMapEntry(nil)
 end
 
 function Scene:openLoad()
@@ -111,14 +115,54 @@ function Scene:_onSaveLoadClose(reason)
 end
 
 ---@param inst Source.GameInstance.GameInstance
+---@param cue  sf.Sound | nil
 ---@diagnostic disable-next-line: unused
-function Scene:_onSaveLoadLoaded(inst)
-    local SceneMap = require("Source.Scenes.SceneMap")
+function Scene:_onSaveLoadLoaded(inst, cue)
+    if PLATFORM == "web" and cue ~= nil then
+        cue:stop()
+    end
+    self:_startMapEntry(inst)
+end
 
+function Scene:_stopTitleMusic()
     ManagerFunctions.stopMusic("BGM")
-    local nextScene = SceneMap.new()
-    nextScene:setInst(inst)
-    SceneManager.setScene(nextScene)
+    self._titleBGM = nil
+end
+
+---@param inst Source.GameInstance.GameInstance | nil
+function Scene:_startMapEntry(inst)
+    if self._mapEntryTask ~= nil then
+        return
+    end
+    local cue = inst == nil and AudioManager.playSound(SourceSystem.GetDecisionSE()) or nil
+    self:_stopTitleMusic()
+    if PLATFORM ~= "web" then
+        SceneManager.setScene(createMapScene(inst))
+        return
+    end
+    self._mapEntryCue = cue
+    self._windowCommand:setActive(false)
+    ---@async
+    local function prepareEntry()
+        asyncio.sleep(0.0)
+        local nextScene = createMapScene(inst)
+        asyncio.sleep(0.0)
+        nextScene:prepareInitialMap()
+        self._mapEntryTask = nil
+        SceneManager.setScene(nextScene)
+    end
+    self._mapEntryTask = asyncio.create_required_task(prepareEntry)
+end
+
+function Scene:_cancelMapEntry()
+    if self._mapEntryTask ~= nil then
+        asyncio.cancel_task(self._mapEntryTask)
+        self._mapEntryTask = nil
+    end
+    if self._mapEntryCue ~= nil then
+        self._mapEntryCue:stop()
+        self._mapEntryCue = nil
+    end
 end
 
 function Scene:toggleConfig()

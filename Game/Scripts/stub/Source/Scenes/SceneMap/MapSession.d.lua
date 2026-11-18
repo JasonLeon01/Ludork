@@ -19,6 +19,7 @@
 ---@field private _scene                     Source.Scenes.SceneMap.SceneMap
 ---@field private _environment               Source.Scenes.SceneMap.Environment
 ---@field private _mapBuilder                Source.SceneComponents.SceneMapBuilder
+---@field private _preparedEntry             Source.SceneComponents.SceneMapBuilder.PreparedEntry | nil
 ---@field private _gameMap                   GameMap | nil
 ---@field private _mapFile                   string | nil
 ---@field private _currentRegion             string | nil
@@ -29,12 +30,14 @@ local MapSession = {}
 
 ---@param scene       Source.Scenes.SceneMap.SceneMap
 ---@param environment Source.Scenes.SceneMap.Environment
+---@param preparedEntry? Source.SceneComponents.SceneMapBuilder.PreparedEntry
 ---@return Source.Scenes.SceneMap.MapSession
-function MapSession.new(scene, environment) end
+function MapSession.new(scene, environment, preparedEntry) end
 
 ---@param scene       Source.Scenes.SceneMap.SceneMap
 ---@param environment Source.Scenes.SceneMap.Environment
-function MapSession:init(scene, environment) end
+---@param preparedEntry? Source.SceneComponents.SceneMapBuilder.PreparedEntry
+function MapSession:init(scene, environment, preparedEntry) end
 
 ---@return GameMap
 function MapSession:getGameMap() end

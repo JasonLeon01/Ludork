@@ -17,10 +17,11 @@ local MAP_TRANSITION_TIME = 0.5
 ---@class (partial) Source.Scenes.SceneMap.MapSession
 local MapSession = {}
 
-function MapSession:init(scene, environment)
+function MapSession:init(scene, environment, preparedEntry)
     self._scene = scene
     self._environment = environment
     self._mapBuilder = MapBuilder.new()
+    self._preparedEntry = preparedEntry
     self._gameMap = nil
     self._mapFile = nil
     self._currentRegion = nil
@@ -47,15 +48,25 @@ end
 
 function MapSession:replaceMap(mapPath, initialPosition)
     local instance = self._scene:getGameInstance()
-    local mapFile, mapData = self._mapBuilder:loadMapData(mapPath, self:getCurrentRegionMap())
+    local prepared = self._preparedEntry
+    self._preparedEntry = nil
+    local mapFile
+    ---@type Global.GameMap.MapData | Global.WorldGameMap.WorldMapData
+    local mapData
     ---@type GameMap
     local gameMap
-    if mapData.type == MapConstants.WORLD_MAP_TYPE then
-        ---@cast mapData Global.WorldGameMap.WorldMapData
-        gameMap = self._mapBuilder:generateWorldGameMap(mapFile, mapData, instance, initialPosition)
+    if prepared ~= nil and prepared.file == mapPath then
+        mapFile, mapData = prepared.file, prepared.data
+        gameMap = self._mapBuilder:generateGameMap(mapData, nil, false, nil, nil, prepared.actors)
     else
-        ---@cast mapData Global.GameMap.MapData
-        gameMap = self._mapBuilder:generateGameMap(mapData, nil, false)
+        mapFile, mapData = self._mapBuilder:loadMapData(mapPath, self:getCurrentRegionMap())
+        if mapData.type == MapConstants.WORLD_MAP_TYPE then
+            ---@cast mapData Global.WorldGameMap.WorldMapData
+            gameMap = self._mapBuilder:generateWorldGameMap(mapFile, mapData, instance, initialPosition)
+        else
+            ---@cast mapData Global.GameMap.MapData
+            gameMap = self._mapBuilder:generateGameMap(mapData, nil, false)
+        end
     end
     if self._gameMap ~= nil then
         ConditionalActor.ReleaseMapMonitors(self._gameMap)

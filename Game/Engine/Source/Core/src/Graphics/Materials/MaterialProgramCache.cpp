@@ -10,10 +10,9 @@
 #include <SFML/Graphics/Image.hpp>
 #include <Runtime/Graphics/ShaderCache.hpp>
 #include <SFML/Graphics/RHI/Device.hpp>
-#include <algorithm>
-
 #include <cmath>
 #include <stdexcept>
+#include <utility>
 
 namespace ludork::engine::materials {
 
@@ -78,30 +77,24 @@ MaterialProgramCache::Impl::Program& MaterialProgramCache::Impl::program(
          directory + "/" + passes[static_cast<std::size_t>(pass)] + ".frag"}};
     ShaderLogCaptureImpl diagnostics;
     try {
+#ifdef __EMSCRIPTEN__
+        // A material pass binds its full parameter and context state for each
+        // draw.
+        value.shader = ludork::runtime::graphics::ShaderCache::load(input);
+#else
         value.shader =
             ludork::runtime::graphics::ShaderCache::instantiate(input);
+#endif
     } catch (const std::exception& error) {
         throw std::runtime_error(
             "Material shader loading failed: " + material.path() + "\n" +
             error.what() + "\n" + diagnostics.text());
     }
-    return programs.emplace(key, std::move(value)).first->second;
-}
-
-bool MaterialProgramCache::Impl::hasUniform(Program& program,
-                                            const std::string& name) {
-    if (const auto found = program.activeUniforms.find(name);
-        found != program.activeUniforms.end()) {
-        return found->second;
+    for (const auto& uniform :
+         sf::rhi::getShader(*value.shader)->getActiveUniforms()) {
+        value.activeUniforms.emplace(uniform.name);
     }
-    const auto uniforms =
-        sf::rhi::getShader(*program.shader)->getActiveUniforms();
-    const bool active =
-        std::any_of(uniforms.begin(), uniforms.end(), [&](const auto& uniform) {
-            return uniform.name == name;
-        });
-    program.activeUniforms.emplace(name, active);
-    return active;
+    return programs.emplace(key, std::move(value)).first->second;
 }
 
 std::shared_ptr<sf::Texture> MaterialProgramCache::Impl::texture(
@@ -138,7 +131,7 @@ void MaterialProgramCache::Impl::parameters(Program& program,
                                             const RuntimeData::Map& material,
                                             const RuntimeData::Map& layer) {
     for (const MaterialCompiler::Uniform& uniform : program.sources.uniforms) {
-        if (!hasUniform(program, uniform.name)) {
+        if (!program.activeUniforms.contains(uniform.name)) {
             continue;
         }
         const RuntimeData& value =

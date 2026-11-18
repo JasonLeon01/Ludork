@@ -205,10 +205,10 @@ function Controller:_handleLoad(slotNumber)
         AudioManager.playSound(GameSystem.GetBuzzerSE())
         return
     end
-    AudioManager.playSound(GameSystem.GetLoadSE())
+    local cue = AudioManager.playSound(GameSystem.GetLoadSE())
     self:_closeWithReason(SaveLoadCloseReason.LOADED, function ()
         if self._onLoadedCallback ~= nil then
-            self._onLoadedCallback(instance)
+            self._onLoadedCallback(instance, cue)
         end
     end)
 end

@@ -141,9 +141,21 @@ function SceneMapBuilder.GetMapDataPath(mapPath) end
 ---@return Engine.Tilemap
 function SceneMapBuilder.GenerateTilemap(data, layerOrder, width, height) end
 
----@param data Global.GameMap.MapData
+---@param data        Global.GameMap.MapData
+---@param checkpoint? fun()
 ---@return table<string, Engine.Actor[]>
-function SceneMapBuilder.GenerateActors(data) end
+function SceneMapBuilder.GenerateActors(data, checkpoint) end
+
+---@class Source.SceneComponents.SceneMapBuilder.PreparedEntry
+---@field file   string
+---@field data   Global.GameMap.MapData
+---@field actors table<string, Engine.Actor[]>
+
+--- Build detached Actors in cooperative slices for a standalone scene entry.
+---@async
+---@param mapPath string
+---@return Source.SceneComponents.SceneMapBuilder.PreparedEntry | nil
+function SceneMapBuilder:prepareInitialMap(mapPath) end
 
 ---@brief Generate a game map from serialised map data.
 ---
@@ -156,9 +168,10 @@ function SceneMapBuilder.GenerateActors(data) end
 ---@param camera            GlobalCore.Camera | nil
 ---@param emitCreateEvents? boolean
 ---@param previewOnly       boolean | nil
----@param tilemap           Engine.Tilemap | nil    Prebuilt terrain snapshot; omitted to generate from serialized map data.
+---@param tilemap           Engine.Tilemap | nil          Prebuilt terrain snapshot; omitted to generate from serialized map data.
+---@param preparedActors?   table<string, Engine.Actor[]> Detached Actors prepared for this map data.
 ---@return GameMap
-function SceneMapBuilder:generateGameMap(data, camera, emitCreateEvents, previewOnly, tilemap) end
+function SceneMapBuilder:generateGameMap(data, camera, emitCreateEvents, previewOnly, tilemap, preparedActors) end
 
 ---@param worldData    Global.WorldGameMap.WorldMapData
 ---@param region       Global.WorldGameMap.WorldRegionData

@@ -4,6 +4,9 @@
 #include <EngineState.hpp>
 #include <Utils/ShaderLoader.hpp>
 #include <Utils/Render.hpp>
+#ifdef __EMSCRIPTEN__
+#include <Runtime/Graphics/ShaderCache.hpp>
+#endif
 
 #include <algorithm>
 #include <cmath>
@@ -58,12 +61,22 @@ std::shared_ptr<sf::Shader> MapRenderer::Impl::shader(const std::string& path) {
     if (found != shaders_.end()) {
         return found->second;
     }
+#ifdef __EMSCRIPTEN__
+    ludork::runtime::graphics::ShaderCache::Program program;
+    program.source.stages.push_back(
+        {ludork::runtime::graphics::ShaderTranslator::Stage::Fragment,
+         {},
+         path});
+    auto shader = ludork::runtime::graphics::ShaderCache::load(program);
+#else
     ShaderLoadResult result =
         ShaderLoader::load(path, sf::Shader::Type::Fragment);
     if (!result) {
         throw std::runtime_error(result.error);
     }
-    return shaders_.emplace(path, std::move(result.shader)).first->second;
+    auto shader = std::move(result.shader);
+#endif
+    return shaders_.emplace(path, std::move(shader)).first->second;
 }
 
 sf::View MapRenderer::Impl::nativeView(const View& view) {

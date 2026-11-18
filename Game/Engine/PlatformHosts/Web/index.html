@@ -24,6 +24,8 @@
   <script>
     const chinese = navigator.language.toLowerCase().startsWith('zh');
     const text = (en, zh) => chinese ? zh : en;
+    const canvas = document.getElementById('canvas');
+    canvas.addEventListener('contextmenu', event => event.preventDefault());
     const overlay = document.getElementById('loading');
     const status = document.getElementById('status');
     const progress = document.getElementById('progress');
@@ -31,7 +33,7 @@
     restart.textContent = text('Restart', '重新开始');
     restart.onclick = () => location.reload();
     var Module = {
-      canvas: document.getElementById('canvas'),
+      canvas,
       print: line => console.log(line),
       printErr: line => console.error(line),
       setStatus(message) { status.textContent = message; },

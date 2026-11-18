@@ -25,6 +25,7 @@ local TextureManager = GlobalCore.TextureManager
 
 local DAMAGE_TEXT_CONFIG = "Global/DamageText"
 local DAMAGE_TEXT_SPEED_CURVE = "Global/DamageTextSpeed"
+local MAP_ENTRY_WORK_SECONDS = 0.032
 ---@class (partial) Source.SceneComponents.SceneMapBuilder
 local SceneMapBuilder = {
     _TELEPOINT_MARKER_FILL_COLOUR = sf.Color.new(0, 255, 0, 64),
@@ -113,20 +114,25 @@ function SceneMapBuilder:loadMapData(mapPath, currentMap)
     return resolvedPath, MapDataParser.NormaliseMap(data, SceneMapBuilder.BuildAmbientLight)
 end
 
-function SceneMapBuilder:resolveMapDestination(mapPath, currentMap, position)
-    local resolvedPath = self:resolveMapPath(mapPath, currentMap)
-    local worldManifestPath = nil
+---@param resolvedPath string
+---@return string | nil
+local function worldManifestForPath(resolvedPath)
     if MapDataParser.IsWorldManifest(resolvedPath) then
-        worldManifestPath = resolvedPath
-    else
-        local parent = os.path.dirname(resolvedPath)
-        if bool(parent) then
-            local candidate = MapPath.Normalise(os.path.join(parent, MapConstants.WORLD_MANIFEST_FILE))
-            if Engine.dataExists(SceneMapBuilder.GetMapDataPath(candidate)) then
-                worldManifestPath = candidate
-            end
+        return resolvedPath
+    end
+    local parent = os.path.dirname(resolvedPath)
+    if bool(parent) then
+        local candidate = MapPath.Normalise(os.path.join(parent, MapConstants.WORLD_MANIFEST_FILE))
+        if Engine.dataExists(SceneMapBuilder.GetMapDataPath(candidate)) then
+            return candidate
         end
     end
+    return nil
+end
+
+function SceneMapBuilder:resolveMapDestination(mapPath, currentMap, position)
+    local resolvedPath = self:resolveMapPath(mapPath, currentMap)
+    local worldManifestPath = worldManifestForPath(resolvedPath)
     if worldManifestPath == nil then
         return resolvedPath, position, false, nil
     end
@@ -242,13 +248,16 @@ function SceneMapBuilder.GenerateTilemap(data, layerOrder, width, height)
     return Engine.Tilemap.new(mapLayers)
 end
 
-function SceneMapBuilder.GenerateActors(data)
+function SceneMapBuilder.GenerateActors(data, checkpoint)
     local classVarChanges = data.BPClassVarChanged
     local actors = {}
     for _, layerName in ipairs(data.layerOrder) do
         local layerActors = {}
         actors[layerName] = layerActors
         for _, actorData in ipairs(data.actors[layerName] or {}) do
+            if checkpoint ~= nil then
+                checkpoint()
+            end
             local actorChanges = nil
             if classVarChanges ~= nil then
                 actorChanges = classVarChanges[tostring(actorData.tag or "")]
@@ -260,6 +269,26 @@ function SceneMapBuilder.GenerateActors(data)
         end
     end
     return actors
+end
+
+---@async
+function SceneMapBuilder:prepareInitialMap(mapPath)
+    local resolved = self:resolveMapPath(mapPath, mapPath)
+    if worldManifestForPath(resolved) ~= nil then
+        return nil
+    end
+
+    local file, data = self:loadMapData(resolved, mapPath)
+    assert(data.type ~= MapConstants.WORLD_MAP_TYPE)
+    ---@cast data Global.GameMap.MapData
+    local deadline = perfCounter() + MAP_ENTRY_WORK_SECONDS
+    local actors = SceneMapBuilder.GenerateActors(data, function ()
+        if perfCounter() >= deadline then
+            asyncio.sleep(0.0)
+            deadline = perfCounter() + MAP_ENTRY_WORK_SECONDS
+        end
+    end)
+    return { file = file, data = data, actors = actors }
 end
 
 ---@param gameMap GameMap
@@ -276,7 +305,7 @@ function SceneMapBuilder:_configureInteractiveMap(gameMap)
 end
 
 ---@diagnostic disable-next-line: unused
-function SceneMapBuilder:generateGameMap(data, camera, emitCreateEvents, previewOnly, tilemap)
+function SceneMapBuilder:generateGameMap(data, camera, emitCreateEvents, previewOnly, tilemap, preparedActors)
     if emitCreateEvents == nil then
         emitCreateEvents = true
     end
@@ -287,7 +316,7 @@ function SceneMapBuilder:generateGameMap(data, camera, emitCreateEvents, preview
         self:_configureInteractiveMap(result)
         result:setAmbientLight(data.ambientLight)
     end
-    local actors = SceneMapBuilder.GenerateActors(data)
+    local actors = preparedActors or SceneMapBuilder.GenerateActors(data)
     result:beginActorBatch()
     for _, layerName in ipairs(data.layerOrder) do
         for _, actor in ipairs(actors[layerName]) do
