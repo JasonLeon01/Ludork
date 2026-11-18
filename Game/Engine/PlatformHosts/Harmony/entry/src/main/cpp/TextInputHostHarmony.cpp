@@ -85,7 +85,10 @@ void cleanupHost(void* environment) {
 }
 
 napi_value configureTextInputHost(napi_env env, napi_callback_info info) {
-#if defined(LUDORK_MOBILE)
+    if (!ludork::standard::isMobileDevice()) {
+        napi_value result{};
+        return napi_get_undefined(env, &result) == napi_ok ? result : nullptr;
+    }
     napi_value callback{};
     std::size_t count = 1;
     napi_valuetype type{};
@@ -124,9 +127,6 @@ napi_value configureTextInputHost(napi_env env, napi_callback_info info) {
     } else {
         host->configure(env, function);
     }
-#else
-    static_cast<void>(info);
-#endif
     napi_value result{};
     return napi_get_undefined(env, &result) == napi_ok ? result : nullptr;
 }

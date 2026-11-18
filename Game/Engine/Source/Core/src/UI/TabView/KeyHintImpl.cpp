@@ -5,13 +5,8 @@
 
 #include <SFML/Window/Keyboard.hpp>
 
-#if defined(SFML_SYSTEM_HARMONY) && defined(SFML_HARMONY_MOBILE)
-#include <deviceinfo.h>
-#endif
-
 #include <cstdint>
 #include <stdexcept>
-#include <string_view>
 
 namespace ludork::engine::tab_view_impl {
 namespace {
@@ -35,14 +30,12 @@ std::string keyboardKeyText(sf::Keyboard::Key key, const std::string& source) {
 }
 
 bool keyboardHintsAvailableWithoutJoystick() {
-#if !defined(LUDORK_MOBILE)
-    return true;
-#elif defined(SFML_SYSTEM_HARMONY) && defined(SFML_HARMONY_MOBILE)
-    const char* deviceType = OH_GetDeviceType();
-    return deviceType != nullptr && std::string_view(deviceType) == "tablet";
-#else
-    return false;
+#if defined(SFML_SYSTEM_HARMONY)
+    if (ludork::standard::harmonyDeviceType() == "tablet") {
+        return true;
+    }
 #endif
+    return !ludork::standard::isMobileDevice();
 }
 
 }  // namespace ludork::engine::tab_view_impl

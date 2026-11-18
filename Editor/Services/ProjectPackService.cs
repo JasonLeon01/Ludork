@@ -53,12 +53,6 @@ public enum ProjectPackPlatform
     WebGL,
 }
 
-public enum HarmonyDeviceForm
-{
-    Mobile,
-    TwoInOne,
-}
-
 public sealed record AndroidSigningOptions(
     string KeystorePath,
     string KeyAlias,
@@ -116,8 +110,6 @@ public sealed record ProjectPackOptions(
     public bool Dev { get; init; }
     public bool ExportToIPhone { get; init; }
     public bool ExportToHarmonyDevice { get; init; }
-    public HarmonyDeviceForm HarmonyDeviceForm { get; init; } =
-        global::Ludork.Services.HarmonyDeviceForm.Mobile;
     public AndroidSigningOptions? AndroidSigning { get; init; }
     public HarmonySigningOptions? HarmonySigning { get; init; }
     public MacOSSigningOptions? MacOSSigning { get; init; }
@@ -235,9 +227,6 @@ public sealed class ProjectPackService
             && options.ExportToIPhone;
         bool exportToHarmonyDevice = options.Platform == ProjectPackPlatform.HarmonyOS
             && options.ExportToHarmonyDevice;
-        HarmonyDeviceForm? harmonyDeviceForm = options.Platform == ProjectPackPlatform.HarmonyOS
-            ? options.HarmonyDeviceForm
-            : null;
         PackSigning signing = createSigning(options);
         bool requiresPreflight = standalone || options.Platform == ProjectPackPlatform.IOS
             || options.Platform == ProjectPackPlatform.HarmonyOS
@@ -253,7 +242,6 @@ public sealed class ProjectPackService
             checkOnly,
             exportToIPhone,
             exportToHarmonyDevice,
-            harmonyDeviceForm,
             signing,
             packaging,
             options,
@@ -583,7 +571,6 @@ public sealed class ProjectPackService
         bool checkOnly,
         bool exportToIPhone,
         bool exportToHarmonyDevice,
-        HarmonyDeviceForm? harmonyDeviceForm,
         PackSigning signing,
         ProjectPackaging packaging,
         ProjectPackOptions options,
@@ -594,7 +581,6 @@ public sealed class ProjectPackService
             checkOnly,
             exportToIPhone,
             exportToHarmonyDevice,
-            harmonyDeviceForm,
             signing,
             packaging,
             options);
@@ -607,9 +593,6 @@ public sealed class ProjectPackService
             + (options.UseLdPak ? " --use-ldpak" : string.Empty)
             + (exportToIPhone ? " --export-to-iphone" : string.Empty)
             + (exportToHarmonyDevice ? " --export-to-device" : string.Empty)
-            + (harmonyDeviceForm is null
-                ? string.Empty
-                : " --device-form " + getHarmonyDeviceFormArgument(harmonyDeviceForm.Value))
             + (signing.Android is not null || signing.Harmony is not null ? " --sign" : string.Empty);
         writeOutput(checkOnly
             ? $"> {scriptPath} --check{optionText} \"{projectPath}\""
@@ -783,7 +766,6 @@ public sealed class ProjectPackService
         bool checkOnly,
         bool exportToIPhone,
         bool exportToHarmonyDevice,
-        HarmonyDeviceForm? harmonyDeviceForm,
         PackSigning signing,
         ProjectPackaging packaging,
         ProjectPackOptions options)
@@ -848,11 +830,6 @@ public sealed class ProjectPackService
             startInfo.ArgumentList.Add("--export-to-iphone");
         if (exportToHarmonyDevice)
             startInfo.ArgumentList.Add("--export-to-device");
-        if (harmonyDeviceForm is not null)
-        {
-            startInfo.ArgumentList.Add("--device-form");
-            startInfo.ArgumentList.Add(getHarmonyDeviceFormArgument(harmonyDeviceForm.Value));
-        }
         if (signing.Android is { } androidSigning)
         {
             startInfo.ArgumentList.Add("--sign");
@@ -934,14 +911,6 @@ public sealed class ProjectPackService
         startInfo.ArgumentList.Add(projectPath);
         return startInfo;
     }
-
-    private static string getHarmonyDeviceFormArgument(HarmonyDeviceForm deviceForm) =>
-        deviceForm switch
-        {
-            HarmonyDeviceForm.Mobile => "mobile",
-            HarmonyDeviceForm.TwoInOne => "2in1",
-            _ => throw new ArgumentOutOfRangeException(nameof(deviceForm)),
-        };
 
     private static string redactSensitiveValues(string text, PackSigning signing, LudorkServerSettings server)
     {

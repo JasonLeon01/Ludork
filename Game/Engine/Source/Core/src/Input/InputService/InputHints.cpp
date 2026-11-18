@@ -6,11 +6,8 @@
 namespace ludork::engine::input_impl {
 
 InputHintDevice InputImpl::defaultInputHintDevice() {
-#if defined(LUDORK_MOBILE)
-    return InputHintDevice::Touch;
-#else
-    return InputHintDevice::KeyboardMouse;
-#endif
+    return ludork::standard::isMobileDevice() ? InputHintDevice::Touch
+                                              : InputHintDevice::KeyboardMouse;
 }
 
 InputHintDevice InputImpl::getInputHintDevice() const {

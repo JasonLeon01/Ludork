@@ -32,9 +32,6 @@
                         <CheckBox x:Name="ExportToIPhoneOption" IsChecked="False" />
                     </StackPanel>
                     <StackPanel x:Name="HarmonyPanel" IsVisible="False" Spacing="8">
-                        <RadioButton x:Name="HarmonyMobileOption"
-                                     GroupName="HarmonyDeviceForm" IsChecked="True" />
-                        <RadioButton x:Name="HarmonyTwoInOneOption" GroupName="HarmonyDeviceForm" />
                         <CheckBox x:Name="HarmonySigningOption" IsChecked="False" />
                         <CheckBox x:Name="ExportToHarmonyDeviceOption" IsChecked="False" />
                     </StackPanel>

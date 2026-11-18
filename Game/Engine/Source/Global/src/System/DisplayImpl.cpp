@@ -17,6 +17,10 @@
 #include <GlobalRuntimeApi.hpp>
 #include <Input/InputService.hpp>
 #include <LudorkPlatform.hpp>
+#ifdef SFML_SYSTEM_HARMONY
+#include <SFML/Graphics/GraphicsBackend.hpp>
+#include <hilog/log.h>
+#endif
 #include <Runtime/AssetInputStream.hpp>
 #include <Runtime/AssetStore.hpp>
 #include <Runtime/WebViewHost.hpp>
@@ -189,6 +193,30 @@ void DisplayImpl::createDisplayWindow() {
     }
 #endif
     initWindow(window);
+#ifdef SFML_SYSTEM_HARMONY
+    const auto activeBackend = sf::getGraphicsBackend();
+    const auto& configuration = window->getSettings().backend;
+    const auto logBackend = [activeBackend](const char* name,
+                                            const auto& actual) {
+        OH_LOG_Print(LOG_APP, LOG_INFO, 0x4C44, "Ludork-Harmony",
+                     "SFML backend=%{public}s (%{public}d), "
+                     "context=%{public}u.%{public}u",
+                     name, static_cast<int>(activeBackend), actual.majorVersion,
+                     actual.minorVersion);
+    };
+    if (const auto* gles = std::get_if<sf::OpenGLESSettings>(&configuration);
+        activeBackend == sf::GraphicsBackend::OpenGLES && gles) {
+        logBackend("OpenGL ES", *gles);
+    } else if (const auto* vulkan =
+                   std::get_if<sf::VulkanSettings>(&configuration);
+               activeBackend == sf::GraphicsBackend::Vulkan && vulkan) {
+        logBackend("Vulkan", *vulkan);
+    } else {
+        throw std::runtime_error(
+            "HarmonyOS render window returned inconsistent graphics backend "
+            "settings");
+    }
+#endif
 }
 
 void DisplayImpl::initializeInput() {
@@ -200,7 +228,7 @@ void DisplayImpl::initializeInput() {
 #elif defined(__EMSCRIPTEN__)
     ludork::engine::text_input::service().setHost(
         ludork::global::createWebTextInputHost(window_->getNativeHandle()));
-#elif defined(_WIN32) || (defined(__APPLE__) && !defined(LUDORK_MOBILE))
+#elif defined(_WIN32) || defined(SFML_SYSTEM_MACOS)
     if (isEmbeddedDisplay()) {
         ludork::engine::text_input::service().setHost(
             std::make_shared<ludork::global::EmbeddedTextInputHostImpl>());
@@ -235,11 +263,7 @@ bool DisplayImpl::isEmbeddedDisplay() {
 }
 
 bool DisplayImpl::isMobileDisplay() {
-#if defined(LUDORK_MOBILE)
-    return true;
-#else
-    return false;
-#endif
+    return ludork::standard::isMobileDevice();
 }
 
 bool DisplayImpl::isDisplayScaleConfigurable() {
@@ -431,7 +455,7 @@ std::optional<float> DisplayImpl::applyConfiguredScale(float scale) {
                 window_->getNativeHandle());
         }
     } else if (!fullscreen) {
-#if defined(__APPLE__) && !defined(LUDORK_MOBILE)
+#if defined(SFML_SYSTEM_MACOS)
         const std::optional<ludork::global::WindowedFramePlacement> placement =
             ludork::global::getWindowedFramePlacement(
                 window_->getNativeHandle());
@@ -482,7 +506,7 @@ std::optional<float> DisplayImpl::observeWindowResize(
     }
     float scale = *pendingResizeScale_;
     pendingResizeScale_.reset();
-#if defined(__APPLE__) && !defined(LUDORK_MOBILE)
+#if defined(SFML_SYSTEM_MACOS)
     if (pendingClientSizeChange_ && !isEmbeddedDisplay() &&
         !desktopFullscreen_) {
         const std::optional<sf::Vector2u> clientSize =
@@ -522,7 +546,7 @@ void DisplayImpl::present() {
     if (window_ == nullptr) {
         return;
     }
-#if defined(__APPLE__) && !defined(LUDORK_MOBILE)
+#if defined(SFML_SYSTEM_MACOS)
     if (!isEmbeddedDisplay() && !desktopFullscreen_) {
         const sf::Vector2u windowSize = window_->getSize();
         const bool liveResizing = ludork::global::isNativeWindowLiveResizing(

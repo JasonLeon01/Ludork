@@ -24,6 +24,8 @@ from .tool_paths import resolve_toolchain_directory
 from .pack_error import PackError
 from .harmony_signing import (
     HarmonySigningOptions,
+    READ_PASTEBOARD_PERMISSION,
+    profile_allows_pasteboard,
     read_signing_options,
     sign_hap,
     signing_workspace,
@@ -58,7 +60,7 @@ RUNTIME_ARCHIVE_NAME = "ludork-runtime.zip"
 HARMONY_SDK_VERSION = "6.0.2(22)"
 HARMONY_COMPATIBLE_API = 22
 HARMONY_COMPILER_TARGET = "aarch64-linux-ohos22.0.0"
-HARMONY_MOBILE_DEVICE_TYPES = frozenset(("default", "phone", "tablet"))
+HARMONY_DEVICE_TYPES = ("phone", "tablet", "2in1")
 BUNDLE_NAME_PATTERN = re.compile(
     r"^[A-Za-z](?:[A-Za-z0-9_]*[A-Za-z0-9])?"
     r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9_]*[A-Za-z0-9])?){2,}$"
@@ -67,7 +69,7 @@ HARMONY_LAUNCH_FOREGROUND_TIMEOUT_SECONDS = 10.0
 HARMONY_LAUNCH_POLL_SECONDS = 0.5
 HARMONY_LAUNCH_QUERY_TIMEOUT_SECONDS = 3.0
 HARMONY_LAUNCH_ATTEMPTS = 2
-HARMONY_LAUNCH_DIAGNOSTIC_LIMIT = 2048
+HARMONY_DEVICE_DIAGNOSTIC_LIMIT = 2048
 NATIVE_BUILD_LOG_READ_LIMIT = 512 * 1024
 NATIVE_BUILD_DIAGNOSTIC_LIMIT = 16 * 1024
 NATIVE_BUILD_DIAGNOSTIC_LINE_LIMIT = 64
@@ -129,12 +131,12 @@ class PackContext:
     game_name: str
     artifact_name: str
     bundle_name: str
-    device_form: str
     use_luac: bool
     encrypt_shaders: bool
     encrypt_data: bool
     encrypt_saves: bool
     use_ldpak: bool
+    read_pasteboard: bool = False
     ui_registry: pathlib.Path | None = None
 
     @property
@@ -306,7 +308,6 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
         game_name=metadata.display_name,
         artifact_name=metadata.package_name,
         bundle_name=bundle_name,
-        device_form=arguments.device_form,
         use_luac=arguments.compile_lua,
         encrypt_shaders=arguments.encrypt_shaders,
         encrypt_data=arguments.encrypt_data,
@@ -384,28 +385,19 @@ def connected_harmony_devices(tools: DevEcoTools) -> list[HarmonyDevice]:
     return devices
 
 
-def device_matches_form(device: HarmonyDevice, device_form: str) -> bool:
-    if device.device_type is None:
-        return False
-    if device_form == "mobile":
-        return device.device_type in HARMONY_MOBILE_DEVICE_TYPES
-    return device.device_type == "2in1"
-
-
-def select_harmony_device(tools: DevEcoTools, device_form: str) -> HarmonyDevice:
+def select_harmony_device(tools: DevEcoTools) -> HarmonyDevice:
     devices = connected_harmony_devices(tools)
-    matching = [device for device in devices if device_matches_form(device, device_form)]
-    form_name = "mobile" if device_form == "mobile" else "2in1"
+    matching = [device for device in devices if device.device_type in (*HARMONY_DEVICE_TYPES, "default")]
     if not matching:
         raise PackError(
-            f"No connected HarmonyOS {form_name} device was found. Connect and unlock one, "
+            "No supported HarmonyOS device was found. Connect and unlock one, "
             "then enable Developer Mode.",
             EXIT_DEVICE,
         )
     if len(matching) > 1:
         raise PackError(
-            f"More than one connected HarmonyOS {form_name} device was found. "
-            "Leave exactly one matching device connected.",
+            "More than one supported HarmonyOS device was found. "
+            "Leave exactly one supported device connected.",
             EXIT_DEVICE,
         )
     return matching[0]
@@ -448,7 +440,7 @@ def read_device_udid(tools: DevEcoTools, device: HarmonyDevice) -> HarmonyDevice
 
 
 def ensure_harmony_device_connected(context: PackContext, device: HarmonyDevice) -> None:
-    selected = select_harmony_device(context.tools, context.device_form)
+    selected = select_harmony_device(context.tools)
     if selected.identifier != device.identifier:
         raise PackError(
             "The selected HarmonyOS device changed during packaging. Reconnect the original device and retry.",
@@ -615,51 +607,21 @@ def cmake_configuration(context: PackContext) -> str:
     return "\n".join(lines)
 
 
-def cmake_device_form(context: PackContext) -> str:
-    return "MOBILE" if context.device_form == "mobile" else "2IN1"
-
-
-def harmony_artifact_variant(context: PackContext) -> str:
-    if context.device_form == "mobile":
-        return "mobile"
-    return "2in1-opengl-es"
-
-
 def replace_template_tokens(
     context: PackContext,
     stage_dir: pathlib.Path,
     runtime_hash: str,
 ) -> None:
-    arguments = generated_native_arguments(context)
-    app_environments = ""
-    ability_form_options = '"orientation": "landscape",'
-    cursor_permission = ""
-    device_types = ["phone", "tablet"]
-    if context.device_form == "2in1":
-        app_environments = (
-            ',\n    "appEnvironments": [\n'
-            "      {\n"
-            '        "name": "NEED_OPENGL",\n'
-            '        "value": "1"\n'
-            "      }\n"
-            "    ]"
-        )
-        ability_form_options = (
-            '"supportWindowMode": [\n'
-            '          "fullscreen",\n'
-            '          "floating"\n'
-            "        ],"
-        )
-        cursor_permission = (
-            "{\n"
-            '        "name": "ohos.permission.LOCK_WINDOW_CURSOR"\n'
-            "      },"
-        )
-        device_types = ["2in1"]
+    arguments = generated_native_arguments()
+    pasteboard_permission = {
+        "name": READ_PASTEBOARD_PERMISSION,
+        "reason": "$string:permission_clipboard",
+        "usedScene": {"abilities": ["EntryAbility"], "when": "inuse"},
+    }
     replacements = {
+        "__LUDORK_PASTEBOARD_PERMISSION__": json.dumps(pasteboard_permission) + "," if context.read_pasteboard else "",
         "__LUDORK_CMAKE_CONFIG__": cmake_configuration(context),
         "__LUDORK_RUNTIME_HASH__": runtime_hash,
-        "__LUDORK_GRAPHICS_API__": "OpenGL ES",
         "__LUDORK_BUNDLE_NAME__": context.bundle_name,
         "__LUDORK_VERSION_NAME__": context.metadata.version,
         "__LUDORK_VERSION_CODE__": str(context.metadata.version_code),
@@ -668,10 +630,6 @@ def replace_template_tokens(
             ensure_ascii=False,
         )[1:-1],
         "__LUDORK_CMAKE_ARGUMENTS__": json5_argument_text(arguments),
-        "__LUDORK_APP_ENVIRONMENTS__": app_environments,
-        "__LUDORK_DEVICE_TYPES__": json.dumps(device_types),
-        "__LUDORK_ABILITY_FORM_OPTIONS__": ability_form_options,
-        "__LUDORK_CURSOR_PERMISSION__": cursor_permission,
     }
     text_suffixes = {".json", ".json5", ".ts", ".ets", ".txt", ".cmake"}
     for path in sorted(stage_dir.rglob("*")):
@@ -845,9 +803,8 @@ def harmony_project_sdk_contract(profile: dict[str, object]) -> bool:
     )
 
 
-def generated_native_arguments(context: PackContext) -> list[str]:
+def generated_native_arguments() -> list[str]:
     return [
-        f"-DSFML_HARMONY_DEVICE_FORM={cmake_device_form(context)}",
         "-DSFML_OPENGL_ES=ON",
         f"-DOHOS_COMPATIBLE_SDK_VERSION={HARMONY_COMPATIBLE_API}",
         "-DSFML_USE_SYSTEM_DEPS=OFF",
@@ -855,12 +812,22 @@ def generated_native_arguments(context: PackContext) -> list[str]:
     ]
 
 
-def valid_generated_module(context: PackContext, profile: dict[str, object]) -> bool:
+def valid_harmony_permissions(module: dict[str, object], read_pasteboard: bool) -> bool:
+    permissions = module.get("requestPermissions")
+    if not isinstance(permissions, list):
+        return False
+    names = {permission.get("name") for permission in permissions if isinstance(permission, dict)}
+    return (
+        {"ohos.permission.LOCK_WINDOW_CURSOR", "ohos.permission.MICROPHONE"}.issubset(names)
+        and (READ_PASTEBOARD_PERMISSION in names) == read_pasteboard
+    )
+
+
+def valid_generated_module(profile: dict[str, object], read_pasteboard: bool) -> bool:
     module = profile.get("module")
     if not isinstance(module, dict):
         return False
-    expected_device_types = ["phone", "tablet"] if context.device_form == "mobile" else ["2in1"]
-    if module.get("deviceTypes") != expected_device_types:
+    if module.get("deviceTypes") != list(HARMONY_DEVICE_TYPES):
         return False
     abilities = module.get("abilities")
     if not isinstance(abilities, list):
@@ -875,39 +842,13 @@ def valid_generated_module(context: PackContext, profile: dict[str, object]) -> 
     ability = entry_abilities[0]
     if ability.get("label") != "$string:ability_label":
         return False
-    permissions = module.get("requestPermissions")
-    if not isinstance(permissions, list):
-        return False
-    permission_names = {
-        permission.get("name")
-        for permission in permissions
-        if isinstance(permission, dict)
-    }
-    has_cursor_permission = "ohos.permission.LOCK_WINDOW_CURSOR" in permission_names
-    if context.device_form == "mobile":
-        return (
-            ability.get("orientation") == "landscape"
-            and "supportWindowMode" not in ability
-            and not has_cursor_permission
-        )
     return (
-        "orientation" not in ability
-        and ability.get("supportWindowMode") == ["fullscreen", "floating"]
-        and has_cursor_permission
+        ability.get("supportWindowMode") == ["fullscreen", "floating"]
+        and valid_harmony_permissions(module, read_pasteboard)
     )
 
 
-def valid_generated_app_scope(context: PackContext, app: dict[str, object]) -> bool:
-    environments = app.get("appEnvironments")
-    if context.device_form == "mobile":
-        return environments is None
-    return environments == [{"name": "NEED_OPENGL", "value": "1"}]
-
-
-def valid_generated_native_profile(
-    context: PackContext,
-    profile: dict[str, object],
-) -> bool:
+def valid_generated_native_profile(profile: dict[str, object]) -> bool:
     build_option = profile.get("buildOption")
     if not isinstance(build_option, dict):
         return False
@@ -915,7 +856,7 @@ def valid_generated_native_profile(
     if not isinstance(native_options, dict):
         return False
     arguments = native_options.get("arguments")
-    return isinstance(arguments, str) and arguments.split() == generated_native_arguments(context)
+    return isinstance(arguments, str) and arguments.split() == generated_native_arguments()
 
 
 def validate_project_contract(
@@ -959,7 +900,6 @@ def validate_project_contract(
         or app.get("versionName") != context.metadata.version
         or app.get("versionCode") != context.metadata.version_code
         or app.get("label") != "$string:app_name"
-        or not valid_generated_app_scope(context, app)
     ):
         raise PackError(
             f"Generated HarmonyOS project has an invalid app contract in {app_path}.",
@@ -995,14 +935,14 @@ def validate_project_contract(
         )
     module_path = project_dir / "entry" / "src" / "main" / "module.json5"
     module_profile = require_json5_object(context.tools, module_path)
-    if not valid_generated_module(context, module_profile):
+    if not valid_generated_module(module_profile, context.read_pasteboard):
         raise PackError(
-            f"Generated HarmonyOS project has an invalid device form contract: {module_path}",
+            f"Generated HarmonyOS project has an invalid device, window or permission configuration: {module_path}",
             EXIT_PROJECT,
         )
     native_profile_path = project_dir / "entry" / "build-profile.json5"
     native_profile = require_json5_object(context.tools, native_profile_path)
-    if not valid_generated_native_profile(context, native_profile):
+    if not valid_generated_native_profile(native_profile):
         raise PackError(
             f"Generated HarmonyOS project has an invalid native build contract: {native_profile_path}",
             EXIT_PROJECT,
@@ -1180,12 +1120,13 @@ def validate_native_build_contract(context: PackContext) -> None:
                 EXIT_PROJECT,
             )
     expected_cache_values = (
-        f"SFML_HARMONY_DEVICE_FORM:STRING={cmake_device_form(context)}",
+        "SFML_BUILD_OPENGL_BACKEND:BOOL=ON",
+        "SFML_BUILD_VULKAN_BACKEND:BOOL=OFF",
         "SFML_OPENGL_ES:BOOL=ON",
     )
     if any(value not in cache for value in expected_cache_values):
         raise PackError(
-            "The HarmonyOS native CMake cache does not match the selected export variant.",
+            "The HarmonyOS native CMake cache does not match the HarmonyOS GLES package settings.",
             EXIT_PROJECT,
         )
     native_sdk = (
@@ -1266,20 +1207,8 @@ def validate_hap_native_dependencies(
     hap: pathlib.Path,
 ) -> None:
     dependencies = hap_native_dependencies(context, hap)
-    desktop_libraries = {
-        "libnative_window_manager.so",
-        "libnative_display_manager.so",
-        "libohinput.so",
-    }
     required = {"libEGL.so"}
-    forbidden: set[str]
-    if context.device_form == "mobile":
-        required.add("libGLESv2.so")
-        forbidden = desktop_libraries | {"libGLv4.so"}
-    else:
-        required.update(desktop_libraries)
-        required.add("libGLESv2.so")
-        forbidden = {"libGLv4.so"}
+    forbidden = {"libGLv4.so", "libvulkan.so"}
     missing = sorted(required - dependencies)
     unexpected = sorted(forbidden & dependencies)
     if missing or unexpected:
@@ -1352,6 +1281,9 @@ def validate_hap(context: PackContext, hap: pathlib.Path) -> None:
             or app.get("versionCode") != context.metadata.version_code
         ):
             raise PackError("HarmonyOS HAP does not contain the configured identity and version.")
+        module = profile.get("module")
+        if not isinstance(module, dict) or not valid_harmony_permissions(module, context.read_pasteboard):
+            raise PackError("HarmonyOS HAP permissions do not match the package configuration.")
     if "libs/arm64-v8a/libentry.so" not in names:
         raise PackError("HarmonyOS HAP does not contain arm64-v8a/libentry.so.", 1)
     validate_hap_native_dependencies(context, hap)
@@ -1360,7 +1292,7 @@ def validate_hap(context: PackContext, hap: pathlib.Path) -> None:
 def publish_hap(context: PackContext, hap: pathlib.Path, signed: bool) -> pathlib.Path:
     signature = "signed" if signed else "unsigned"
     context.dist_dir.mkdir(parents=True, exist_ok=True)
-    output = context.dist_dir / f"{context.artifact_name}-harmony-{harmony_artifact_variant(context)}-{signature}.hap"
+    output = context.dist_dir / f"{context.artifact_name}-harmony-{signature}.hap"
     descriptor, name = tempfile.mkstemp(prefix=f".{output.name}.", suffix=".tmp", dir=context.dist_dir)
     temporary = pathlib.Path(name)
     try:
@@ -1383,10 +1315,12 @@ def sign_and_publish_hap(
     with signing_workspace("ludork-harmony-sign-") as temporary:
         signed_hap = pathlib.Path(temporary) / "signed.hap"
         sign_hap(context.tools.java_home, context.tools.sign_tool, signing, hap, signed_hap, HARMONY_COMPATIBLE_API)
-        verify_signed_hap(
+        verified_profile = verify_signed_hap(
             context.tools.java_home, context.tools.sign_tool, signed_hap, signing,
             context.bundle_name, device.udid if device is not None else None,
         )
+        if profile_allows_pasteboard(verified_profile) != context.read_pasteboard:
+            raise PackError("The signed HAP profile does not match the configured pasteboard permission.", EXIT_SIGNING)
         validate_hap(context, signed_hap)
         return publish_hap(context, signed_hap, signed=True)
 
@@ -1483,8 +1417,8 @@ def launch_harmony_app(context: PackContext, device: HarmonyDevice) -> tuple[boo
     diagnostic = redact_native_build_diagnostic(
         "\n".join(part.strip() for part in (launch.stdout, launch.stderr) if part.strip())
     )
-    if len(diagnostic) > HARMONY_LAUNCH_DIAGNOSTIC_LIMIT:
-        diagnostic = diagnostic[:HARMONY_LAUNCH_DIAGNOSTIC_LIMIT].rstrip() + "\n... launch output truncated ..."
+    if len(diagnostic) > HARMONY_DEVICE_DIAGNOSTIC_LIMIT:
+        diagnostic = diagnostic[:HARMONY_DEVICE_DIAGNOSTIC_LIMIT].rstrip() + "\n... launch output truncated ..."
     return (
         launch.returncode == 0 and wait_for_harmony_app_foreground(context, device),
         diagnostic,
@@ -1503,15 +1437,24 @@ def install_and_launch_harmony_hap(
             [str(context.tools.hdc), "-t", device.identifier, "install", "-r", str(hap)],
             check=False,
             capture_output=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=180,
         )
     except (OSError, subprocess.TimeoutExpired) as exception:
         raise PackError("Unable to install the HarmonyOS HAP.", EXIT_DEVICE) from exception
-    if install.returncode != 0:
-        raise PackError(
-            "Failed to install the HarmonyOS HAP. Unlock the device and verify Developer Mode.",
-            EXIT_DEVICE,
-        )
+    diagnostic = redact_native_build_diagnostic(
+        "\n".join(part.strip() for part in (install.stdout, install.stderr) if part.strip())
+    )
+    succeeded = re.search(
+        r"(?:^|\bmsg:\s*)install bundle successfully\.?\s*$", diagnostic, re.IGNORECASE | re.MULTILINE,
+    )
+    failed = re.search(r"\bmsg:\s*error\b|\bfailed to install\b|\[fail\]", diagnostic, re.IGNORECASE)
+    if install.returncode != 0 or not succeeded or failed:
+        message = "HDC did not confirm installation of the HarmonyOS HAP."
+        if diagnostic:
+            message += "\n" + diagnostic[-HARMONY_DEVICE_DIAGNOSTIC_LIMIT:]
+        raise PackError(message, EXIT_DEVICE)
     ensure_harmony_device_connected(context, device)
     print("Launching the HarmonyOS app.", flush=True)
     launch_diagnostic = ""
@@ -1544,7 +1487,6 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument("--encrypt-data", action="store_true")
     parser.add_argument("--encrypt-saves", action="store_true")
     parser.add_argument("--use-ldpak", action="store_true")
-    parser.add_argument("--device-form", choices=("mobile", "2in1"), default="mobile")
     parser.add_argument("project_folder", type=pathlib.Path)
     parser.add_argument("dist_folder", type=pathlib.Path, nargs="?")
     return parser
@@ -1560,21 +1502,21 @@ def main(arguments: list[str] | None = None) -> int:
         print(f"DevEco Studio: {context.tools.app}")
         print(f"Game name: {context.game_name}")
         print(f"Bundle name: {context.bundle_name}")
-        print(f"Device form: {context.device_form}")
         print("Graphics API: opengl-es")
         device: HarmonyDevice | None = None
         if parsed.export_to_device:
             require_device_export_tools(context.tools)
-            device = select_harmony_device(context.tools, context.device_form)
+            device = select_harmony_device(context.tools)
             device = read_device_udid(context.tools, device)
             ensure_harmony_device_connected(context, device)
         if signing is not None:
-            validate_signing_credentials(
+            verified_profile = validate_signing_credentials(
                 context.tools.java_home, context.tools.sign_tool, signing, context.bundle_name,
                 device.udid if device is not None else None,
             )
+            context = replace(context, read_pasteboard=profile_allows_pasteboard(verified_profile))
         if parsed.check:
-            print(f"HarmonyOS {harmony_artifact_variant(context)} packaging check passed.")
+            print("HarmonyOS packaging check passed.")
             return 0
         context = replace(context, ui_registry=prepare_registry(context.project_dir, context.toolchain_directory))
         runtime_hash = prepare_stage(context)

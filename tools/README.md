@@ -27,7 +27,7 @@ The repository owns the sample entry as `Game/Scripts/Entry.lua.in`. `init` crea
 | `pack_standalone` | Convert a C++ Source project into an editable desktop Standalone project, retaining exported resources and preview support |
 | `pack_web` | Build a C++ Source game as a WebGL 2 website with Emscripten |
 | `pack_ios.sh` | Build an iOS 16.3-or-newer IPA from a C++ Source project, with optional manual signing |
-| `pack_harmony.sh` | Build a HarmonyOS API 22 Mobile or 2in1 arm64-v8a HAP, with optional signing and device export |
+| `pack_harmony.sh` | Build a HarmonyOS API 22 arm64-v8a HAP for phones, tablets and 2in1 devices, with optional signing and device export |
 | `pack_android.sh` | Build an Android arm64-v8a Release APK from a C++ Source project, unsigned by default with optional signing |
 | `pack_server.py` | Build or validate the independent deployable Node.js Server archive |
 | `pack_editor.bat` | Publish and validate the self-contained Windows 10-or-newer x64 editor package with official plug-ins |
@@ -46,7 +46,7 @@ command-line tools. These tools consume the exported UI and locale Lua files. Th
 ./tools/build_cpp.sh Game Debug
 ./tools/run_cpp.sh Game Debug
 ./tools/pack_project.sh Game Game/dist
-./tools/pack_harmony.sh --device-form mobile --graphics-api opengl-es Game
+./tools/pack_harmony.sh Game
 ./tools/pack_android.sh Game
 ./tools/pack_editor.sh
 ```
@@ -450,20 +450,20 @@ Final distribution symbol handling is platform-specific:
 Both targets require Apple Silicon macOS and C++ Source projects. SDK prerequisites, device limits and output names are in [platform packaging](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=en_GB&doc=02%2F11#harmonyos).
 
 ```sh
-./tools/pack_harmony.sh --device-form mobile --graphics-api opengl-es Game
-./tools/pack_harmony.sh --device-form 2in1 --graphics-api opengl Game
-./tools/pack_harmony.sh --device-form 2in1 --graphics-api opengl-es Game
+./tools/pack_harmony.sh Game
 ./tools/pack_android.sh --version 1.0.0 --release Game
 ```
 
-HarmonyOS defaults to OpenGL ES for Mobile and OpenGL for 2in1; Mobile rejects OpenGL. It targets API 22 and delegates to `ludork-pack harmony-pack`. Add `--sign --keystore <absolute-p12-path> --certificate <absolute-cer-path> --profile <absolute-p7b-path> --key-alias <alias>` for a signed HAP. Provide exactly two UTF-8 newline-delimited passwords on stdin: keystore password, then key password (repeat the value if equal).
+HarmonyOS uses OpenGL ES 3 on phones, tablets and 2in1 devices. The API 22 build produces one `<game-name>-<full-version>-harmony-unsigned.hap` and delegates to `ludork-pack harmony-pack`. Add `--sign --keystore <absolute-p12-path> --certificate <absolute-cer-path> --profile <absolute-p7b-path> --key-alias <alias>` for a signed HAP. Provide exactly two UTF-8 newline-delimited passwords on stdin: keystore password, then key password (repeat the value if equal).
 
 ```sh
 printf '%s\n%s\n' "$HOS_STORE_PASSWORD" "$HOS_KEY_PASSWORD" |
-  ./tools/pack_harmony.sh --device-form mobile --graphics-api opengl-es \
+  ./tools/pack_harmony.sh \
     --sign --keystore "$HOS_KEYSTORE" --certificate "$HOS_CERTIFICATE" \
     --profile "$HOS_PROFILE" --key-alias "$HOS_KEY_ALIAS" /absolute/path/to/game
 ```
+
+A signed package requests system clipboard read access only when the verified Profile authorises `ohos.permission.READ_PASTEBOARD` by ACL or access level. Packaging without signing omits this permission.
 
 Hvigor first builds unsigned. Signing invokes `hap-sign-tool.jar sign-app` with `localSign`, `SHA256withECDSA` and API 22, verifies signature/Profile/bundle/version/libraries, then atomically publishes the signed HAP. Failures retain existing successful output; temporary signing work is cleaned and credentials are not persisted. `--check` validates without building or publishing; with `--sign`, it consumes the same passwords and checks tools, key and valid matching Debug/Release Profile. Add `--export-to-device` with signing to install and launch; `--check --export-to-device --sign` checks device match/authorisation without installing.
 

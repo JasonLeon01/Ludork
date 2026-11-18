@@ -36,11 +36,13 @@ constexpr float CollapsedTextInset = 8.0f;
 constexpr float ExpandedContentTop = 16.0f;
 constexpr float GeometryEpsilon = 0.001f;
 
-#if defined(LUDORK_MOBILE) || defined(__EMSCRIPTEN__)
-constexpr bool MobilePlatform = true;
+bool usesTouchControls() {
+#if defined(__EMSCRIPTEN__)
+    return true;
 #else
-constexpr bool MobilePlatform = false;
+    return ludork::standard::isMobileDevice();
 #endif
+}
 
 using ludork::engine::ui_interaction::pointerButtonIndex;
 using ludork::engine::ui_interaction::pointerPosition;
@@ -245,7 +247,7 @@ void DropBox::update(float deltaTime) {
 }
 
 void DropBox::onConfirm(const UiInputEventArguments& arguments) {
-    if (MobilePlatform && hasTouchCapture()) {
+    if (usesTouchControls() && hasTouchCapture()) {
         const std::optional<sf::Vector2f> position = pointerPosition(arguments);
         if (position.has_value()) {
             handlePointerAction(*position, std::nullopt);
@@ -293,7 +295,7 @@ bool DropBox::onMouseButtonDown(const UiInputEventArguments& arguments) {
 
 void DropBox::onMouseMoved(const UiInputEventArguments& arguments) {
     const std::optional<sf::Vector2f> position = pointerPosition(arguments);
-    if (expanded_ && position.has_value() && MobilePlatform &&
+    if (expanded_ && position.has_value() && usesTouchControls() &&
         hasTouchCapture()) {
         if (inputService().isTouchDragged()) {
             scrollTargetOffset_.reset();
@@ -640,7 +642,8 @@ bool DropBox::handlePointerAction(const sf::Vector2f& screenPosition,
     }
     const std::optional<int> index = itemIndexAt(localPosition);
     if (index.has_value()) {
-        if (MobilePlatform && hasTouchCapture() && cursorIndex_ != *index) {
+        if (usesTouchControls() && hasTouchCapture() &&
+            cursorIndex_ != *index) {
             cursorIndex_ = *index;
             updateSelectionVisual();
             playUiSound(cursorSound_);

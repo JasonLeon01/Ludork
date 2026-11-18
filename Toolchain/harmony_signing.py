@@ -18,6 +18,9 @@ from .pack_error import PackError
 from .packaging_constants import EXIT_SIGNING, EXIT_TOOLCHAIN
 
 
+READ_PASTEBOARD_PERMISSION = "ohos.permission.READ_PASTEBOARD"
+
+
 @dataclass(frozen=True, repr=False)
 class HarmonySigningOptions:
     keystore_path: pathlib.Path
@@ -155,6 +158,15 @@ def validate_profile(content: dict[str, object], bundle_name: str, device_udid: 
             raise PackError("The HarmonyOS debug profile does not authorize the selected device.", EXIT_SIGNING)
 
 
+def profile_allows_pasteboard(content: dict[str, object]) -> bool:
+    info = content.get("bundle-info")
+    if isinstance(info, dict) and info.get("apl") in ("system_basic", "system_core"):
+        return True
+    acls = content.get("acls")
+    allowed = acls.get("allowed-acls") if isinstance(acls, dict) else None
+    return isinstance(allowed, list) and READ_PASTEBOARD_PERMISSION in allowed
+
+
 def certificate_der(value: str) -> bytes:
     match = re.search(r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", value, re.DOTALL)
     if match is None:
@@ -171,7 +183,7 @@ def validate_signing_credentials(
     signing: HarmonySigningOptions,
     bundle_name: str,
     device_udid: str | None = None,
-) -> None:
+) -> dict[str, object]:
     require_signing_tools(java_home, sign_tool)
     content = verify_profile(java_home, sign_tool, signing.profile_path)
     validate_profile(content, bundle_name, device_udid)
@@ -205,6 +217,8 @@ def validate_signing_credentials(
         if not public_key or public_key != certificate_key:
             raise PackError("The HarmonyOS private key does not match the signing certificate.", EXIT_SIGNING)
 
+    return content
+
 
 def sign_hap(
     java_home: pathlib.Path,
@@ -233,7 +247,7 @@ def verify_signed_hap(
     signing: HarmonySigningOptions,
     bundle_name: str,
     device_udid: str | None = None,
-) -> None:
+) -> dict[str, object]:
     with signing_workspace("ludork-harmony-verify-") as temporary:
         directory = pathlib.Path(temporary)
         certificate, profile = directory / "certificate.cer", directory / "profile.p7b"
@@ -245,4 +259,6 @@ def verify_signed_hap(
             raise PackError("The signed HarmonyOS HAP has an invalid signature.", EXIT_SIGNING)
         if profile.read_bytes() != signing.profile_path.read_bytes():
             raise PackError("The signed HAP does not contain the selected HarmonyOS profile.", EXIT_SIGNING)
-        validate_profile(verify_profile(java_home, sign_tool, profile), bundle_name, device_udid)
+        content = verify_profile(java_home, sign_tool, profile)
+        validate_profile(content, bundle_name, device_udid)
+        return content

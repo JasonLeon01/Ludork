@@ -1983,14 +1983,6 @@
     "zh_CN": "手动签名需要同时提供签名证书与描述文件。",
     "en_GB": "Manual signing requires both a signing certificate and a provisioning profile."
   },
-  "PACK_HARMONY_DEVICE_MOBILE": {
-    "zh_CN": "Mobile",
-    "en_GB": "Mobile"
-  },
-  "PACK_HARMONY_DEVICE_TWO_IN_ONE": {
-    "zh_CN": "2in1",
-    "en_GB": "2in1"
-  },
   "PACK_HARMONY_SIGNING_TITLE": {
     "zh_CN": "HarmonyOS HAP 签名",
     "en_GB": "HarmonyOS HAP Signing"
@@ -2108,8 +2100,8 @@
     "en_GB": "Signing materials must be outside the project directory, including symbolic-link targets."
   },
   "PACK_EXPORT_TO_HARMONY_DEVICE": {
-    "zh_CN": "导出到匹配的 HarmonyOS 设备",
-    "en_GB": "Export to matching HarmonyOS device"
+    "zh_CN": "导出到已连接的 HarmonyOS 设备",
+    "en_GB": "Export to connected HarmonyOS device"
   },
   "PACK_PLATFORM_NOT_IMPLEMENTED": {
     "zh_CN": "暂未实现",
@@ -2224,8 +2216,8 @@
     "en_GB": "The HarmonyOS packaging toolchain is unavailable. Install DevEco Studio and complete its first-launch setup"
   },
   "PACK_HARMONY_DEVICE_UNAVAILABLE": {
-    "zh_CN": "未找到唯一可用且与所选形态匹配的 HarmonyOS 设备，请连接并解锁设备，并启用开发者模式",
-    "en_GB": "No single available HarmonyOS device matching the selected form was found. Connect and unlock the device, and enable Developer Mode"
+    "zh_CN": "HarmonyOS 真机导出失败。请查看打包日志中的设备状态或安装、启动错误。",
+    "en_GB": "HarmonyOS device export failed. Check the packaging log for the device status or installation and launch errors."
   },
   "PACK_HARMONY_SIGNING_UNAVAILABLE": {
     "zh_CN": "HarmonyOS HAP 签名失败。请检查工程外的密钥库、证书、Profile、Key alias 和密码，并查看上方日志了解详情",

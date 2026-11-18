@@ -4,7 +4,7 @@
     "type": "entry",
     "description": "$string:module_desc",
     "mainElement": "EntryAbility",
-    "deviceTypes": __LUDORK_DEVICE_TYPES__,
+    "deviceTypes": ["phone", "tablet", "2in1"],
     "deliveryWithInstall": true,
     "installationFree": false,
     "pages": "$profile:main_pages",
@@ -17,7 +17,7 @@
         "startWindowIcon": "$media:app_icon",
         "startWindowBackground": "$color:start_window_background",
         "exported": true,
-        __LUDORK_ABILITY_FORM_OPTIONS__
+        "supportWindowMode": ["fullscreen", "floating"],
         "skills": [
           {
             "entities": [
@@ -31,7 +31,9 @@
       }
     ],
     "requestPermissions": [
-      __LUDORK_CURSOR_PERMISSION__
+      {
+        "name": "ohos.permission.LOCK_WINDOW_CURSOR"
+      },
       {
         "name": "ohos.permission.INTERNET"
       },
@@ -45,16 +47,7 @@
           "when": "inuse"
         }
       },
-      {
-        "name": "ohos.permission.READ_PASTEBOARD",
-        "reason": "$string:permission_clipboard",
-        "usedScene": {
-          "abilities": [
-            "EntryAbility"
-          ],
-          "when": "inuse"
-        }
-      },
+      __LUDORK_PASTEBOARD_PERMISSION__
       {
         "name": "ohos.permission.ACCELEROMETER",
         "reason": "$string:permission_sensor",

@@ -70,12 +70,9 @@ private:
     bool focusLost_ = false;
     bool focusGained_ = false;
     InputType currentInputType_ = InputType::Mouse;
-    InputHintDevice hintDevice_ =
-#if defined(LUDORK_MOBILE)
-        InputHintDevice::Touch;
-#else
-        InputHintDevice::KeyboardMouse;
-#endif
+    InputHintDevice hintDevice_ = ludork::standard::isMobileDevice()
+                                      ? InputHintDevice::Touch
+                                      : InputHintDevice::KeyboardMouse;
     std::vector<std::pair<InputHintDevice, std::optional<unsigned int>>>
         hintActivities_;
     std::unordered_set<unsigned int> connectedJoysticks_;

@@ -53,6 +53,9 @@ target_include_directories(LudorkStandard
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
     PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_link_libraries(LudorkStandard PRIVATE Threads::Threads zlibstatic utf8proc)
+if(CMAKE_SYSTEM_NAME STREQUAL "OHOS")
+    target_link_libraries(LudorkStandard PUBLIC deviceinfo_ndk.z)
+endif()
 if(LUDORK_WITH_LUA)
     target_include_directories(LudorkStandard
         PUBLIC ${LUDORK_LUA_SOURCE_DIR}/src)

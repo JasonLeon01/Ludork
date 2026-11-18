@@ -31,10 +31,17 @@ export default class EntryAbility extends UIAbility {
   }
 
   private requestRuntimePermissions(): void {
-    const permissions: Array<Permissions> = [
-      'ohos.permission.MICROPHONE',
-      'ohos.permission.READ_PASTEBOARD'
-    ];
+    const permissions: Array<Permissions> = ['ohos.permission.MICROPHONE'];
+    try {
+      const info = bundleManager.getBundleInfoForSelfSync(
+        bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_REQUESTED_PERMISSION
+      );
+      if (info.reqPermissionDetails.some(permission => permission.name === 'ohos.permission.READ_PASTEBOARD')) {
+        permissions.push('ohos.permission.READ_PASTEBOARD');
+      }
+    } catch (error) {
+      hilog.warn(DOMAIN, TAG, 'Unable to query declared permissions: %{public}s', (error as Error).message);
+    }
 
     abilityAccessCtrl.createAtManager().requestPermissionsFromUser(this.context, permissions)
       .then((result: PermissionRequestResult) => {
@@ -71,6 +78,10 @@ export default class EntryAbility extends UIAbility {
     this.configureSupportedWindowModes(windowStage).then(() => {
       return windowStage.getMainWindow().then((mainWindow: window.Window) => {
         AppStorage.set<number>('sfmlWindowId', mainWindow.getWindowProperties().id);
+        if (deviceInfo.deviceType !== '2in1') {
+          return mainWindow.setPreferredOrientation(window.Orientation.LANDSCAPE);
+        }
+        return Promise.resolve();
       }).catch((error: Error) => {
         hilog.error(DOMAIN, TAG, 'Unable to obtain main window: %{public}s', error.message);
       });

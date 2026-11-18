@@ -101,8 +101,6 @@ public partial class PackSelectionDialog : Window
         IosSigningOption.Content = LocaleService.Get("PACK_IOS_SIGN_APP");
         IosStatusText.Text = LocaleService.Get("PACK_IOS_REQUIREMENTS");
         HarmonySigningOption.Content = LocaleService.Get("PACK_HARMONY_SIGN_HAP");
-        HarmonyMobileOption.Content = LocaleService.Get("PACK_HARMONY_DEVICE_MOBILE");
-        HarmonyTwoInOneOption.Content = LocaleService.Get("PACK_HARMONY_DEVICE_TWO_IN_ONE");
         ExportToHarmonyDeviceOption.Content = LocaleService.Get("PACK_EXPORT_TO_HARMONY_DEVICE");
         AndroidSigningOption.Content = LocaleService.Get("PACK_ANDROID_SIGN_APK");
         ExportToIPhoneOption.Content = LocaleService.Get("PACK_EXPORT_TO_IPHONE");
@@ -126,8 +124,6 @@ public partial class PackSelectionDialog : Window
         IosSigningOption.IsCheckedChanged += (_, _) => updatePlatformOptions();
         HarmonySigningOption.IsCheckedChanged += (_, _) => updatePlatformOptions();
         AndroidSigningOption.IsCheckedChanged += (_, _) => updatePlatformOptions();
-        HarmonyMobileOption.IsCheckedChanged += (_, _) => updatePlatformOptions();
-        HarmonyTwoInOneOption.IsCheckedChanged += (_, _) => updatePlatformOptions();
         ExportToHarmonyDeviceOption.IsCheckedChanged += (_, _) => updatePlatformOptions();
         EncryptGameDataOption.Click += (_, _) => toggleEncryptionOptions();
         LuacOption.IsCheckedChanged += (_, _) => updateEncryptionOptionsState();
@@ -453,8 +449,6 @@ public partial class PackSelectionDialog : Window
                     return;
                 iosOptions = iosSigning.Options;
             }
-            HarmonyDeviceForm deviceForm = platform == ProjectPackPlatform.HarmonyOS
-                && HarmonyTwoInOneOption.IsChecked == true ? HarmonyDeviceForm.TwoInOne : HarmonyDeviceForm.Mobile;
             ProjectPackOptions options = new(
                 platform,
                 !convertsToStandalone && LuacOption.IsChecked == true,
@@ -469,7 +463,6 @@ public partial class PackSelectionDialog : Window
                 ExportToIPhone = platform == ProjectPackPlatform.IOS && ExportToIPhoneOption.IsChecked == true,
                 ExportToHarmonyDevice = platform == ProjectPackPlatform.HarmonyOS
                     && ExportToHarmonyDeviceOption.IsChecked == true,
-                HarmonyDeviceForm = deviceForm,
                 AndroidSigning = androidOptions,
                 HarmonySigning = harmonyOptions,
                 MacOSSigning = macOSOptions,

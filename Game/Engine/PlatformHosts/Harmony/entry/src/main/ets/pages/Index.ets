@@ -16,7 +16,6 @@ const RUNTIME_ARCHIVE = 'ludork-runtime.zip';
 const RUNTIME_HASH = '__LUDORK_RUNTIME_HASH__';
 const RUNTIME_MARKER = '.ludork-runtime-complete';
 const COPY_CHUNK_SIZE = 1024 * 1024;
-const GRAPHICS_API: string = '__LUDORK_GRAPHICS_API__';
 
 enum SfmlWindowCommandType {
   Configure = 0,
@@ -2156,18 +2155,6 @@ struct Index {
     }
 
     this.hostInitialized = false;
-    if (GRAPHICS_API === 'OpenGL') {
-      this.status = 'Native OpenGL module unavailable. This device may not provide libGLv4.so; ' +
-        'export the OpenGL ES backend or use a desktop-OpenGL-capable 2in1 device.';
-      hilog.error(
-        DOMAIN,
-        TAG,
-        'XComponent native context is unavailable for OpenGL. The device may be missing libGLv4.so; ' +
-          'no automatic OpenGL ES fallback was attempted.'
-      );
-      return;
-    }
-
     this.status = 'Native OpenGL ES module unavailable. Check the device graphics runtime and HiLog.';
     hilog.error(DOMAIN, TAG, 'XComponent native context is unavailable for OpenGL ES');
   }

@@ -14,7 +14,7 @@ function ActorPixelShatterEffect:init(actor, shader, seed)
         source = source:getParent()
     end
     self._shader = shader
-    self._seed = seed
+    self._seed = seed + 0.0
     self._elapsed = 0.0
     self._prepared = false
     self._snapshot = nil

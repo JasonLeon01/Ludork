@@ -65,13 +65,9 @@ void initialize(lua_State* state, int cjsonIndex) {
     lua_glue::StateView lua(state);
     lua["PLATFORM"] = LUDORK_PLATFORM;
     lua["SAVE_AS_LDC"] = LUDORK_SAVE_AS_LDC != 0;
-#if defined(LUDORK_MOBILE)
-    lua["LUDORK_MOBILE"] = true;
-    lua["LUDORK_DESKTOP"] = false;
-#else
-    lua["LUDORK_MOBILE"] = false;
-    lua["LUDORK_DESKTOP"] = true;
-#endif
+    const bool mobile = isMobileDevice();
+    lua["LUDORK_MOBILE"] = mobile;
+    lua["LUDORK_DESKTOP"] = !mobile;
     binding::registerClass(lua);
     binding::registerConfigParser(lua);
     binding::registerCodecs(lua);
