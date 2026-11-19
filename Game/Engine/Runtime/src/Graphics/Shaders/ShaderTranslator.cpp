@@ -499,6 +499,7 @@ std::vector<ShaderTranslator::Output> ShaderTranslator::translate(
             auto options = compiler.get_msl_options();
 #if defined(__APPLE__) && TARGET_OS_IPHONE
             options.platform = spirv_cross::CompilerMSL::Options::iOS;
+            options.ios_support_base_vertex_instance = true;
 #endif
             options.msl_version =
                 spirv_cross::CompilerMSL::Options::make_msl_version(2, 0);
