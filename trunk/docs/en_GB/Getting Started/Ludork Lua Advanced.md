@@ -182,7 +182,7 @@ Standard adds these helpers to Lua's existing libraries:
 
 ## Platform, configuration and files
 
-`PLATFORM` is the lower-case target name (`win32`, `darwin`, `ios`, `android`, `ohos` or the CMake system name). `LUDORK_MOBILE` and `LUDORK_DESKTOP` expose the runtime host category. Do not infer a platform from paths or environment variables.
+`PLATFORM` is the lower-case target name (`win32`, `darwin`, `ios`, `android`, `ohos` or the CMake system name). `LUDORK_MOBILE` and `LUDORK_DESKTOP` expose the runtime host category. On HarmonyOS, phones and tablets report mobile and 2in1 devices report desktop. Do not infer a platform from paths or environment variables.
 
 `configparser.ConfigParser()` provides `read`, `write`, `has_section`, `add_section`, `get`, `getfloat`, `getint`, `getboolean` and `set`. `read(path)` and `write(path)` select XML plist for a `.plist` extension, ignoring extension case; that backend is available only on macOS. Other paths use INI, so explicit `.ini` files remain usable on macOS. Use [the game configuration path API](<../Lua and Blueprint Scripting/Default Gameplay/Runtime Data Configuration and Saves.md#configuration>) for the platform's default game file.
 

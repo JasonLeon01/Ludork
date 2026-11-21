@@ -10,7 +10,7 @@ TextBox is a single-line UTF-8 input with editing initially off. A click, a tap 
 
 Enter or `finishEdit` keeps the edited value, and Escape, a connected controller's B/Cancel button or `cancelEdit` restores the value from activation. Neither submits the containing form. Focus loss keeps committed text and discards unfinished composition. Hiding, disabling, detaching or destroying the control ends editing. Only one TextBox edits at a time.
 
-iOS, Android and HarmonyOS Mobile use a system input dialog, while HarmonyOS 2in1 uses desktop editing. Native Done updates the text, and Cancel restores the pre-dialog value. Backgrounding closes the session without automatically reopening it on return.
+iOS, Android and HarmonyOS phones and tablets use a system input dialog, while HarmonyOS 2in1 uses desktop editing. Native Done updates the text, and Cancel restores the pre-dialog value. Backgrounding closes the session without automatically reopening it on return.
 
 | Method | Parameters | Result |
 |---|---|---|
@@ -138,7 +138,7 @@ tabView:setKeyHint(
 )
 ```
 
-Hints appear only where movement is possible. A connected joystick uses the `Joystick` hint, otherwise desktop, HarmonyOS 2in1 and HarmonyOS Mobile tablets use `Keyboard`, while Android, iOS and HarmonyOS phones hide hints. Hints never rebind or disable input.
+Hints appear only where movement is possible. A connected joystick uses the `Joystick` hint, otherwise desktop, HarmonyOS 2in1 and HarmonyOS tablets use `Keyboard`, while Android, iOS and HarmonyOS phones hide hints. Hints never rebind or disable input.
 
 ### Functions and events
 

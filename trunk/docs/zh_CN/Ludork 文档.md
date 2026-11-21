@@ -39,7 +39,7 @@ Ludork 集可视化编辑器、蓝图、Lua 脚本和可扩展的 C++20 运行�
 | Windows | Windows 10，x64 | |
 | macOS | Apple Silicon，macOS 13.3 | |
 | iOS | iOS 16.3，arm64 | 需要 C++ Source 项目。 |
-| HarmonyOS | HarmonyOS 6.0.2 / API 22，arm64-v8a | 支持 Mobile 和 2in1，需要 C++ Source 项目。 |
+| HarmonyOS | HarmonyOS 6.0.2 / API 22，arm64-v8a | 支持手机、平板和二合一设备，需要 C++ Source 项目。 |
 | Android | Android 7.0 / API 24，arm64-v8a | 需要 C++ Source 项目。 |
 
 移动端发行包在 Apple Silicon macOS 上生成。Standalone 项目使用编辑器所在平台的预构建运行时。平台工具和签名选项见[运行、调试与打包](<编辑器用户指南/运行、调试与打包.md>)。

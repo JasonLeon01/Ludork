@@ -182,7 +182,7 @@ Standard 在 Lua 自带库的基础上补充了下列辅助函数：
 
 ## 平台、配置与文件
 
-`PLATFORM` 是目标平台的小写名称（`win32`、`darwin`、`ios`、`android`、`ohos`，或 CMake 系统名）。`LUDORK_MOBILE` 与 `LUDORK_DESKTOP` 给出运行时宿主类别。不要从路径或环境变量推断平台。
+`PLATFORM` 是目标平台的小写名称（`win32`、`darwin`、`ios`、`android`、`ohos`，或 CMake 系统名）。`LUDORK_MOBILE` 与 `LUDORK_DESKTOP` 给出运行时宿主类别。HarmonyOS 手机和平板报告为移动端，二合一设备报告为桌面端。不要从路径或环境变量推断平台。
 
 `configparser.ConfigParser()` 提供 `read`、`write`、`has_section`、`add_section`、`get`、`getfloat`、`getint`、`getboolean` 与 `set`。`read(path)` 和 `write(path)` 在扩展名为 `.plist` 时选择 XML plist，扩展名不区分大小写；该后端仅在 macOS 上可用。其他路径使用 INI，因此 macOS 仍可显式读写 `.ini` 文件。默认游戏配置应通过[游戏配置路径 API](<../Lua 与蓝图脚本/Game 玩法/运行时数据、配置与存档.md#配置>)获取。
 

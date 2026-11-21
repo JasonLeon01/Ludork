@@ -10,7 +10,7 @@ TextBox 是默认不处于编辑状态的单行 UTF-8 输入框。点击、触�
 
 Enter 或 `finishEdit` 保留编辑后的值，Escape、已连接手柄的 B/Cancel 按钮或 `cancelEdit` 恢复激活时的值，两者都不会提交外层表单。失焦会保留已提交的文本并丢弃未完成的组合文本。隐藏、禁用、移除或销毁控件都会结束编辑。同一时刻只有一个 TextBox 处于编辑状态。
 
-iOS、Android 和 HarmonyOS Mobile 使用系统输入对话框，HarmonyOS 2in1 使用桌面端编辑。原生的完成按钮更新文本，取消按钮恢复对话框打开前的值。应用进入后台会关闭会话，返回时不会自动重新打开。
+iOS、Android 以及 HarmonyOS 手机和平板使用系统输入对话框，HarmonyOS 2in1 使用桌面端编辑。原生的完成按钮更新文本，取消按钮恢复对话框打开前的值。应用进入后台会关闭会话，返回时不会自动重新打开。
 
 | 方法 | 参数 | 返回 |
 |---|---|---|
@@ -138,7 +138,7 @@ tabView:setKeyHint(
 )
 ```
 
-提示只在可以移动的位置显示。连接手柄时使用 `Joystick` 提示；未连接手柄时，桌面端、HarmonyOS 2in1 和 HarmonyOS Mobile 平板使用 `Keyboard` 提示，Android、iOS 和 HarmonyOS 手机则隐藏提示。提示不会重新绑定输入，也不会禁用输入。
+提示只在可以移动的位置显示。连接手柄时使用 `Joystick` 提示；未连接手柄时，桌面端、HarmonyOS 2in1 和 HarmonyOS 平板使用 `Keyboard` 提示，Android、iOS 和 HarmonyOS 手机则隐藏提示。提示不会重新绑定输入，也不会禁用输入。
 
 ### 函数与事件
 
