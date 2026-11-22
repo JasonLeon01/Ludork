@@ -35,9 +35,3 @@ Enemy inherits the Actor default `tickable = false`.
 `init(texture?, rect?, tag?)` constructs the Attribute Set, the Ability System, the Mota ability and the configured special Effects. Collision prevalidates combat and required settlement before committing counter damage. On a loss, the prepared Game Over Effect is applied after the animations.
 
 After a win animation, the Actor Blueprint's `onDefeat` hook runs before mandatory destruction, Reborn/drops, rewards and States. These values come from the prepared snapshot, and `afterBattleVarChanges` is evaluated after the hook. Enemy General Data has no `onDefeat` member graph.
-
-## Related pages
-
-- [Source Gameplay API](<Gameplay.md>)
-- [Enemy](<../../Editor User Guide/General Data Reference/Enemy.md>)
-- [ChildActor component configuration](<../../Editor User Guide/Actor Components/ChildActor.md>)

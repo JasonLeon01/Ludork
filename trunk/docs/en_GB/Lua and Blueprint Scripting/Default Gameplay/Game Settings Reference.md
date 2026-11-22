@@ -51,9 +51,3 @@ Standalone desktop startup, including HarmonyOS 2in1, filters the positive Scale
 Supported keys are interpreted by the current Game project readers. Adding a project-specific key requires corresponding runtime handling; merely adding it to the configuration file does not create behaviour.
 
 A HarmonyOS tablet in free-window mode samples its maximum windowed dimensions when the native host is initialised, when free-window mode becomes enabled and when the app returns to the foreground with that mode enabled. While the app remains in the foreground, moving the window to another display or changing the display's available area does not automatically resample this maximum. The next foreground return, free-window mode re-enable or host reinitialisation updates the capacity used by the Scale choices. HarmonyOS 2in1 instead follows the ordinary desktop window and display queries.
-
-## Related pages
-
-- [Project Settings and Asset Layout](<../../Editor User Guide/Project Settings and Asset Layout.md>)
-- [Runtime Data, Configuration and Saves](<Runtime Data Configuration and Saves.md>)
-- [Game Localisation Workflow](<../../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md>)

@@ -63,8 +63,3 @@ A runtime equip or unequip changes the Infinite Effect before the corresponding 
 HP Current is constrained to `0..MAXHP`. Permanent MAXHP and LEVEL growth uses Base deltas. Effect and Constraint changes never alter progression Bases.
 
 `setName` trims Unicode whitespace and accepts between 1 and `Player.MAX_NAME_GRAPHEMES` grapheme clusters. `Enums.PlayerNameValidationError.EMPTY` is `"empty"`; `TOO_LONG` is `"tooLong"`. Invalid input leaves the name unchanged. `getDisplayName` returns the custom name literally or the localised General Data default.
-
-## Related pages
-
-- [Runtime Data, Configuration and Saves](<../Default Gameplay/Runtime Data Configuration and Saves.md>)
-- [GlobalCore Gameplay API](<../Global and Core Modules/Global APIs/Gameplay.md>)

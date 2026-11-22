@@ -107,7 +107,7 @@ An authored material is a `Data/Materials/<name>.json` graph with `type: "materi
 
 For native C++ callers, `MaterialResource::load` loads the prepared runtime resource. `MaterialResource::fromData` creates a resource with a graph definition for cache generation and preview compilation. Preview integrations can retain a `MaterialResource::Overrides` snapshot to reuse parsed resources, activating it for each request with `ScopedOverrides`. Keep the snapshot alive for the entire scope and use it on the same preview thread; replace it when its documents or source resources change. The scope does not remain active between requests. See [Runtime generation](<../../../../Editor User Guide/Materials.md#runtime-generation>) for generation, combinations and file layout.
 
-Preparation includes all individual materials, while base/layer combinations come from saved map usage and the editor's [additional combinations](<../../../../Editor User Guide/Materials.md#material-combinations>). Register a combination there before using it only through dynamically constructed maps or runtime layer-material changes. Actor/UI material switches and parameter changes need no additional entry. Drawing an unprepared combination fails; drawing does not generate missing programs.
+Preparation includes all individual materials, while base/layer combinations come from saved map usage and the editor's [additional combinations](<../../../../Editor User Guide/Materials.md#material-combinations>). Register a combination there in advance when it will be used only through dynamically constructed maps or runtime layer-material changes. Actor/UI material switches and parameter changes need no additional entry. Drawing an unprepared combination fails; drawing does not generate missing programs.
 
 | File section | Contents |
 |---|---|
@@ -134,7 +134,7 @@ Poll from successive frames so the initialisation screen can update, then call `
 
 ### Shader preparation in MRB
 
-The experimental `MRB` branch adds `Engine.prepareShaderCache(additionalPrograms = {})`, returning an `Engine.ShaderCacheRequest`. It is Lua-only and creates no Blueprint node. Call it after the application name and material cache are ready, before loading game shaders or constructing graphics that require them. The default `SceneInit` already performs this step. The request uses the same `getStatus`, `getProgress`, `getResult` and `cancel` contract as [material preparation](#material-cache-preparation).
+`Engine.prepareShaderCache(additionalPrograms = {})` returns an `Engine.ShaderCacheRequest`. It is Lua-only and creates no Blueprint node. Call it after the application name and material cache are ready, before loading game shaders or constructing graphics that require them. The default `SceneInit` already performs this step. The request uses the same `getStatus`, `getProgress`, `getResult` and `cancel` contract as [material preparation](#material-cache-preparation).
 
 `additionalPrograms` is an array of path arrays. Each inner array declares one program, with stages identified by `.vert`, `.geom` and `.frag`; paths use `/Game/Assets/...` and retain source suffixes for encrypted assets. The default preparation covers engine programs, material passes, ordinary standalone assets and matching-name vertex/fragment pairs. Register a different pairing, a complete geometry program, or a stage that must also be loaded independently from its matching-name pair in `additionalPrograms`. Explicit declarations take precedence: their paths are excluded from automatic pairing and single-stage inference, so declare every full or independent program you intend to load. Duplicate program declarations are deduplicated. While a request is pending, another call with the same program list reuses it; reordering paths or repeating identical program declarations does not change that list. A different list is rejected rather than merged into the running request. Unsupported geometry stages fail on the target backend.
 
@@ -144,7 +144,7 @@ local request = Engine.prepareShaderCache({
 })
 ```
 
-After the request is Ready and `getResult()` succeeds, the matching `ShaderManager.loadFull` call can use that program. Loading an unprepared stage combination fails; rendering does not compile new combinations. Platform formats, encryption and cache ownership are described under [Experimental MRB rendering](<../../../../Native C++ Development/Build and Module Layout.md#experimental-mrb-rendering>).
+After the request is Ready and `getResult()` succeeds, the matching `ShaderManager.loadFull` call can use that program. Loading an unprepared stage combination fails; rendering does not compile new combinations. Platform formats, encryption and cache ownership are described under [MRB rendering](<../../../../Native C++ Development/Build and Module Layout.md#mrb-rendering>).
 
 ### Surface outputs
 

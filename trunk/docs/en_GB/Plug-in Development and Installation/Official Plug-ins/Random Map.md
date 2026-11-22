@@ -55,8 +55,3 @@ The plug-in submits the generated layer through `PluginMapLayerWriteRequest`. Co
 ## Limitations
 
 `IMapEditorHost` cannot create maps, change dimensions, inject editor UI or bypass revision checks. Random Map changes terrain only; use [Mota Map Fill](<Mota Map Fill.md>) to populate an existing layout with Actors. Random Map has no packaging responsibility, so it must not use a Pack hook for map generation.
-
-## Related pages
-
-- [Avalonia UI, Secrets and Localisation](<../Avalonia UI Secrets and Localisation.md>)
-- [Tilesets, Autotiles and Maps](<../../Editor User Guide/Tilesets Autotiles and Maps.md>)

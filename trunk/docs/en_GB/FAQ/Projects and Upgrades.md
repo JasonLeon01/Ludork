@@ -2,7 +2,7 @@
 
 ## Which project template should I choose?
 
-Choose **Standalone** to build gameplay with Lua, Blueprint, data and assets using the supplied runtime; no native compiler is needed. Choose **C++ Source** to change native services or bindings, or to package for iOS, HarmonyOS or Android. Video playback is a separate template option. See [Template reference](<../Getting Started/Project Templates.md#template-reference>).
+Choose **Standalone** to build gameplay with Lua, Blueprint, data and assets, using the prebuilt runtime; no native compiler is needed. Choose **C++ Source** to change native services or bindings, or to package for iOS, HarmonyOS, Android or Web. Video playback is a separate template option. See [Template reference](<../Getting Started/Project Templates.md#template-reference>).
 
 ## Why is a project template unavailable, and can I create projects offline?
 

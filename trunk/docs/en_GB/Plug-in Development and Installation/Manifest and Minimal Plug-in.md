@@ -49,7 +49,7 @@ MyPlugin/
 └── MyPlugin.csproj
 ```
 
-There is one source-directory plug-in format. Sources are compiled in relative-path order with C# 13, nullable enabled, unsafe allowed and release optimisation. The host does not restore NuGet packages. It does not load a prebuilt entry assembly either.
+There is one source-directory plug-in format. Sources are compiled in relative-path order with C# 13, nullable enabled, unsafe allowed and release optimisation. The host neither restores NuGet packages nor loads a prebuilt entry assembly.
 
 ### Write `plugin.json`
 
@@ -136,8 +136,3 @@ Adjust the reference to match the source layout. Official plug-ins in this repos
 ### Import and restart
 
 [Import the complete `MyPlugin` directory and restart Ludork](<Installing and Managing Plug-ins.md#import-a-third-party-plug-in>).
-
-## Related pages
-
-- [Avalonia UI, Secrets and Localisation](<Avalonia UI Secrets and Localisation.md>)
-- [Distribution](<Distribution.md>)

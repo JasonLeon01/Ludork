@@ -72,8 +72,3 @@ string? stored = await context.SecretStore.ReadAsync(
 ## 限制
 
 `IAvaloniaPluginUserInterface` 只提供父窗口，不暴露编辑器控件、服务或样式。源码插件引入器不接受零散的 XAML 源码。宿主不为已经加载的插件提供实时语言切换。
-
-## 相关页面
-
-- [注册点与 Hook 参考](<注册点与 Hook 参考.md>)
-- [游戏本地化工作流](<Official 插件/游戏本地化工作流.md>)

@@ -24,7 +24,3 @@ Export Hook 把工作簿声明为输入，把语言 Lua 文件声明为输出，
 ## 插件语言与游戏语言
 
 `Plugins/OfficialLocaleTools/locale.json` 使用 `EditorLanguage` 本地化插件自己的菜单与诊断信息。它不是游戏的语言表。
-
-## 相关页面
-
-- [注册点与 Hook 参考](<../注册点与 Hook 参考.md>)

@@ -10,7 +10,7 @@ An Actor's configured [Emitter component](<../Editor User Guide/Actor Components
 
 ## Viewport options
 
-The fixed, compact dropdown at the upper left of the ordinary-map or world canvas opens **Viewport Options**.
+The small always-visible dropdown at the upper left of the ordinary-map or world canvas opens **Viewport Options**.
 
 | Option | Default | Behaviour |
 |---|---|---|
@@ -25,7 +25,7 @@ Unlit disables ambient-light tinting, point lights and shadows while retaining t
 
 All six options are shared within the project and saved immediately in `Main.proj` under `editor.mapViewport`. Switching maps retains them, and reopening the project restores them. They do not change map data or create Undo steps. A project without saved options uses the defaults above.
 
-Emitter playback starts at time zero when opening another map or world. It pauses while Realtime is off or the viewport is hidden, and resumes without catching up the elapsed pause. Moving an Actor during the pause does not cause distance-based emission when playback resumes.
+Emitter playback starts at time zero when opening another map or world. It pauses while Realtime is off or the viewport is hidden, and resumes without catching up the time elapsed while paused. Moving an Actor during the pause does not cause distance-based emission when playback resumes.
 
 ## Actor and layer assistance
 
@@ -33,7 +33,7 @@ In Actor mode on an ordinary map or a world child map opened independently, ever
 
 **Show Light Bounds** draws read-only ranges with a black outline, white dashes, a faint light-coloured fill and a contrasting centre marker. It does not change Actor selection or editing gestures. Lights on Actors without a texture are also previewed. Actor scaling changes the emitter position, while the circular range keeps its `lightRadius` in map pixels and scales only with the editor's zoom. Configure the emitter and its occlusion through [Light Component](<../Editor User Guide/Actor Components/Light.md>) and the map guide's [Lights and actors](<../Editor User Guide/Tilesets Autotiles and Maps.md#lights-and-actors>).
 
-Ordinary maps and world previews draw an Actor whose resolved `visible` value is `false` at 25% opacity, including inherited defaults and instance overrides. Texture alpha, material opacity and the 50% dimming of non-current layers on an ordinary map still multiply this opacity. Selection outlines and error markers stay clear, and the Actor remains selectable and movable. These invisible Actors contribute neither lighting nor light occlusion. Hidden layers remain invisible, while placement ghosts and missing-texture placeholders retain their normal appearance. This is an editor preview aid; invisible Actors remain hidden at runtime.
+Ordinary maps and world previews draw an Actor at 25% opacity when its resolved `visible` value is `false`; that resolution includes inherited defaults and instance overrides. Texture alpha, material opacity and the 50% dimming of non-current layers on an ordinary map still multiply this opacity. Selection outlines and error markers remain fully visible, and the Actor remains selectable and movable. These invisible Actors contribute neither lighting nor light occlusion. Hidden layers remain invisible, while placement ghosts and missing-texture placeholders retain their normal appearance. This is an editor preview aid; invisible Actors remain hidden at runtime.
 
 Emitter effects also receive the owning Actor's 25% visibility assistance and non-current-layer dimming. Unlike the runtime behaviour of an invisible Actor, these effects continue playing while Realtime is on. Hidden layers do not display their effects.
 

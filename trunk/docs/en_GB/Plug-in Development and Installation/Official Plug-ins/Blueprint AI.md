@@ -59,7 +59,3 @@ If the matching documentation is unavailable, the assistant reports the problem 
 - **Connection or endpoint errors:** use an absolute HTTPS base endpoint without embedded credentials, a query or a fragment. Check DNS, proxy, firewall and TLS settings. Plain HTTP is intentionally limited to loopback development endpoints.
 - **Apply reports a revision conflict:** the Blueprint changed after the proposal recorded its base revision. The editor refuses to overwrite it. Discard the proposal, review the current Blueprint and start a new conversation or request.
 - **History shows interrupted:** the editor, window or request was stopped before completion. The local history remains authoritative. Send a new request when ready instead of expecting the previous network stream to resume.
-
-## Related pages
-
-- [Distribution](<../Distribution.md>)

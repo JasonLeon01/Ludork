@@ -33,7 +33,7 @@ return _METADATA
 
 ## Types and fields
 
-Every type table contains ordered `attrs`. Do not rely on Lua table key order. A field requires `type`. It appears with an ordinary value only when the Blueprint already stores it or metadata supplies a `default`.
+Every type table carries its fields in an ordered `attrs` array; the key order of the table itself is not significant. A field requires `type`. It appears with an ordinary value only when the Blueprint already stores it or metadata supplies a `default`.
 
 Primitive names include `bool`, `int`, `float`, `string`, `function`, `event`, `any` and `Pair`. SFML values use the `sf.` prefix. Core types use `{ "Module", "Type" }`, with `[]` on the second item for arrays.
 
@@ -45,7 +45,7 @@ A `string` field preserves literal text, including `"nil"`. Whole-value expressi
 
 Unset node inputs are saved as JSON `null` and use the declared default when present. JSON-value editors accept `null` directly. Clear a function expression to leave it unset. An `any` input is edited as text: when it loses focus, text that parses as a JSON literal, such as a number, is stored as that literal, and other text is stored as an expression string.
 
-Node **Convert to Plain Text Inputs** bypasses editor selectors and numeric controls while preserving this schema. `string` and `file` values preserve all text, including whitespace and `null`; `int` requires a signed 64-bit integer without a fractional part, and `float`, `double` and `number` require finite numbers with an invariant decimal point. Boolean input accepts `true` or `false`. Blank input is unset except for `string`, `file` and `any`, which preserve it as text. Containers and composite values require valid JSON: vectors and `Pair` use component arrays, `sf.Color` uses four integer channels from 0 to 255, `sf.FloatRect` uses four numbers, and `sf.IntRect` uses a nested array such as `[[0, 0, 32, 32]]`. Unions retain the declared `$type`/`$value` wrapper, including within containers.
+Node **Convert to Plain Text Inputs** bypasses editor selectors and numeric controls while preserving this schema. `string` and `file` values preserve all text, including whitespace and `null`; `int` requires a signed 64-bit integer without a fractional part, and `float`, `double` and `number` require finite numbers and always use `.` as the decimal separator. Boolean input accepts `true` or `false`. Blank input is unset except for `string`, `file` and `any`, which preserve it as text. Containers and composite values require valid JSON: vectors and `Pair` use component arrays, `sf.Color` uses four integer channels from 0 to 255, `sf.FloatRect` uses four numbers, and `sf.IntRect` uses a nested array such as `[[0, 0, 32, 32]]`. Unions retain the declared `$type`/`$value` wrapper, including within containers.
 
 Plain `any` input retains the existing JSON-or-expression conversion, including preserving blank text and the original text of a quoted JSON string; enter `null` to leave it unset. Function/event expressions and object references keep their existing runtime semantics. Invalid text is an editor-session draft, never a saved parameter value; it blocks saving and returning to typed inputs until corrected. The mode and drafts are window-local and do not change metadata or Blueprint JSON.
 
@@ -84,21 +84,7 @@ Every saved attribute and nested typed record member must be declared, and its v
 
 ## Enum schemas
 
-An enum references one module under `Scripts/Enums`. The source contains a table of named scalar literals and its EmmyLua annotation:
-
-```lua
--- Scripts/Enums/StairDirection.lua
----@enum Enums.StairDirection
-local StairDirection = {
-    None = "None",
-    Up = "Up",
-    Down = "Down",
-}
-
-return StairDirection
-```
-
-Use its require path in the recursive schema:
+An enum references one module under `Scripts/Enums`, whose source holds a table of named scalar literals and its EmmyLua annotation; see [Enum modules](<../Lua Runtime and Modules.md#enum-modules>) for that module's layout. Use its require path in the recursive schema:
 
 ```lua
 stairDirection = {
@@ -274,7 +260,3 @@ This example is still stored as a JSON object whose values are two-element JSON 
 Metadata cannot contain functions, userdata, threads, cycles, infinite numbers or side effects. Defaults must be JSON-convertible pure data. Metadata strings are data, and the editor never evaluates them to derive member or node labels. Runtime localisation and localised option values are separate concerns.
 
 Core metadata is generated from `BIND_*` annotations. Never edit generated Core metadata by hand. See [Generated Metadata and Stubs](<../../Native C++ Development/Generated Metadata and Stubs.md>).
-
-## Related pages
-
-- [Script Mixin Metadata](<../Script Mixins/Metadata.md>)

@@ -22,9 +22,4 @@ Metadata 来源：`Scripts/Source/Battler_meta.lua`
 | `addAttr` | `(name, delta)` | 对数值 Base 增加 `delta`；负数表示减少 |
 | `playAttackAnimationAt` | `(scene, targetPosition) -> GlobalCore.Animation?` | 在目标位置播放 `attributes.ANIMATION_KEY` 并返回动画对象，key 为空时返回 `nil`。调用方可读取其视觉时长和时间标签 |
 
-单个数值属性使用 `getAttr`、`setAttr` 和 `addAttr`。`addAttr` 读取 Base，因此不会将生效中的修饰项写入基础值。这些方法保留原生校验：未知属性、非有限数值以及不符合生成的 `int` 或 `float` 结构定义的值都会失败。其他数据直接从 `attributes` 读取。批量写入、持久化、Effect 与监听则通过 Ability System 操作。
-
-## 相关页面
-
-- [GlobalCore Gameplay API](<../全局与 Core 模块/Global APIs/Gameplay.md>)
-- [Source Gameplay API](<Gameplay.md>)
+单个数值属性使用 `getAttr`、`setAttr` 和 `addAttr`。`addAttr` 读取 Base，因此不会将生效中的修饰项写入基础值。这些方法保留原生校验：未知属性、非有限数值以及不符合生成的 `int` 或 `float` 结构定义的值都会失败。其他数据直接从 `attributes` 读取。批量写入、持久化、效果与监听则通过 Ability System 操作。

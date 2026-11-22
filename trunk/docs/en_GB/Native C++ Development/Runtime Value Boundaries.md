@@ -30,7 +30,7 @@ Component and event descriptor caches retain Lua weak-key indexing. Private user
 
 Direct Lua calls pass a `std::variant` alternative as its actual value, without a wrapper. Lua integers prefer integer alternatives, and floating-point numbers prefer floating-point alternatives. Fractional numbers are never truncated into integers. Strings and booleans require their actual Lua types. Native SFML types remain distinct even when their values have the same shape.
 
-An enum schema such as `{ enum = "Enums.Engine.Direction" }` resolves its constant module and checks values against the underlying scalar type. An explicit `valueType` (`string`, `bool`, `int` or `float`) also permits an empty module; otherwise the constants determine the type. Declared types must match nonempty constants, with integer literals also accepted by `float`. Invalid enum definitions fail even in empty or nested containers. Calls and stored values carry the scalar itself, and values absent from the named choices remain valid when their scalar type matches. A dictionary's optional enum `key` must explicitly declare `valueType = "string"`; its runtime representation remains string-keyed. Unions keep their normal branch wrapper in storage while passing only the restored value at runtime. See [Enum schemas](<../Lua and Blueprint Scripting/Blueprint Scripting/Metadata Schema and Decorators.md#enum-schemas>) for the full contract.
+An enum schema such as `{ enum = "Enums.Engine.Direction" }` resolves its constant module and checks values against the underlying scalar type. Calls and stored values carry the scalar itself, and values absent from the named choices remain valid when their scalar type matches. A dictionary's optional enum `key` must explicitly declare `valueType = "string"`; its runtime representation remains string-keyed. Unions keep their normal branch wrapper in storage while passing only the restored value at runtime. See [Enum schemas](<../Lua and Blueprint Scripting/Blueprint Scripting/Metadata Schema and Decorators.md#enum-schemas>) for the declaration fields, defaults and failure rules.
 
 Pure-data conversion, used by `RuntimeData` and `BIND_CLASS(pure_data = true)`, accepts nil, the registered JSON-null sentinel, booleans, finite numbers, strings, acyclic arrays and string-keyed maps. It rejects functions, native objects, cycles, invalid keys and unrecognised metatables.
 
@@ -46,7 +46,7 @@ The wrapper registers the exposed type and all conversion-base subobject address
 
 ## Containers and views
 
-`RuntimeData` owns VM-independent data, and copies detach on mutation. In MRB, the unbound C++ `RuntimeData::equals` method compares recursively with exact value types, ordered array elements and key-based map contents, independently of JSON object iteration order. `RuntimeValue` can also own native objects without a VM or hold session-bound Lua handles. Its `Array` is `std::vector<RuntimeValue>`, and `Map` is `std::unordered_map<std::string, RuntimeValue>`. Construction from `RuntimeData` shares its containers, while the Array and Map constructors take ownership.
+`RuntimeData` owns VM-independent data, and copies detach on mutation. The unbound C++ `RuntimeData::equals` method compares recursively with exact value types, ordered array elements and key-based map contents, independently of JSON object iteration order. `RuntimeValue` can also own native objects without a VM or hold session-bound Lua handles. Its `Array` is `std::vector<RuntimeValue>`, and `Map` is `std::unordered_map<std::string, RuntimeValue>`. Construction from `RuntimeData` shares its containers, while the Array and Map constructors take ownership.
 
 Read containers through `value.view().array()` or `.map()`, which return optional borrowed views. Array indexing and iteration yield `RuntimeValueView`, and Map `find` distinguishes a missing key from a stored nil. The source must remain alive and unmodified while a view or borrowed string is in use. Views cannot be acquired from temporary owning values. Use `toValue()`, `toArray()` or `toMap()` when ownership is required.
 
@@ -66,10 +66,3 @@ Ordinary argument and result passing preserves `RuntimeValue` directly. Use `<Ru
 Snapshot conversion preserves array length through `n`, and nil map fields are omitted. It is separate from class and instance default cloning.
 
 Calls preserve all return values, including intermediate and trailing nil, and propagate errors. Handles cannot cross VMs and become invalid when their session closes. An empty handle or identity pointer becomes nil when wrapped in `RuntimeValue`.
-
-## Related pages
-
-- [Build and Module Layout](<Build and Module Layout.md#session-and-module-lifetime>) — runtime modules and session lifecycle
-- [Binding a Class](<Binding a Class.md#value-conversion-contracts>) — record and pure-data conversion
-- [Functions, Events and Execution](<Functions Events and Execution.md#declare-strict-callbacks>) — strict callbacks
-- [Generated Metadata and Stubs](<Generated Metadata and Stubs.md#defaults-and-types>) — generated type schemas and defaults

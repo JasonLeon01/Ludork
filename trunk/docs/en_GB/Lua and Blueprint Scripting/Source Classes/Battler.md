@@ -23,8 +23,3 @@ Metadata source: `Scripts/Source/Battler_meta.lua`
 | `playAttackAnimationAt` | `(scene, targetPosition) -> GlobalCore.Animation?` | Plays `attributes.ANIMATION_KEY` at the target and returns the animation. An empty key returns `nil`. Callers can read its visual duration and time tags |
 
 Use `getAttr`, `setAttr` and `addAttr` for individual numeric attributes. `addAttr` reads Base, so active modifiers remain separate. These methods retain native validation: unknown attributes, non-finite values and generated `int` or `float` schema mismatches fail. Other data is read directly from `attributes`. Use the Ability System for batch writes, persistence, Effects and listeners.
-
-## Related pages
-
-- [GlobalCore Gameplay API](<../Global and Core Modules/Global APIs/Gameplay.md>)
-- [Source Gameplay API](<Gameplay.md>)

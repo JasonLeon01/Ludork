@@ -40,7 +40,3 @@ The function tables on those pages use these columns:
 The native `GlobalFunctions` root exposes Lua APIs in `Components`, `Manager`, `NodeGraph` and `UI`; its empty metadata declares no Blueprint nodes. See [GlobalFunctions Lua API](<../Global and Core Modules/Core Modules/GlobalFunctions.md>).
 
 The node libraries here load separately, for example `require("GlobalFunctions.Math")`, and are not members of that root table. Their loading and dependency rules are covered in [Lua Runtime and Modules](<../Lua Runtime and Modules.md#entry-and-module-order>).
-
-## Related pages
-
-- [Execution Flow, Events and Variables](<../Blueprint Scripting/Execution Flow Events and Variables.md>)

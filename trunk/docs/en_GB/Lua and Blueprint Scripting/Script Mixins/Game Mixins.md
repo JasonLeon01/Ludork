@@ -9,9 +9,3 @@ The Game project provides the following mixin examples. Each requires the parent
 | `Doors/Door.lua` | `DoorBase` | Opens on collision and guards against repeated opening. |
 | `Doors/KeyDoor.lua` | Script Mixin door Blueprint | Requires and consumes a configured General Data item before continuing the parent collision method. |
 | `Doors/ConditionDoor.lua` | `DoorBase` | Enables polling only for a configured game variable and opens when it reaches the threshold. |
-
-## Related pages
-
-- [Script Mixin Authoring Workflow](<Authoring Workflow.md>)
-- [Consumables](<../Default Gameplay/Recipes/Consumables.md>)
-- [Doors](<../Default Gameplay/Recipes/Doors.md>)

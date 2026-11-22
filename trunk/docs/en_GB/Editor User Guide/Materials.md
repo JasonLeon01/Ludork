@@ -16,7 +16,7 @@ Tilesets store only assigned materials in a sparse `materials` object whose keys
 
 ## Exposed parameters
 
-The left parameter list shows display names and types, with stable IDs and groups in tooltips. Right-click an item or the background and choose **Add Parameter**, then supply a non-empty, unique stable ID and one of `float`, `vec2`, `vec3`, `vec4`, `color`, `bool` or `texture`. Delete through the item’s context menu or Delete key; creation and deletion support Undo/Redo. Vectors use numeric arrays, colours use four channels in `[0,1]`, and textures use canonical `/Game/Assets/...` paths.
+The left parameter list shows display names and types, with stable IDs and groups in tooltips. Right-click an item or the background and choose **Add Parameter**, then supply a non-empty, unique stable ID and one of `float`, `vec2`, `vec3`, `vec4`, `color`, `bool` or `texture`. Delete through the item's context menu or Delete key; creation and deletion support Undo/Redo. Vectors use numeric arrays, colours use four channels in `[0,1]`, and textures use canonical `/Game/Assets/...` paths.
 
 Edit the selected parameter's default value, display name, group and optional numeric range directly below the list. Changing the display name preserves the ID used by node references and saved overrides. Numeric ranges also apply to vector components, and the minimum must not exceed the maximum; colour channels remain within `[0,1]`. IDs and types remain read-only after creation. Texture parameters and previews accept PNG (`.png`) and JPEG (`.jpg`, `.jpeg`). Deleting a parameter that is still referenced produces a diagnostic; reconnect or remove those Parameter nodes. The instance panel offers removal of overrides whose IDs no longer exist.
 
@@ -26,13 +26,13 @@ Open **Node Graph**, then right-click the canvas background to open the menu hea
 
 ![Crystallize material node graph with parameters on the left and connected nodes on the right](../../../images/editor/material-editor-nodegraph.png)
 
-*The parameter list and selected parameter’s details stay beside the graph; use **View Generated Shader** above the canvas to open the generated source.*
+*Use **View Generated Shader** above the canvas to open the generated source.*
 
 Right-click an input pin to disconnect its link, or an output pin to disconnect all links from that pin. A node's context menu also offers **Disconnect All Inputs** and **Disconnect All Outputs**, affecting only that node. Unavailable disconnection actions are disabled, and a batch disconnection is restored by one Undo. Disconnected inputs return to their declared default or implicit/pass-through behaviour; constants set before connecting are not retained.
 
 Right-click a node to delete it. Right-clicking a node already in a multiple selection preserves that selection; right-clicking another node selects that node first. The `Surface` output cannot be deleted. Dragging with the right mouse button pans the canvas without opening a menu on release. Standard selection, Delete, Copy/Paste and Undo/Redo also apply. While a value control has focus, text editing and numeric adjustments operate on that control. Pasted nodes receive new IDs and keep connections within the copied selection.
 
-On macOS, two-finger scrolling pans the graph horizontally and vertically. Pinch or Command+wheel zooms around the pointer, from 10% to 1000%. Wheel input over a node’s input controls stays with those controls.
+On macOS, two-finger scrolling pans the graph horizontally and vertically. Pinch or Command+wheel zooms around the pointer, from 10% to 1000%. Wheel input over a node's input controls stays with those controls.
 
 Constrained node properties use dropdowns: Parameter references display parameter names while retaining their stable IDs, numeric values offer supported scalar/vector dimensions, and Compose allows 2, 3 or 4 components. Swizzle has an output-length selector and a dropdown for each component (`X/R`, `Y/G`, `Z/B`, `W/A`). The compiler still checks that selected channels exist in the input; invalid saved values remain visible as errors until corrected. Numeric fields apply declared bounds without imposing an extra range on unrestricted values.
 
@@ -55,9 +55,9 @@ On **Preview**, choose **Preview Texture** and set the frame's integer X, Y, Wid
 
 ![Crystallize material preview with parameter controls and frame and lighting settings](../../../images/editor/material-editor-preview.png)
 
-*Parameters remain on the left. **Preview Settings** below the image contains the frame rectangle, ambient light and optional point light.*
+*The **Preview Settings** panel below the image contains the frame rectangle, ambient light and optional point light.*
 
-Compilation errors appear beneath the right-hand tabs and highlight the affected node when a node is known. Select an error to switch to **Node Graph** and focus it. **View Generated Shader** on the graph page displays the generated vertex and fragment GLSL for diagnosis. Fix missing parameters, invalid connections, incompatible values or unsupported stages in the graph. Graphs generate GLSL through the native compiler; they do not accept raw shader source. This version does not include normal maps, graph inheritance or subgraphs.
+Compilation errors appear beneath the right-hand tabs and highlight the affected node when one can be identified. Select an error to switch to **Node Graph** and focus it. **View Generated Shader** on the graph page displays the generated vertex and fragment GLSL for diagnosis. Fix missing parameters, invalid connections, incompatible values or unsupported stages in the graph. Graphs generate GLSL through the native compiler; they do not accept raw shader source. This version does not include normal maps, graph inheritance or subgraphs.
 
 ## Material combinations
 
@@ -95,9 +95,9 @@ Every required program directory contains one shared `vertex.vert`, the four fra
 
 Preparation reuses a cache only when the input content, generator version, encryption settings and generated-file hashes agree. Changed, missing or damaged files trigger regeneration. A complete replacement is prepared and checked before publication; failed or cancelled preparation does not publish partial output. Successful preparation removes obsolete combinations and obsolete plaintext or encrypted forms. The cache consists of loose files even when the game uses `.ldpak` archives. It is excluded from templates and game packages and can be deleted while the game is stopped; the next initialisation recreates it.
 
-On `main`, the default initialisation scene prepares materials before animation caches and shared data. It centres the current operation below the progress bar, using the game locale and refreshing the text when its language changes. The experimental MRB branch adds [shader preparation](<../Native C++ Development/Build and Module Layout.md#experimental-mrb-rendering>) immediately after material generation; its desktop preview continues to compile GLSL in memory. Failure stops initialisation instead of entering the title scene with incomplete materials. A custom initialisation scene must finish material preparation before creating material-dependent controls or graphics; see [`prepareMaterialCache`](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Maps and Materials.md#material-cache-preparation>) for the request API.
+The default initialisation scene prepares materials before animation caches and shared data. It shows the current operation centred below the progress bar, using the game locale and refreshing the text when its language changes. [Shader preparation](<../Native C++ Development/Build and Module Layout.md#mrb-rendering>) runs immediately after material generation, while the desktop preview continues to compile GLSL in memory. Failure stops initialisation instead of entering the title scene with incomplete materials. A custom initialisation scene must finish material preparation before creating material-dependent controls or graphics; see [`prepareMaterialCache`](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Maps and Materials.md#material-cache-preparation>) for the request API.
 
-Drawing loads the prepared runtime files, binds instance parameters and evaluates the generated numeric analysis instructions. On `main`, the target GPU driver still compiles and links shader programs at their normal rendering stage; MRB uses its prepared platform programs. Material references and Lua parameter interfaces remain unchanged.
+Drawing loads the prepared runtime files, binds instance parameters and evaluates the generated numeric analysis instructions, using the prepared platform programs. Material references and Lua parameter interfaces remain unchanged.
 
 ## File shape
 

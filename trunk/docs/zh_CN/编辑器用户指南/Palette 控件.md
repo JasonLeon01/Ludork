@@ -245,7 +245,7 @@ Input 控件接受焦点与玩家输入。它们都是 `FunctionalBase`：只有
 |---|---|---|---|
 | Input | 无 | — | `size`、`windowSkin`、`items`、*文本样式* |
 
-`items` 是仅构造期生效的非空 `string[]`。在第一帧可见之前，由 Controller 提供本地化标签文字并绑定选择行为。`selectedIndex` 与按键提示表只在运行时存在，且不接受 `tabCount`。详见 [Engine：交互与声明式 UI 控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md#tabview>)。
+`items` 是仅构造期生效的非空 `string[]`。在第一帧可见之前，由 Controller 提供本地化标签文字并绑定选择行为。`selectedIndex` 与按键提示表只在运行时存在，`tabCount` 不是资产属性（见[序列化契约](<../Lua 与蓝图脚本/声明式 UI/资产 Schema 与 Control Registry.md#控件序列化契约>)与[运行时行为](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md#tabview>)）。详见 [Engine：交互与声明式 UI 控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md#tabview>)。
 
 ### Engine.TextBox
 
@@ -284,8 +284,3 @@ Text 控件只绘制字符串，不接受输入。如果文本自身需要获得
 ## 仅供代码使用的类型
 
 `Engine.SectorShape` 和 `Engine.AssetInstance` 可在代码中使用，但不是内置 Palette 控件。API 见[交互控件参考](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md>)。已启用 Exposed 的项目资产以自己的名称出现在 Palette 中，生成的 View 通过 `.instance` 提供对运行时资产的访问。
-
-## 相关页面
-
-- [声明式 UI 编写工作流](<../Lua 与蓝图脚本/声明式 UI/编写工作流.md>)
-- [原生 UI Adapter](<../C++ 原生开发/原生 UI Adapter.md>)

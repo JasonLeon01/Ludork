@@ -117,7 +117,3 @@ Project loading order and `require` conventions are in [Lua Runtime and Modules]
 ## Errors
 
 Use `assert(condition, message)` for required conditions and `error(message)` for an explicit failure. Required project data must fail at its source rather than silently produce partial state.
-
-## Related pages
-
-- [Default Template Overview](<../Lua and Blueprint Scripting/Default Gameplay/Default Template Overview.md>) — how the Game project uses these rules.

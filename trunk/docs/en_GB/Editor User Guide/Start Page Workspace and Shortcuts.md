@@ -16,7 +16,7 @@ Resource windows display a loading indicator while opening. If loading fails, us
 
 ## Online documentation
 
-**F1** opens the online manual inside the editor. Development editors use `trunk`, the documentation for ongoing development, at `/Ludork/docs/trunk/`. Release editors use the frozen snapshot matching their major.minor version: release `1.0.7` opens `/Ludork/docs/v1.0/`. The current editor language is selected initially; language and version selectors remain available in the documentation sidebar. About and third-party notices use the same documentation version and also load online, while About retains the installed package version.
+**F1** opens the online manual inside the editor. Development editors use `trunk`, the documentation for ongoing development, at `/Ludork/docs/trunk/`. Release editors use the frozen snapshot matching their major.minor version: release `1.0.7` opens `/Ludork/docs/v1.0/`. The current editor language is selected initially; language and version selectors remain available in the documentation sidebar. About and third-party notices load online and use the same documentation version; the About page still shows the installed package version.
 
 The embedded pages hide website navigation. Documentation links stay in the window; the homepage, downloads and external links open in the system browser. An internet connection is required. Failed page loads offer **Retry**. Windows requires Microsoft Edge WebView2 Runtime and offers an installation link when it is missing; macOS uses its system WKWebView.
 
@@ -51,7 +51,7 @@ Windows and macOS editors use `~/Ludork` for persistent data in installed, porta
 | Editor Console output for a project | `Log/<project-key>/Ludork.log` |
 | Windows embedded-browser data | `WebView2/` |
 
-Plug-in discovery also reads the working directory’s registry and sources, with working-directory IDs taking priority over user copies. Retained plug-in data stays in `~/Ludork`; see [Global and project storage](<../Plug-in Development and Installation/Installing and Managing Plug-ins.md#global-and-project-storage>).
+Plug-in discovery also reads the working directory's registry and sources, with working-directory IDs taking priority over user copies. Retained plug-in data stays in `~/Ludork`; see [Global and project storage](<../Plug-in Development and Installation/Installing and Managing Plug-ins.md#global-and-project-storage>).
 
 Project files, build output and `EditorCache` remain in each project. Game runtime settings and save files retain their own locations. Passwords continue to use the operating system's credential store; macOS manages its WebKit cache separately.
 
@@ -91,7 +91,7 @@ The primary modifier is `Ctrl` on Windows and `Command` on macOS.
 | `F9` | Game Variables |
 | `F10` | General Data |
 
-Some document windows add context-specific shortcuts. In the Blueprint editor, `F2` renames the selected event tab; in the Common Functions window, the selected Common Function; in the file explorer, the selected file (except on macOS); and in the animation editor, the selected time tag. No window displays an `F2` hint.
+Some document windows add context-specific shortcuts. In the Blueprint editor, `F2` renames the selected event tab; in the Common Functions window, the selected Common Function; in File Explorer, the selected file (except on macOS); and in the animation editor, the selected time tag. No window displays an `F2` hint.
 
 Single-button hint and error dialogs close with `Enter`, `Return`, `Space` or `Escape`. In confirmation dialogs, `Enter`, `Return` and `Space` confirm the action, while `Escape` cancels it.
 
@@ -101,7 +101,7 @@ Displayed field defaults are written only when the field is edited.
 
 File fields that can be cleared offer **Clear** as the first item in the file selector, in every directory and for every file filter. Select it and choose **Open**, press Enter or double-click it to clear the field. **Cancel** or Escape keeps the previous value. Save dialogs, multi-file imports and selectors that require an actual file do not offer this item.
 
-Managed resource changes and asset file or folder renames and moves stay in memory until Save; Discard restores the last saved paths. All Save buttons and `Ctrl/Command+S` write every modified document, including unopened resources, and Construct, Export, Play and Pack use the same workflow. Successful saves show no result dialog; a failed save reports only the failed items and their errors. Normal Save validates changed Blueprints, while forced saving can retain unfinished graphs. [Game Config](<Project Settings and Asset Layout.md#game-configuration>) writes immediately on confirmation.
+Managed resource changes and asset file or folder renames and moves stay in memory until Save; **Discard** restores the last saved paths. All Save buttons and `Ctrl/Command+S` write every modified document, including unopened resources, and Construct, Export, Play and Pack use the same workflow. Successful saves show no result dialog; a failed save reports only the failed items and their errors. Normal Save validates changed Blueprints, while forced saving can retain unfinished graphs. [Game Config](<Project Settings and Asset Layout.md#game-configuration>) writes immediately on confirmation.
 
 Saving, resource deletion, file transfers and renames, Undo and Redo temporarily disable editing, project switching and window closing. Longer operations show an animated progress dialog after a short delay, including reference checks before deletion. The dialog reports the current stage and, when available, the current file and completed count. It gives way to any required confirmation and closes when the operation finishes or fails. These editing operations cannot be cancelled midway. If project data or external files change during validation, the editor asks you to retry.
 
@@ -117,7 +117,7 @@ For external-change conflicts, **Keep memory** accepts the current disk contents
 
 If a source is missing or a destination is occupied, **Keep memory** fails without partial changes. **Use disk** can still cancel the moves, but does not restore missing files or clear their references; restore the files or update those references yourself.
 
-Modified files show `*` in the file explorer and in editor titles, and they are marked in resource selectors. Closing or replacing a project lists unsaved files and offers **Save**, **Discard** and **Cancel**. **Save** writes every modified document. Save failures retain the modified markers and prevent closing. Closing a resource window keeps its unsaved data until the project closes.
+Modified files show `*` in File Explorer and in editor titles, and they are marked in resource selectors. Closing or replacing a project lists unsaved files and offers **Save**, **Discard** and **Cancel**. **Save** writes every modified document. Save failures retain the modified markers and prevent closing. Closing a resource window keeps its unsaved data until the project closes.
 
 ## File explorer and reference tree
 
@@ -143,7 +143,7 @@ Image and video entries show thumbnails when the format is supported. For Bluepr
 
 Select an image, audio or video file in File Explorer and press **Space** to preview it. File selectors also preview audio and video in their right-hand pane. Playback starts paused; use the playback, seeking and volume controls, or **Escape** to close the preview or cancel selection.
 
-Media previews support common audio and video formats, subject to the system’s codecs. Windows requires Microsoft Edge WebView2 Runtime. Previewing does not require the project’s FFmpeg option or a native game build, and files stay on your machine. Unsupported or damaged files display an error.
+Media previews support common audio and video formats, subject to the system's codecs. Windows requires Microsoft Edge WebView2 Runtime. Previewing does not require the project's FFmpeg option or a native game build, and files stay on your machine. Unsupported or damaged files display an error.
 
 The reference tree shows which resources a file uses and which files use it. Create, rename and move managed resources through the editor to update recognised references. Arbitrary strings and references in source code must be updated manually.
 
@@ -153,7 +153,7 @@ Recycling preserves the last saved disk contents and path, including when a reso
 
 Copy/paste name conflicts produce names such as `name_copy.ext`, then `name_copy2.ext`, without overwriting existing files or folders.
 
-The open menu at the upper right always offers the system file manager, which opens the current browsing directory. Selecting an entry saves it as the preferred open target. If it is unavailable in another project or on the current machine, the button uses the system file manager while retaining the saved preference. It lists VS Code or Cursor only when the corresponding application is installed. C++ Source projects also list an installed CLion, and Visual Studio 2022 on Windows. VS Code, Cursor and CLion open the project root regardless of the directory displayed in the file explorer. When the local `.idea` or `.vs` configuration is absent, opening CLion or Visual Studio for the first time prompts before running the project-provided environment generator. Cancelling leaves the project unchanged. Visual Studio opens the generated `Main.sln` at the project root.
+The open menu at the upper right always offers the system file manager, which opens the current browsing directory. Selecting an entry saves it as the preferred open target. If it is unavailable in another project or on the current machine, the button uses the system file manager while retaining the saved preference. It lists VS Code or Cursor only when the corresponding application is installed. C++ Source projects also list an installed CLion, and Visual Studio 2022 on Windows. VS Code, Cursor and CLion open the project root regardless of the directory displayed in File Explorer. When the local `.idea` or `.vs` configuration is absent, opening CLion or Visual Studio for the first time prompts before running the project-provided environment generator. Cancelling leaves the project unchanged. Visual Studio opens the generated `Main.sln` at the project root.
 
 ## Console and performance monitor
 
@@ -182,7 +182,3 @@ When profiling a composite world, the Performance Monitor includes an optional `
 ![Performance Monitor waiting for runtime telemetry](../../../images/editor/console-performance.png)
 
 *A waiting monitor is normal when no compatible runtime session is active; the timeline fills after telemetry is connected.*
-
-## Related pages
-
-- [Common Particles](<Common Particles.md>)

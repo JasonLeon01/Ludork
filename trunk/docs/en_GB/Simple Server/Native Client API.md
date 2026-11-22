@@ -42,7 +42,7 @@ return Net.DefineModule("Profile", ProfileProxy)
 
 `Net.DefineModule(name, proxyClass)` returns the module handle used for RPCs and subscriptions. The class must derive from `Global.NetProxy`; duplicate names are rejected. Defining a module does not connect. Require its definition before requesting a proxy. A subclass that overrides `init(moduleName, params, snapshot)` must call the base initializer with those arguments; otherwise the inherited initializer is used. See [Ludork classes](<../Getting Started/Ludork Lua Advanced.md#ludork-classes>) for class construction and mirrored declarations.
 
-Module, RPC and event names are case-sensitive and consist of 1–128 ASCII letters, digits, dots, underscores or hyphens. RPC function names refer to the server module's `Rpc` table, not proxy getter names.
+Module, RPC and event names are case-sensitive; their character set and length limit are defined in [Server Lua modules](<HTTP Protocol.md#server-lua-modules>). RPC function names refer to the server module's `Rpc` table, not proxy getter names.
 
 Public Net, proxy, getter and RPC functions use PascalCase, such as `GetProxy`, `Sync`, `GetName` and `SetName`. The class constructor keeps the existing `init` convention.
 

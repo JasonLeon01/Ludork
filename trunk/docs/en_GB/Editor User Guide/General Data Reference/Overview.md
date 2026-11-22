@@ -25,7 +25,3 @@ Member events are activated explicitly through `Source.Gameplay.GeneralDataGraph
 ## Brace-wrapped display strings
 
 Display fields can contain locale keys such as `{WARRIOR}`. Resolve them when displaying text; see [Game Localisation Workflow](<../../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md#runtime>) for formatting and language changes.
-
-## Related pages
-
-- [Blueprints, Common Functions and Actors](<../Blueprints Common Functions and Actors.md>) — Blueprint class paths referenced by these schemas

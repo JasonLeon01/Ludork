@@ -4,7 +4,7 @@
 
 Metadata source: `Scripts/GlobalFunctions/Math_meta.lua`
 
-For scalar maths behaviour, see [Math extensions](<../../Getting Started/Ludork Lua Advanced.md#math-extensions>).
+For scalar math behaviour, see [Math extensions](<../../Getting Started/Ludork Lua Advanced.md#math-extensions>).
 
 ## Math
 

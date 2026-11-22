@@ -24,4 +24,4 @@ Metadata 来源：`Scripts/Source/MapActors/Equip_meta.lua`
 | `init` | `(texture?, rect?, tag?)` | 根据 `ID` 构造生成的 Equip Attribute Set |
 | `onCollision` | `(other)` | 通过共享的拾取流程，将 Equip 加入 Player 的背包 |
 
-`Player:equip` 将 `attributes.attrPlus` 作为 Infinite Effect 应用，并显式运行通用数据的 `onEquip` 或 `onUnequip` ability。
+`Player:equip` 将 `attributes.attrPlus` 作为 Infinite 效果应用，并显式运行通用数据的 `onEquip` 或 `onUnequip` 能力。

@@ -67,7 +67,7 @@ The operation's owner handles resource cleanup; cancellation alone does not undo
 
 `Engine.Direction` and `require("Enums.Engine.Direction")` expose the same native enum values: `DOWN = 0`, `LEFT = 1`, `RIGHT = 2`, `UP = 3`. Use the named members for Actor facing and `Engine.OppositeDirection(direction)` to obtain the opposite direction.
 
-`Engine.DisplayScaleLimits` provides read-only numeric constants. `MINIMUM_RENDER_SCALE` (`0.01`) is the effective render-scale lower bound; `MINIMUM_INVERTIBLE_SCALE` (`0.000001`) is the guard used before dividing by a display scale. Each constant describes its own limit.
+`Engine.DisplayScaleLimits` provides read-only numeric constants. `MINIMUM_RENDER_SCALE` (`0.01`) is the effective render-scale lower bound; `MINIMUM_INVERTIBLE_SCALE` (`0.000001`) is the guard used before dividing by a display scale.
 
 ## ResourceFileConstants
 

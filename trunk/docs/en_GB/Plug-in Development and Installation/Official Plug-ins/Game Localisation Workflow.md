@@ -74,8 +74,3 @@ Restart the game after exporting changed translations. [Lua hot reload](<../../L
 ## Limitations
 
 The workbook is a project authoring source, not a runtime database or save format. Plug-in menu localisation is independent from these game catalogues.
-
-## Related pages
-
-- [Official Locale Tools](<Locale Tools.md>)
-- [General Data and Text Config](<../../Editor User Guide/General Data and Text Config.md>)

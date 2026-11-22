@@ -1,6 +1,6 @@
 # ChildActor 组件
 
-根据类引用创建子 Actor，并将它放在相对于宿主的位置。默认玩法使用它显示敌人伤害提示。
+根据类引用创建子 Actor，并指定它相对于宿主的位置。默认玩法使用它显示敌人伤害提示。
 
 默认玩法的 `Source.MapActors.Enemy` 声明了 `childActorComp`，类型为 `Source.Components.ChildActorComponent`；Enemy 蓝图及其派生类继承此字段。原生 `Engine.Actor` 未声明该字段，因此并非所有 Actor 都能添加该组件。
 

@@ -31,9 +31,4 @@ Metadata 来源：`Scripts/GlobalFunctions/Gameplay_meta.lua`
 
 动态属性引脚的类型为 `any`，但 Ability System 仍要求它取所选结构定义类型下的有限数值。`SetNumericAttributeBase` 写入 Base。`ApplyAttributeDelta` 应用 Instant Add 修饰项。
 
-`SendEvent` 同步执行，保留 instigator，并以传入的 Battler 为目标。`ApplyEffect` 接受 `GameplayEffect`。Instant Effect 不返回持久句柄，也不能授予标签或能力。
-
-## 相关页面
-
-- [GlobalCore Gameplay API](<../全局与 Core 模块/Global APIs/Gameplay.md>)
-- [Source Gameplay API](<../源码类/Gameplay.md>)
+`SendEvent` 同步执行，保留 instigator，并以传入的 Battler 为目标。`ApplyEffect` 接受 `GameplayEffect`。Instant 效果不返回持久句柄，也不能授予标签或能力。

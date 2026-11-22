@@ -160,7 +160,3 @@ This example uses an independent `Ui.Define` Controller. For a `Ui.DefineWindow`
 ## Publish updates
 
 `WindowInventory.Publish(payload)` updates every live, prepared Controller through the asset's EventBus channel. Override `onViewUpdate(payload)` to store state before refresh and reflow. Add events such as locale changes to `refreshEvents` when needed. Independent row and Scene Controllers expose `Publish` through `Ui.Define`. View instances without Controllers do not subscribe.
-
-## Related pages
-
-- [Game Localisation Workflow](<../../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md>)

@@ -1,6 +1,6 @@
 # UI Controls in the Palette
 
-The Palette lists built-in controls and exposed project UI assets. Each entry below gives its purpose, child rules, key properties and runtime API.
+The Palette lists built-in controls and exposed project UI assets. Each entry below gives its purpose, child rules, key properties and a link to its runtime API.
 
 ## How to read this page
 
@@ -235,7 +235,7 @@ A draggable numeric value within a range.
 |---|---|---|---|
 | Input | none | — | `size`, `minValue`, `maxValue`, `value`, `lineTexture`, `handleTexture` |
 
-`minValue` and `maxValue` are integers defaulting to 0 and 100, and the two textures default to `/Game/Assets/System/SliderLine.png` and `/Game/Assets/System/SliderHandle.png`. Editing covers pointer, keyboard and touch input, and reports through `setOnValueChanged`. See [Engine: Interactive and Declarative UI Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#slider>).
+`minValue` and `maxValue` are integers defaulting to 0 and 100, and the two textures default to `/Game/Assets/System/SliderLine.png` and `/Game/Assets/System/SliderHandle.png`. Editing accepts pointer, keyboard and touch input, and changes are reported through `setOnValueChanged`. See [Engine: Interactive and Declarative UI Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#slider>).
 
 ### Engine.TabView
 
@@ -245,7 +245,7 @@ A row of selectable tabs.
 |---|---|---|---|
 | Input | none | — | `size`, `windowSkin`, `items`, *text style* |
 
-`items` is a construction-only, non-empty `string[]`. Before the first visible frame the Controller supplies localised labels and binds selection behaviour. `selectedIndex` and key-hint tables are runtime-only, and `tabCount` is not accepted. See [Engine: Interactive and Declarative UI Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#tabview>).
+`items` is a construction-only, non-empty `string[]`. Before the first visible frame the Controller supplies localised labels and binds selection behaviour. `selectedIndex` and key-hint tables exist only at runtime and `tabCount` is not an asset property ([serialisation contract](<../Lua and Blueprint Scripting/Declarative UI/Asset Schema and Control Registry.md#control-serialisation-contract>), [runtime behaviour](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#tabview>)). See [Engine: Interactive and Declarative UI Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#tabview>).
 
 ### Engine.TextBox
 
@@ -284,8 +284,3 @@ See [Engine: Text and Windows](<../Lua and Blueprint Scripting/Global and Core M
 ## Runtime-only types
 
 `Engine.SectorShape` and `Engine.AssetInstance` are available to code but are not built-in Palette controls. See the [interactive control reference](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md>) for their APIs. Exposed project assets appear in the Palette by their own names, and their generated View exposes the runtime asset through `.instance`.
-
-## Related pages
-
-- [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>)
-- [Native UI Adapters](<../Native C++ Development/Native UI Adapters.md>)

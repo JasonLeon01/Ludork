@@ -1,6 +1,6 @@
 # Source Gameplay API
 
-`Source.Gameplay` 包含基于 `GlobalCore` 的 Game 专用 ability 与 Effect。
+`Source.Gameplay` 包含基于 `GlobalCore` 的 Game 专用能力与效果。
 
 ## GameplayScene
 
@@ -14,7 +14,7 @@
 | `recordActorPosition` | `(actor, position)` | 记录 Actor 的地图位置 |
 | `requestFloorStep` | `(teleporter, step) -> boolean` | 接受一次相邻楼层请求；`step` 必须为 `1` 或 `-1`。抵达时选择最近的、可见且未销毁的相反方向楼梯 |
 | `requestMapTransfer` | `(teleporter, mapPath, position, record = true) -> boolean` | 接受一次到指定格子的传送，不搜索楼梯；可选将两端分别记录到各自地图上 |
-| `requestGameOver` | `(player, delay)` | 等待有限且非负的动画延时后切换场景，不施加伤害或 Effect |
+| `requestGameOver` | `(player, delay)` | 等待有限且非负的动画延时后切换场景，不施加伤害或效果 |
 
 战斗与移动危险必须先取得 `GameplayScene`，才会改变状态。Teleporter 请求无法执行或被拒绝时，移动与记录保持不变。Game Over 采用剩余动画中最长的时长。重复请求会被忽略；替换场景、地图或玩家都会取消待执行的导航。
 
@@ -32,7 +32,7 @@
 
 | 成员 | 签名 | 行为 |
 |---|---|---|
-| `init` | `(generalType, memberID, graphEvent, triggerTags?)` | 创建 ability ID `GeneralData.<type>.<member>.<event>` |
+| `init` | `(generalType, memberID, graphEvent, triggerTags?)` | 创建能力 ID `GeneralData.<type>.<member>.<event>` |
 | `calculate` | `(abilitySystem, eventData) -> GameplayAbilityResult` | 返回包含 graph data 的 `ExecutableGraph`，或表示成功的 `NoGraph` |
 | `activate` | `(abilitySystem, eventData) -> GameplayAbilityResult` | 构建并同步执行所选 event，返回 `GraphExecuted` 或 `NoGraph` |
 
@@ -46,18 +46,18 @@ graph 的 parent 与 `eventData` 参数是同一个 `GameplayEventData`。其 pa
 |---|---|---|
 | `CreateInstantModifierSpec` | `(effectID, attribute, operation, magnitude, eventData?) -> GameplayEffectSpec` | 创建但不应用单个 Instant modifier spec |
 | `ApplyInstantModifier` | `(target, effectID, attribute, operation, magnitude, eventData?)` | 应用单个 Instant modifier |
-| `CreateEquipmentEffect` | `(equipID, slot, attrPlus) -> GameplayEffect` | 创建 Infinite 装备 effect 与 `Equipment.Slot.<slot>` tag |
-| `CreateStateEffect` | `(stateID) -> GameplayEffect` | 创建 Infinite state effect、tag 与所授予的 state ability |
+| `CreateEquipmentEffect` | `(equipID, slot, attrPlus) -> GameplayEffect` | 创建 Infinite 装备效果与 `Equipment.Slot.<slot>` tag |
+| `CreateStateEffect` | `(stateID) -> GameplayEffect` | 创建 Infinite state 效果、tag 与所授予的 state 能力 |
 | `CreateStateSpec` | `(stateID, stacks?, eventData?) -> GameplayEffectSpec` | 创建但不应用 stack 数为正的 State spec |
-| `ApplyState` | `(target, stateID, stacks?, eventData?) -> integer` | 应用或叠加 State effect，并返回其 handle |
-| `RemoveState` | `(target, stateID) -> bool` | 删除整个 State effect |
+| `ApplyState` | `(target, stateID, stacks?, eventData?) -> integer` | 应用或叠加 State 效果，并返回其 handle |
+| `RemoveState` | `(target, stateID) -> bool` | 删除整个 State 效果 |
 | `ReduceState` | `(target, stateID, stacks?) -> bool` | 在支持时只删除请求的 stack 数 |
-| `ClearStates` | `(target)` | 删除 ID 以 `State.` 开头的全部 effect |
+| `ClearStates` | `(target)` | 删除 ID 以 `State.` 开头的全部效果 |
 | `GetStateStacks` | `(target) -> table<string, integer>` | 返回 State ID 到 stack 数的映射 |
 | `GetStateIDs` | `(target) -> string[]` | 按稳定顺序返回生效中的 State ID |
 | `FindActiveEffectHandle` | `(abilitySystem, effectID) -> integer?` | 返回首个匹配的生效 handle |
 
-装备按稳定的属性顺序使用 `attrPlus`。Weak 每层应用 `-1 ATK` 与 `-1 DEF`，最低为 `0`。Poisoned 授予其伤害 ability。State 可以授予 `onWalk` 与 `onHookTriggered` graph ability。
+装备按稳定的属性顺序使用 `attrPlus`。Weak 每层应用 `-1 ATK` 与 `-1 DEF`，最低为 `0`。Poisoned 授予其伤害能力。State 可以授予 `onWalk` 与 `onHookTriggered` graph 能力。
 
 ## MotaBattleAbility
 
@@ -65,7 +65,7 @@ graph 的 parent 与 `eventData` 参数是同一个 `GameplayEventData`。其 pa
 
 直接基类：`GlobalCore.GameplayAbility`
 
-Ability ID：`Ability.Combat.MotaBattle`
+能力 ID：`Ability.Combat.MotaBattle`
 
 通过 `require` 直接加载这些常量模块；`MotaBattleAbility` 在 `result.code` 中返回对应的标量值。
 
@@ -79,7 +79,7 @@ Ability ID：`Ability.Combat.MotaBattle`
 | `calculate` | `(abilitySystem, eventData) -> GameplayAbilityResult` | 不产生任何变更，只生成 `Enums.BattleResultCode` code 与预校验过的伤害、Game Over spec |
 | `activate` | `(abilitySystem, eventData) -> GameplayAbilityResult` | 先计算，并在 `eventData.payload.commit` 为 true 时提交 |
 | `CalculateDamagePerRound` | `(attacker, defender) -> damage, details` | 运行攻击、防御、伤害、命中次数与受到伤害的事件管线 |
-| `CommitResult` | `(result)` | 恰好应用一次已预校验的反击伤害 Effect |
+| `CommitResult` | `(result)` | 恰好应用一次已预校验的反击伤害效果 |
 | `CalculateCriticalValue` | `(enemy, player) -> GameplayAbilityResult` | 返回一个 `Enums.CriticalResultCode` code |
 
 持有者是敌人，`eventData.target` 是玩家。计算只做校验，不应用反击伤害或 Game Over Spec。战斗结果的 data 包含每回合伤害、反击回合数、Vampire 回复、先攻（First）与固定伤害（FixDmg）、双方 Battler、预先准备的 Spec 以及 `committed`。`CommitResult` 只提交一次合计伤害。Enemy 在动画结束后处理 Game Over。暴击值计算会纳入 Vampire 回复，First 的回合阈值保持原值，但会忽略 FixDmg 表达式。
@@ -90,7 +90,7 @@ Ability ID：`Ability.Combat.MotaBattle`
 
 模块：`Source.Configs.GameplayConstants`
 
-本模块统一声明共享 Gameplay 事件标签与标识前缀。事件派发方和 ability 订阅方使用同一组字段。
+本模块统一声明共享 Gameplay 事件标签与标识前缀。事件派发方和能力订阅方使用同一组字段。
 
 | 字段 | 值 |
 |---|---|
@@ -113,13 +113,13 @@ Ability ID：`Ability.Combat.MotaBattle`
 
 模块：`Source.Gameplay.SpecialAbilities`
 
-具体 ability 类也可以从 `Source.Gameplay.SpecialAbilities.<ClassName>` 加载，例如 `require("Source.Gameplay.SpecialAbilities.MultiHitAbility").new(magnitude)`。
+具体能力类也可以从 `Source.Gameplay.SpecialAbilities.<ClassName>` 加载，例如 `require("Source.Gameplay.SpecialAbilities.MultiHitAbility").new(magnitude)`。
 
 | 成员 | 签名/值 | 行为 |
 |---|---|---|
-| `CreateEffect` | `(specialID, magnitude) -> GameplayEffect` | 创建一个 Infinite `Special.<id>` effect、tag 与 ability |
-| `CreatePoisonedAbility` | `() -> GameplayAbility` | 创建 State Poisoned 的受到伤害 ability |
-| `GetMagnitude` | `(abilitySystem, specialID) -> any` | 读取 active special effect 上保存的 magnitude |
+| `CreateEffect` | `(specialID, magnitude) -> GameplayEffect` | 创建一个 Infinite `Special.<id>` 效果、tag 与能力 |
+| `CreatePoisonedAbility` | `() -> GameplayAbility` | 创建 State Poisoned 的受到伤害能力 |
+| `GetMagnitude` | `(abilitySystem, specialID) -> any` | 读取 active special 效果上保存的 magnitude |
 
 Compete、Hard、Magic、MultiHit 与 Poisoned 使用各自的战斗结算事件。`GameplayConstants.BATTLE_RULES_EVENT` 汇集 Vampire 回复、First 伤害与 FixDmg。数值形式的 FixDmg 直接生效；字符串形式会在求值之前代入玩家与敌人的当前数值属性。Domain、Flank 与 Blockade 处理 `Event.Movement.QueryHazard`，并授予 `Gameplay.Movement.Hazard`。其他 ID 授予可查询的 passive 标签。
 
@@ -149,9 +149,3 @@ Compete、Hard、Magic、MultiHit 与 Poisoned 使用各自的战斗结算事件
 通用数据生成器拥有该模块及其 stub。`Types` 与各命名字段提供每一个生成的 `<TypeName>AttributeSet`。类型键来自 `Enums.GeneralDataKey`，成员键来自对应的 `Enums.GeneralData.<TypeName>` 模块。
 
 `Create(typeName, memberID, memberData) -> AttributeSet` 深拷贝结构定义字段并设置 `ID`。以 ID 为起点时，改用 `Source.Data.CreateGeneralAttributeSet(typeName, memberID)`。
-
-## 相关页面
-
-- [GlobalCore Gameplay API](<../全局与 Core 模块/Global APIs/Gameplay.md>)
-- [Source.Battler](<Battler.md>)
-- [Source.MapActors.Enemy](<Enemy.md>)

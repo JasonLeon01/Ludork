@@ -73,8 +73,3 @@ class RuntimeValue {};
 ## Limitations
 
 Bindgen must remain declaration-driven. Do not introduce generator branches keyed to a gameplay module, class or member name, and do not use an infrastructure marker to bypass an unsupported conversion.
-
-## Related pages
-
-- [Macro Reference](<Macro Reference.md>)
-- [Generated Metadata and Stubs](<Generated Metadata and Stubs.md>)

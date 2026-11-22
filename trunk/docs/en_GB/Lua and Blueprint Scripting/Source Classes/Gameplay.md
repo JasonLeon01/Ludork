@@ -149,9 +149,3 @@ Module: `Source.Configs.GeneralDataTypes`
 The General Data generator owns this module and its stub. `Types` and named fields expose each generated `<TypeName>AttributeSet`. Type keys come from `Enums.GeneralDataKey`; member keys come from the matching `Enums.GeneralData.<TypeName>` module.
 
 `Create(typeName, memberID, memberData) -> AttributeSet` deep-copies schema fields and sets `ID`. Use `Source.Data.CreateGeneralAttributeSet(typeName, memberID)` when starting from IDs.
-
-## Related pages
-
-- [GlobalCore Gameplay API](<../Global and Core Modules/Global APIs/Gameplay.md>)
-- [Source.Battler](<Battler.md>)
-- [Source.MapActors.Enemy](<Enemy.md>)

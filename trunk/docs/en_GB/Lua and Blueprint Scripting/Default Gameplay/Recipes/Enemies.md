@@ -29,8 +29,3 @@ Set `drops` keys to Item Blueprint paths, with `sf.Vector2i` cell offsets. See [
 ## Limitations
 
 Unknown IDs and missing referenced records are errors. The runtime does not synthesise replacement combat definitions.
-
-## Related pages
-
-- [Enemy](<../../../Editor User Guide/General Data Reference/Enemy.md>)
-- [Source.MapActors.Enemy](<../../Source Classes/Enemy.md>)

@@ -73,7 +73,7 @@ Anti-aliasing defaults to `8`, and an invalid value uses the SFML default. `setA
 
 ### iOS graphics context
 
-On `main`, iOS startup requires an OpenGL ES 3.0 or later context. The experimental MRB branch selects Metal instead; see [Experimental MRB rendering](<../../../../Native C++ Development/Build and Module Layout.md#experimental-mrb-rendering>).
+iOS startup selects Metal; see [MRB rendering](<../../../../Native C++ Development/Build and Module Layout.md#mrb-rendering>).
 
 ### Functions and events
 

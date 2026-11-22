@@ -14,7 +14,7 @@ PreviewHost supplies native rendering for editor previews of maps, worlds, Actor
 
 ## Preview and gameplay
 
-Editor previews display the content being authored. Map and Actor appearance previews resolve visual data without executing Actor creation, Tick or Blueprint gameplay events. The UI Designer displays authored assets without running their Lua Controllers. Particle and subtitle playback have their own preview controls, described in the guides above.
+Editor previews display the content being authored. Map and Actor appearance previews resolve visual data without executing Actor creation, Tick or Blueprint gameplay events. The UI Designer displays authored assets without running their Lua Controllers. Particle and subtitle playback each have their own preview controls, described in the guides above.
 
 Use **Play** to test gameplay. **Live Debug** inspects an already-running game and retains its own editing permissions; its map image follows the [map preview display rules](<Map and World Previews.md>). See [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>) for game execution and live editing.
 

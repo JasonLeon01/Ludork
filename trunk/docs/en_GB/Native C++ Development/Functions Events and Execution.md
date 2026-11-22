@@ -18,7 +18,7 @@ BIND_FUNCTION(name = "clampValue", Pure = true)
 float clampValue(float value, float minimum, float maximum);
 ```
 
-An ungrouped free function is exposed only at the module root, such as `Engine.clampValue`. The `name` option selects the Lua identifier for that root field. Use `BIND_FUNCTION_GROUP` when a group table is the function's canonical owner.
+An ungrouped free function is exposed only at the module root, such as `Engine.clampValue`. Its `name` option follows the module-root rule in [Declare the class](<Binding a Class.md#declare-the-class>). Use `BIND_FUNCTION_GROUP` when a group table is the function's canonical owner.
 
 Non-void functions receive one metadata output named `return`. Void functions receive an empty return table. Ordinary instance methods also receive a typed first `self` input that defaults to the graph owner and remains visible. Static methods, free functions and event entries do not add it. See [Generated Metadata and Stubs](<Generated Metadata and Stubs.md#defaults-and-types>) for parameter/default alignment.
 
@@ -47,7 +47,7 @@ BIND_FUNCTION(name = "playSE")
 void playSE(const std::string &path);
 ```
 
-Every bound function in that header is registered only in the group table. Registration, LuaLS stub and metadata use the same group. Ungrouped functions remain at the module root.
+Every bound function in that header is registered only in the group table. The LuaLS stub and metadata use the same group. Ungrouped functions remain at the module root.
 
 ### Declare execution behaviour
 
@@ -108,7 +108,3 @@ These checks also apply inside variants and containers. Nil represents an empty 
 ## Limitations
 
 Annotations describe an execution protocol but do not implement its runtime behaviour. The C++ body and runtime scheduler must emit every declared branch, latent state or loop transition.
-
-## Related pages
-
-- [Advanced Binding Patterns](<Advanced Binding Patterns.md>)

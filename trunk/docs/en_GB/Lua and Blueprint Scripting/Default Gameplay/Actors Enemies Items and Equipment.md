@@ -108,13 +108,8 @@ States are Infinite Effects carrying `State.<id>`, stacks, modifiers and abiliti
 
 Use General Data identifiers as stable keys. Runtime application keeps every string verbatim, so class, animation and equipment-slot keys never depend on the selected language. Display names and descriptions may be brace-wrapped localisation identifiers. Resolve them with `LOC` only when presenting them, and resolve them again after a language change. The lookup table is managed by [Game Localisation Workflow](<../../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md>). Renaming an identifier requires updating every reference.
 
-The exact Game schemas and member lists are in the General Data Reference pages, starting with [Class](<../../Editor User Guide/General Data Reference/Class.md>). Practical Bottle, Gem, door and enemy examples are in the Usage Recipes pages, starting with [Consumables](<Recipes/Consumables.md>).
+The exact Game schemas and member lists are in the General Data Reference pages, starting with [Class](<../../Editor User Guide/General Data Reference/Class.md>). Practical Bottle, Gem, door and enemy examples are in the Recipes pages, starting with [Consumables](<Recipes/Consumables.md>).
 
 ## Limitations
 
 The Game project's combat and inventory rules are examples that projects may replace.
-
-## Related pages
-
-- [Ludork Lua Advanced](<../../Getting Started/Ludork Lua Advanced.md>)
-- [Source.Battler](<../Source Classes/Battler.md>)

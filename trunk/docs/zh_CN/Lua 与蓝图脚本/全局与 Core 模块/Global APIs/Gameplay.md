@@ -2,7 +2,7 @@
 
 `require("GlobalCore")` 暴露原生能力系统，涵盖 `AttributeSet`、`AbilitySystemComponent`，以及能力、结果、事件、效果与 spec 等类型。
 
-下列签名描述 Lua 实例调用。对应的蓝图实例方法节点还会显式提供有类型的首个 `self` 输入，未设置时默认为图的所属对象。要调用的 Attribute Set、Ability System Component 或 Ability 实例与所属对象不同时，应连接该实例。
+下列签名描述 Lua 实例调用。对应的蓝图实例方法节点还会显式提供有类型的首个 `self` 输入，未设置时默认为图的所属对象。要调用的 Attribute Set、Ability System Component 或能力实例与所属对象不同时，应连接该实例。
 
 ## AttributeSet
 
@@ -66,7 +66,7 @@
 
 能力按 `priority` 从高到低执行，同优先级按授予顺序执行。标签支持层级匹配。直接激活时，ID 不存在则返回 `AbilityNotFound`，所有匹配能力均未满足激活条件则返回 `AbilityNotActivated`。
 
-`getGameplayEventAbilities` 与 `handleGameplayEvent` 使用相同的标签匹配和排序规则，包含直接授予及由 Effect 授予的能力。事件标签不能为空；没有匹配项时返回空数组。数组元素是现有的能力 Spec，修改返回数组不会授予或移除能力。该查询不调用 `canActivate` 或 `activate`，也不改变组件 revision。
+`getGameplayEventAbilities` 与 `handleGameplayEvent` 使用相同的标签匹配和排序规则，包含直接授予及由效果授予的能力。事件标签不能为空；没有匹配项时返回空数组。数组元素是现有的能力 Spec，修改返回数组不会授予或移除能力。该查询不调用 `canActivate` 或 `activate`，也不改变组件 revision。
 
 ### 效果与标签
 

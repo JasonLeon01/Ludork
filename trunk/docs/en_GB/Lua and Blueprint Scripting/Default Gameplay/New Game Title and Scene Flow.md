@@ -4,7 +4,7 @@ The default entry creates `Source.Scenes.SceneInit` and then hands control to th
 
 Scene changes use `GlobalCore.SceneManager`; freezing and transition requests use `GlobalCore.Transition`. Screen flash, shake and tone use `GlobalCore.ScreenEffects`.
 
-### Configure New Game
+## Configure New Game
 
 A new-game action creates or resets the game instance, selects the initial map and player data, and changes to the map scene. `Data/Configs/System.json` stores the player Blueprint under `startPlayerBlueprint` as a path relative to `Data/Blueprints`, and stores the initial region under `startRegion`. These values initialise new games only. Continue restores the player class and the current region saved in the selected slot.
 
@@ -12,7 +12,7 @@ Map-window creation and reuse follow [Windows, Menus, Input and Controls](<Windo
 
 `startMap` may identify an ordinary map, a composite-world manifest such as `World_01/_world.json`, or a placed world child such as `World_01/Map_03.json`. `startPos` is a world coordinate for a manifest target and a child-local coordinate for a child target. The editor presents all three forms through one map tree and stores the selected string path.
 
-### Enter maps and composite worlds
+## Enter maps and composite worlds
 
 `GlobalFunctions.Scene.GotoMap` follows the same path and coordinate rules. Entering another child of the current world keeps its `WorldGameMap` facade. Unplaced children are invalid destinations.
 
@@ -34,27 +34,20 @@ With transitions enabled, world entry freezes the outgoing frame until the targe
 
 Ordinary map loading and adjacent-floor passability previews use `MapBuilder:applyPersistentState(gameMap, inst, mapFile)`. It restores terrain changes, added Actors, recorded positions and destroyed-Actor removals in that order, without running Actor `onCreate`. The live Scene starts surviving Actors after binding its map and player. Scene and component ownership are described in [SceneMap](<../Source Classes/SceneMap.md#scene>).
 
-### Configure Continue
+## Configure Continue
 
 When the title command window is first created, it checks the directory returned by `Engine.getSavePath()`. Any direct entry, including an unrelated file or a subdirectory, selects Continue (`index = 1`); a missing or empty directory selects Start Game (`index = 0`). This check does not parse saves or filter their format. Locale refreshes and returning from Config or Save/Load preserve the current selection. Creating a new title window checks the directory again.
 
 Continue uses `GetSavePath(slot)` to read the plain or encrypted save selected by the native build. It restores game state and opens the appropriate scene. A missing, malformed or unsupported save must follow the explicit not-found or error path instead of silently constructing partial state.
 
-### Preserve scene transitions
+## Preserve scene transitions
 
 Use the System and scene APIs documented in the API reference. The C++ runtime schedules scene changes, so active updates are not destroyed midway through a frame. Windows and temporary resources owned by the outgoing scene are released through its normal lifecycle.
 
-### Customise the title
+## Customise the title
 
 Edit the Lua scene and window composition, and the corresponding data. Keep all text identifiers compatible with [Game Localisation Workflow](<../../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md>).
 
 ## Limitations
 
 The Game project does not define a universal save upgrade policy or title-screen design. A released game must define the versions it supports and provide its own presentation and recovery messages.
-
-## Related pages
-
-- [Execution Flow, Events and Variables](<../Blueprint Scripting/Execution Flow Events and Variables.md>)
-- [Tilesets, Autotiles and Maps](<../../Editor User Guide/Tilesets Autotiles and Maps.md>)
-- [GlobalCore: Scenes and System](<../Global and Core Modules/Core Modules/GlobalCore/Scenes and System.md>)
-- [Run, Debug and Package](<../../Editor User Guide/Run Debug and Package.md>)

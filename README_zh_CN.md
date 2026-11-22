@@ -20,7 +20,7 @@ npm run dev --prefix __default__
 | macOS/Linux 构建 | `sh build_docs.sh` |
 | 预览构建结果 | `npm run preview --prefix __default__` |
 
-两个构建脚本均调用 `build_docs.mjs`。修改 `__default__` 中的前端源码及 `trunk` 中的开发文档，已发布的快照保持不变。不要手改生成的 HTML、资源或搜索索引。
+两个构建脚本均调用 `build_docs.mjs`。前端源码在 `__default__` 中修改，开发内容在 `trunk` 中修改；已发布的快照保持不变。不要手改生成的 HTML、资源或搜索索引。
 
 创建发布快照时，在 Windows 上执行 `build_docs_release.bat 1.0`，在 macOS/Linux 上执行 `sh build_docs_release.sh 1.0`。这两个入口调用 `build_docs_release.mjs`，只接受一个 `major.minor` 版本号，主、次版本均为不带前导零的十进制整数，不带 `v` 前缀或补丁版本。脚本先规范化 trunk 文本，再将整个 `trunk` 目录复制到新版本目录，写入 `versions.json`，然后构建站点。所有语言、导航、图片、关于及声明均包含在快照中。快照源只允许普通文件和目录，不接受符号链接。目标目录或版本项已存在时会报错，不允许覆盖快照；复制或构建失败时，仅删除本次新建的快照并恢复版本清单。此命令在发布时手动执行，不会暂存、提交或推送改动。
 

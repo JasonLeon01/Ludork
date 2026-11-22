@@ -36,13 +36,13 @@ After hot reload, start a new playback to use updated audio code; see [Lua Runti
 
 ## Shaders, fog and transitions
 
-Actors and tile layers draw through the official 2D material system; projects compose effects with general-purpose nodes. SceneInit prepares the shaders and runtime metadata in the user data directory before gameplay. Drawing uses the prepared numeric analysis instructions with current instance parameters. On `main`, the GPU driver still compiles the shader programs during normal rendering. The experimental MRB branch adds a separate preparation stage after material generation; its [platform shader cache](<../../Native C++ Development/Build and Module Layout.md#experimental-mrb-rendering>) must be ready before gameplay. See [Runtime generation](<../../Editor User Guide/Materials.md#runtime-generation>) for cache validation, generation failures and file ownership.
+Actors and tile layers draw through the official 2D material system; projects compose effects with general-purpose nodes. SceneInit prepares the shaders and runtime metadata in the user data directory before gameplay. Drawing uses the prepared numeric analysis instructions with current instance parameters. A separate preparation stage runs after material generation; its [platform shader cache](<../../Native C++ Development/Build and Module Layout.md#mrb-rendering>) must be ready before gameplay. See [Runtime generation](<../../Editor User Guide/Materials.md#runtime-generation>) for cache validation, generation failures and file ownership.
 
 Initialisation includes all individual materials and scans saved maps for tile/layer combinations. If gameplay creates a different combination by constructing a map or changing a layer's material, add it through [Game → Material Combinations](<../../Editor User Guide/Materials.md#material-combinations>) before preparation. Actor/UI material switches and parameter changes need no extra entry.
 
 Built-in weather and fog retain their cross-platform shader pipelines, and loading or compilation errors propagate. World entry prewarms the shared renderer for the current viewport and repeats after regional geometry changes. HarmonyOS compiles programs on their first normal draw after complete render-state and uniform binding.
 
-Material resources and generated programs can be shared while instance parameters remain independent; each draw binds that object's effective values. Character effects are ordinary graphs under `Data/Materials`, and hue is expressed with a HueShift node and parameter. Alpha, light blocking and vertex displacement use the relevant branches of the same graph, so a dissolved silhouette does not retain the original mask. Emission is composed within each surface; it neither illuminates nearby objects nor bypasses foreground occlusion.
+Material resources and generated programs can be shared while instance parameters remain independent; each draw binds that object's effective values. Character effects are ordinary graphs under `Data/Materials`, and hue is expressed with a HueShift node and parameter. Alpha, light blocking and vertex displacement use the relevant branches of the same graph, so a dissolved silhouette does not retain the original mask. Emission is composed within each surface; it neither illuminates nearby objects nor bypasses foreground occlusion. Particles are separate [Common Particle](<../../Editor User Guide/Common Particles.md>) GPU emitter assets for Actor Components and UI; the code-driven particles and effects already in the Game project remain available.
 
 Fog is generated on the GPU from world coordinates, absolute time and a deterministic seed. Four noise layers produce sparse and dense patches; density controls coverage and colour alpha scales their opacity without adding a uniform veil. Smaller scales produce smaller patches, including for black fog. Map data stores an object with `enabled`, `colour`, `density`, `scale`, `velocity`, `turbulence` and `seed`; there is no fog texture. The shared renderer composites fog after materials and lighting, before foreground weather and particles. Fog responds to scene light. Each map session owns its fog state.
 
@@ -78,8 +78,3 @@ Shader availability is determined by the runtime graphics environment, and a suc
 World lighting uses world coordinates, so Actor lights illuminate and cast shadows across child boundaries. Tile masks remain clipped to their placements, and holes contribute neither surfaces nor blockers. Attach a `LightComponent` to an Actor to create a light.
 
 Editor display options are described in [PreviewHost: Map and World Previews](<../../PreviewHost/Map and World Previews.md>).
-
-## Related pages
-
-- [Common Particles](<../../Editor User Guide/Common Particles.md>) — independent GPU emitter assets for Actor Components and UI; existing code-driven particles and effects remain available.
-- [Run, Debug and Package](<../../Editor User Guide/Run Debug and Package.md>)

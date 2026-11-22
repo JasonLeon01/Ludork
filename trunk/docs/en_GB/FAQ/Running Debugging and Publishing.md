@@ -2,7 +2,7 @@
 
 ## Which platforms can I develop on and publish to?
 
-The editor runs on Windows x64 and Apple Silicon macOS. Games can target those platforms as well as iOS, HarmonyOS and Android. Mobile packaging requires a C++ Source project and Apple Silicon macOS; Standalone uses the runtime for the editor's host platform. Check [Supported platforms](<../Ludork Documentation.md#supported-platforms>) for minimum versions and [Packaging](<../Editor User Guide/Run Debug and Package.md#packaging>) for the required tools.
+The editor runs on Windows x64 and Apple Silicon macOS. Games can target those platforms as well as iOS, HarmonyOS, Android and Web. Mobile and Web packaging require a C++ Source project; mobile packages are produced on Apple Silicon macOS, and Standalone uses the prebuilt runtime for the editor's host platform. Check [Supported platforms](<../Ludork Documentation.md#supported-platforms>) for minimum versions and [Packaging](<../Editor User Guide/Run Debug and Package.md#packaging>) for the required tools.
 
 ## Why is Play unavailable, and when do I use Construct or Export?
 

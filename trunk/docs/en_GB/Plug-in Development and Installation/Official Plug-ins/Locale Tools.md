@@ -24,7 +24,3 @@ The menu handler requires an open project, checks that the workbook exists and a
 ## Plug-in and game languages
 
 `Plugins/OfficialLocaleTools/locale.json` localises the plug-in's own menu and diagnostic messages using `EditorLanguage`. It is not the game's catalogue.
-
-## Related pages
-
-- [Registration and Hook Reference](<../Registration and Hook Reference.md>)

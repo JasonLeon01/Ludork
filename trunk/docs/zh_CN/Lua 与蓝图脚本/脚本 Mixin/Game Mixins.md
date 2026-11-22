@@ -9,9 +9,3 @@ Game 项目提供以下 mixin 示例。各脚本需要表中列出的父类功�
 | `Doors/Door.lua` | `DoorBase` | 碰撞时开门，并防止重复开启。 |
 | `Doors/KeyDoor.lua` | Script Mixin 门蓝图 | 先要求并消耗已配置的通用数据物品，再继续执行父类碰撞方法。 |
 | `Doors/ConditionDoor.lua` | `DoorBase` | 只为已配置的游戏变量启用轮询，达到阈值时开门。 |
-
-## 相关页面
-
-- [Script Mixin 编写工作流](<编写工作流.md>)
-- [消耗品](<../Game 玩法/实用配方/消耗品.md>)
-- [门](<../Game 玩法/实用配方/门.md>)

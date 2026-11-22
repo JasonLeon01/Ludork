@@ -1,6 +1,6 @@
 # Video Subtitles
 
-Create a subtitle document in the project file explorer under `Data/Subtitles`, or double-click an existing subtitle JSON file to open its editor. Subdirectories are supported. Subtitle documents follow the shared [save and Undo rules](<Start Page Workspace and Shortcuts.md#editing-and-saving>).
+Create a subtitle document in the project's File Explorer under `Data/Subtitles`, or double-click an existing subtitle JSON file to open its editor. Subdirectories are supported. Subtitle documents follow the shared [save and Undo rules](<Start Page Workspace and Shortcuts.md#editing-and-saving>).
 
 ## Editing sections
 
@@ -54,8 +54,3 @@ Times are finite numbers in seconds with `0 ≤ startTime < endTime`. A section 
 Pass the subtitle path as the optional fourth argument of [Video.PlayVideo](<../Lua and Blueprint Scripting/Node Functions/Video.md>). Missing or empty paths keep video-only playback. A specified resource must load and validate successfully; malformed subtitle documents report an error.
 
 Subtitles follow the video's playback clock and disappear when playback ends or is skipped. The renderer uses the game's default font and size, with white text and a black outline. Strings appear from top to bottom in array order, wrap as needed and centre each visual line horizontally. The block sits at the bottom of the logical viewport, leaving 5% on each side and 3% below it. Content taller than the available area scales down uniformly to fit. Runtime playback and native editor preview share the subtitle layout.
-
-## Related pages
-
-- [Project Settings and Asset Layout](<Project Settings and Asset Layout.md>)
-- [Resources, Audio, Video and Effects](<../Lua and Blueprint Scripting/Default Gameplay/Resources Audio Video and Effects.md>)

@@ -61,7 +61,7 @@ local moved = start + step * 2.0   -- Vector2f(96, 64)
 local isSame = moved == sf.Vector2f.new(96.0, 64.0) -- true
 ```
 
-可用的运算符是 `+`、`-`、一元 `-`、与标量数字的 `*` 和 `/`，以及 `==`。比较运算符只有 `==`，`<` 之类的排序比较不能用于向量。两个向量相乘是方法而不是运算符。三种 `Vector2` 都提供 `lengthSquared`、`perpendicular`、`dot`、`cross`、`componentWiseMul`、`componentWiseDiv` 与 `unpack`，其中 `unpack` 把各分量作为多个返回值返回。浮点类型另有 `length`、`normalized`、`angle`、`angleTo`、`rotatedBy` 与 `projectedOnto`，它们使用 `sf.Angle` 而不是角度值。
+可用的运算符是 `+`、`-`、一元 `-`、与标量数字的 `*` 和 `/`，以及 `==`。比较运算符只有 `==`，`<` 之类的排序比较不能用于向量。两个向量相乘是方法而不是运算符。三种 `Vector2` 都提供 `lengthSquared`、`perpendicular`、`dot`、`cross`、`componentWiseMul`、`componentWiseDiv` 与 `unpack`，其中 `unpack` 把各分量作为多个返回值返回。浮点类型另有 `length`、`normalized`、`angle`、`angleTo`、`rotatedBy` 与 `projectedOnto`，它们使用 `sf.Angle` 而不是度数。
 
 `sf.Vector2f.new` 还接受一个长度和一个 `sf.Angle`，用于按极坐标构造向量：
 
@@ -178,11 +178,4 @@ JSON 与 metadata 只保存纯数据，而 `sf` 值是原生 userdata，因此�
 
 ## 延伸阅读
 
-`Scripts/stub/LuaSF.d.lua` 包含完整 Lua 声明与 SFML 注释，EmmyLua 会索引它以提供补全和悬浮提示。上文链接的官方 C++ 参考的成员名和参数顺序与 Lua 接口基本一致。
-
-## 相关页面
-
-- [Lua 基础语法](<Lua 基础语法.md>)
-- [Ludork Lua 进阶](<Ludork Lua 进阶.md>)
-- [Engine：玩法类型](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/玩法类型.md>)
-- [构建与模块布局](<../C++ 原生开发/构建与模块布局.md>)
+`Scripts/stub/LuaSF.d.lua` 包含完整 Lua 声明与 SFML 注释，EmmyLua 会索引它以提供补全和悬浮提示。上文链接的官方 C++ 参考，其成员名和参数顺序与 Lua 接口基本一致。

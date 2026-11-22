@@ -93,7 +93,7 @@ local value, found = findItem("Key")
 
 ## 模块
 
-模块就是一个把公开内容作为返回值导出的 Lua 文件。`require` 的路径以 `Scripts` 为根，用点号分隔目录层级，并且不带扩展名。
+模块是返回公开值的 Lua 文件。`require` 的路径以 `Scripts` 为根，用点号分隔目录层级，并且不带扩展名。
 
 ```lua
 -- Scripts/Source/Score.lua
@@ -117,7 +117,3 @@ local total = Score.Add(10, 5)
 ## 错误
 
 必须成立的条件用 `assert(condition, message)` 检查，需要主动失败时用 `error(message)`。项目必需的数据必须在源头直接失败，而不是悄悄产生不完整的状态。
-
-## 相关页面
-
-- [默认模板概述](<../Lua 与蓝图脚本/Game 玩法/默认模板概述.md>) — Game 项目如何使用这些规则。

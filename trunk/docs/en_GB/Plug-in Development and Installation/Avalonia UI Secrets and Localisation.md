@@ -72,8 +72,3 @@ For generated Lua strings, use `Ludork.Plugin.Abstractions.LuaStringLiteral.Quot
 ## Limitations
 
 `IAvaloniaPluginUserInterface` exposes only the owner window. It does not expose editor controls, services or styles. The source plug-in importer does not accept loose XAML source. The host does not provide live language switching for an already-loaded plug-in.
-
-## Related pages
-
-- [Registration and Hook Reference](<Registration and Hook Reference.md>)
-- [Game Localisation Workflow](<Official Plug-ins/Game Localisation Workflow.md>)

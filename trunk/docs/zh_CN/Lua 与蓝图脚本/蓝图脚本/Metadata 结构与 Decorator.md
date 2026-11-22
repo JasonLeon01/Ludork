@@ -1,6 +1,6 @@
 # Metadata 结构与 Decorator
 
-`_METADATA` 是描述蓝图字段、签名、编辑器控件与执行协议的纯数据结构定义。它告诉编辑器哪些 Lua 与 C++ 成员可以编辑，哪些可以作为蓝图节点使用。metadata文件必须返回一个名为 `_METADATA` 的纯数据表。
+`_METADATA` 是描述蓝图字段、签名、编辑器控件与执行协议的纯数据结构定义。它告诉编辑器哪些 Lua 与 C++ 成员可以编辑，哪些可以作为蓝图节点使用。metadata 文件必须返回一个名为 `_METADATA` 的纯数据表。
 
 ```lua
 local _METADATA = {
@@ -33,7 +33,7 @@ return _METADATA
 
 ## 类型与字段
 
-每张类型表都包含有序的 `attrs`。不要依赖 Lua 表的键顺序。字段必须声明 `type`。只有当蓝图已经保存该字段，或 metadata 提供了 `default` 时，它才以普通值的形式出现。
+每张类型表都通过有序的 `attrs` 数组携带字段；表自身的键顺序没有意义。字段必须声明 `type`。只有当蓝图已经保存该字段，或 metadata 提供了 `default` 时，它才以普通值的形式出现。
 
 基础类型名包括 `bool`、`int`、`float`、`string`、`function`、`event`、`any` 与 `Pair`。SFML 值使用 `sf.` 前缀。Core 类型写成 `{ "Module", "Type" }`，数组则在第二项上加 `[]`。
 
@@ -84,21 +84,7 @@ return _METADATA
 
 ## 枚举 schema
 
-枚举引用 `Scripts/Enums` 下的一个模块，源码包含一个由具名标量字面量组成的表及其 EmmyLua 注解：
-
-```lua
--- Scripts/Enums/StairDirection.lua
----@enum Enums.StairDirection
-local StairDirection = {
-    None = "None",
-    Up = "Up",
-    Down = "Down",
-}
-
-return StairDirection
-```
-
-在递归结构定义中填写它的 require 路径：
+枚举引用 `Scripts/Enums` 下的一个模块，其源码保存一个由具名标量字面量组成的表及对应的 EmmyLua 注解，模块布局见[枚举模块](<../Lua 运行时与模块.md#枚举模块>)。在递归结构定义中填写它的 require 路径：
 
 ```lua
 stairDirection = {
@@ -205,7 +191,7 @@ calculate = {
 
 ## 编辑器名称与 decorator
 
-类型、字段、函数、事件、引脚和蓝图变量的标签来自其标识符，例如 `textureRect` 显示为 `Texture Rect`。metadata键、运行时成员名和已保存的蓝图名称保持不变。
+类型、字段、函数、事件、引脚和蓝图变量的标签来自其标识符，例如 `textureRect` 显示为 `Texture Rect`。metadata 键、运行时成员名和已保存的蓝图名称保持不变。
 
 普通成员不得声明 `DisplayName`、`DisplayDesc`、`VariableDisplayNames`、`VariableDisplayDescs`、`ParameterDisplayNames` 或 `ParameterDisplayDescs`。编辑器不会求值 `LOC(...)` 或其他表达式来获取结构定义标签与默认说明。
 
@@ -213,7 +199,7 @@ calculate = {
 
 `Meta` 保存无法从声明类型推断的编辑器语义，例如 `DropBox`、`PathVars`、`ProgressVars`、`SliderVars`、`RangeVars`、`MoveRouteVars`、`Transfer`、`BlueprintClassVars`、`CommonFunctionVars` 与 `ConfigVars`。
 
-游戏资源用 `PathVars` 给出完整的选择根，例如 `/Game/Assets/Sounds`，字段保存完整逻辑路径。`PathRoot = "Project"` 则改为选择 Script Mixin 之类的原生项目文件。`PathRoot = "Data"` 在项目相对的 `PathVars` 目录（如 `Data/Subtitles`）下选择数据文件，并保存完整的项目相对 `Data/...` 路径。JSON 文档使用 `PathFilter = "*.json"`。数据引用必须位于选择目录内，且不得包含路径穿越段。函数metadata按参数名指定，例如 `PathRoot = { subtitleFileName = "Data" }`。
+游戏资源用 `PathVars` 给出完整的选择根，例如 `/Game/Assets/Sounds`，字段保存完整逻辑路径。`PathRoot = "Project"` 则改为选择 Script Mixin 之类的原生项目文件。`PathRoot = "Data"` 在项目相对的 `PathVars` 目录（如 `Data/Subtitles`）下选择数据文件，并保存完整的项目相对 `Data/...` 路径。JSON 文档使用 `PathFilter = "*.json"`。数据引用必须位于选择目录内，且不得包含路径穿越段。函数 metadata 按参数名指定，例如 `PathRoot = { subtitleFileName = "Data" }`。
 
 `InstVar` 把 string 字段或参数标记为游戏变量名。编辑器用可搜索的选择器取代自由文本输入，数据来自当前的游戏变量声明，包括尚未保存的修改。直接字段使用 `InstVar = true`；只保留指定 metadata 类型的声明时，使用 `InstVar = { types = { "int", "float" } }`。函数 metadata 表通过 `InstVar = { "valueName" }` 把 decorator 投影到具名参数上。
 
@@ -274,7 +260,3 @@ afterBattleVarChanges = {
 Metadata 不能包含函数、userdata、thread、循环引用、无限数值或副作用。默认值必须是可转换为 JSON 的纯数据。metadata 字符串只是数据，编辑器永远不会求值它们来推导成员标签或节点标签。运行时本地化与已本地化的选项值属于另一套职责。
 
 Core metadata 由 `BIND_*` 注解生成。不得手工修改生成出来的 Core metadata。参见[生成 Metadata 与 Stub](<../../C++ 原生开发/生成 Metadata 与 Stub.md>)。
-
-## 相关页面
-
-- [Script Mixin Metadata](<../脚本 Mixin/Metadata.md>)

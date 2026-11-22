@@ -22,7 +22,7 @@
 
 ## 扫描范围
 
-扫描覆盖所有普通地图、世界子地图、Lua 源码与受支持的 Data 结构引用。先沿 Data 引用关系计算保留内容，再判断哪些 Assets 仍被使用。未被引用的 Data 不会让其依赖的资产继续保留。蓝图字段及地图实例覆盖值会按metadata递归扫描，包括组件和有类型的容器内部的资源引用。
+扫描覆盖所有普通地图、世界子地图、Lua 源码与受支持的 Data 结构引用。先沿 Data 引用关系计算保留内容，再判断哪些 Assets 仍被使用。未被引用的 Data 不会让其依赖的资产继续保留。蓝图字段及地图实例覆盖值会按 metadata 递归扫描，包括组件和有类型的容器内部的资源引用。
 
 地图、`Data/General`、`Data/UI`、`Data/Configs` 和 `Data/Locale` 固定保留，它们通过受支持规则引用的内容也会保留。Data 候选只包括 Materials、Tilesets、AutoTiles、Blueprints、CommonFunctions、Animations、Particles、Curves 和 TextConfigs。未知 Data 格式不进入清理候选。Lua 只用于扫描引用，不会被删除。生成的 UI 镜像和声明 stub 不作为独立的使用依据。材质缓存在游戏用户数据目录中，由[运行时准备](<../../编辑器用户指南/材质.md#运行时生成>)维护。
 
@@ -39,9 +39,3 @@
 ## 插件契约
 
 插件注册一个普通菜单命令，并拥有自己的 Avalonia 窗口、内置保留清单和翻译。`PluginMenuContext.ResourceCleanupHost` 提供受限的 `IResourceCleanupHost` 边界：读取和保存追加保留项、带进度与取消的扫描，以及凭返回的报告 ID 回收资源。不暴露可变编辑器文档或任意文件删除能力。
-
-## 相关页面
-
-- [安装与管理插件](<../安装与管理插件.md>)
-- [注册点与 Hook 参考](<../注册点与 Hook 参考.md>)
-- [项目设置与资产布局](<../../编辑器用户指南/项目设置与资产布局.md>)

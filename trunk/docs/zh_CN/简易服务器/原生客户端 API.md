@@ -42,7 +42,7 @@ return Net.DefineModule("Profile", ProfileProxy)
 
 `Net.DefineModule(name, proxyClass)` 返回用于 RPC 与订阅的模块句柄。类必须继承 `Global.NetProxy`，重复名称会被拒绝。定义模块本身不连接服务器；获取 proxy 前须先 require 该模块的定义。若子类覆盖 `init(moduleName, params, snapshot)`，必须用这些参数调用基类初始化函数；未覆盖时使用继承的初始化函数。类构造与镜像声明见 [Ludork 类](<../快速入门/Ludork Lua 进阶.md#ludork-类>)。
 
-模块、RPC 与事件名区分大小写，由 1–128 个 ASCII 字母、数字、点、下划线或连字符组成。RPC 函数名对应服务端模块的 `Rpc` 表，与 proxy getter 名称无关。
+模块、RPC 与事件名区分大小写；字符集与长度限制见[服务端 Lua 模块](<HTTP 协议.md#服务端-lua-模块>)。RPC 函数名对应服务端模块的 `Rpc` 表，与 proxy getter 名称无关。
 
 公开的 Net、proxy、getter 与 RPC 函数采用 PascalCase，例如 `GetProxy`、`Sync`、`GetName`、`SetName`。类构造函数保留既有的 `init` 约定。
 

@@ -32,7 +32,7 @@ Common Functions share the caller's local context and graph owner, including nes
 - Data links connect compatible typed pins, and execution links connect flow pins.
 - Each execution output accepts one connection; execution inputs accept multiple. Data outputs accept multiple connections; each data input accepts one.
 
-Runtime event queries and execution use native `Engine.Graph` userdata. Raw GraphData supports definition-time event inspection. Local execution contexts hold invocation state and are not executable graphs. When constructing a graph without a parent class, pass the read-only string `Engine.Graph.NO_PARENT_CLASS` (`"NOT_WRITTEN"`) as `Graph.new`’s `parentClassName`. The `parent` parameter independently supplies the graph owner.
+Runtime event queries and execution use native `Engine.Graph` userdata. Raw GraphData supports definition-time event inspection. Local execution contexts hold invocation state and are not executable graphs. When constructing a graph without a parent class, pass the read-only string `Engine.Graph.NO_PARENT_CLASS` (`"NOT_WRITTEN"`) as `Graph.new`'s `parentClassName`. The `parent` parameter independently supplies the graph owner.
 
 ### Cancelling latent execution
 
@@ -40,7 +40,7 @@ Runtime event queries and execution use native `Engine.Graph` userdata. Raw Grap
 
 ## Instance method receivers
 
-Every instance-method node keeps its typed `self` input, including methods inherited by the current Blueprint. An explicit connection or filled value selects the receiver. With no connection and no value, the declared `"self"` default selects the graph owner. Connected nil values, incompatible receivers and missing owners fail before the method runs.
+Every instance-method node keeps its typed `self` input, including for methods inherited by the current Blueprint. An explicit connection or filled value selects the receiver. With no connection and no value, the declared `"self"` default selects the graph owner. Connected nil values, incompatible receivers and missing owners fail before the method runs.
 
 Short method names, `self.method` and fully qualified paths use the same parameter order and pass the receiver exactly once. Saved `params` follow that order, with the receiver at index 0; a stored `"self"` selects the owner, and an unset value uses the declared default. Parameter links use the same zero-based indices. Static functions and event payloads contain no receiver slot.
 
@@ -73,7 +73,3 @@ ClassDict instances in one Lua VM share resolved classes, definition tables and 
 `ClassDict:getData(path)`, also exposed as `Global.Data.GetClassData(path)` in the Game project, resolves through the same loading path as `get` before returning the resolver's JSON definition table. Unknown paths raise, and module classes without a JSON definition return nil. Repeated reads in one VM return the same table. Use `copy` or `deepcopy` when an independent table is needed.
 
 Editing that table is visible to later definition reads, but it does not update generated classes, instance-default records or compiled templates. New instances and executable-event queries continue to use the generated results.
-
-## Related pages
-
-- [GlobalFunctions.Container](<../Node Functions/Container.md>)

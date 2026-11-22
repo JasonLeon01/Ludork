@@ -160,7 +160,3 @@ end
 ## 发布更新
 
 `WindowInventory.Publish(payload)` 通过资产的 EventBus 通道更新每一个存活且已准备好的 Controller。重写 `onViewUpdate(payload)` 可以在刷新与重新布局之前保存状态。需要时把语言变化一类的事件加入 `refreshEvents`。独立行 Controller 与 Scene Controller 通过 `Ui.Define` 暴露 `Publish`。没有 Controller 的 View 实例不会订阅。
-
-## 相关页面
-
-- [游戏本地化工作流](<../../插件开发与安装/Official 插件/游戏本地化工作流.md>)

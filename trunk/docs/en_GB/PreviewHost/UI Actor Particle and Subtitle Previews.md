@@ -6,7 +6,7 @@ Open the relevant asset editor to inspect its appearance and timing. These previ
 
 The [UI Asset Editor](<../Editor User Guide/UI Asset Editor.md>) displays the authored asset without running its Lua Controller. Use **Refresh Preview** to display pending edits. After changing native controls, rebuild the project before checking the result.
 
-Provide representative placeholder content for model-dependent areas. Use `previewText` for strings supplied by code at runtime; it belongs to the node's design-only `editor` data. Representative `#TAB` and `#ITEM` entries and Game visuals make tabs, lists and character displays readable, but are not fallback game data. Before display, business code must supply localised labels and populate dynamic collections. The runtime responsibilities remain in [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>).
+Provide representative placeholder content for model-dependent areas. Use `previewText` for strings supplied by code at runtime; it belongs to the node's design-only `editor` data. Representative `#TAB` and `#ITEM` entries, together with Game visuals, make tabs, lists and character displays readable, but are not fallback game data. Before display, business code must supply localised labels and populate dynamic collections. The runtime responsibilities remain in [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>).
 
 Select an animation in the Timeline, then use play, pause, stop and scrubbing to inspect it without changing the saved Slot layout. With no animation selected, the Designer shows the authored UI appearance. Animation definitions, inherited Global animations and instance overrides are edited as described in the [UI Timeline](<../Editor User Guide/UI Asset Editor.md#timeline>).
 
@@ -38,10 +38,6 @@ Open a document under `Data/Subtitles` in the [Subtitle Editor](<../Editor User 
 
 Choose a project video for temporary reference, or clear it to return to the plain background. The video preserves its aspect ratio and plays synchronised audio, with a mute control. Seeking pauses audio and restores the previous playback state when positioning finishes. Preview duration is the longer of the video and subtitle durations; after the video ends, remaining subtitles appear on the plain background.
 
-A project without FFmpeg reports that it is not an FFmpeg project when a video is selected. Subtitle editing and plain-background preview remain available. Reference video, preview language, playhead and mute belong to the window session and are not saved in the subtitle document.
+When a video is selected in a project without FFmpeg, the editor reports that it is not an FFmpeg project. Subtitle editing and plain-background preview remain available. Reference video, preview language, playhead and mute belong to the window session and are not saved in the subtitle document.
 
 Native preview and runtime playback share subtitle layout. Subtitle data, language editing, font, wrapping and layout rules remain in [Video Subtitles](<../Editor User Guide/Video Subtitles.md>).
-
-## Related pages
-
-- [Architecture and Data Flow](<Architecture and Data Flow.md>)

@@ -49,8 +49,8 @@ Metadata 来源：`Scripts/Source/MapActors/Player_meta.lua`
 | `ValidateName` | `(name) -> string, Enums.PlayerNameValidationError?` | 返回去除首尾空白后的候选名与校验错误；合法时错误为 `nil` |
 | `init` | `(texture?, tag?)` | 构造 Attribute Set、Ability System，以及空的背包与装备状态 |
 | `InitPlayer` | `(playerPath, applyInitialEquipment? = true) -> Player` | 根据 Blueprint class path 构造 Player，并可选应用 Class 的初始装备 |
-| `FromDict` | `(data) -> Player` | 恢复 Base、背包 ability、装备 Effect 与 State Effect。不应用 Class 的初始装备，也不执行成员图 |
-| `asDict` | `() -> SaveData` | 序列化稳定状态，不含运行时 Effect handle |
+| `FromDict` | `(data) -> Player` | 恢复 Base、背包能力、装备效果与 State 效果。不应用 Class 的初始装备，也不执行成员图 |
+| `asDict` | `() -> SaveData` | 序列化稳定状态，不含运行时效果 handle |
 | `activateItem` | `(itemID) -> GameplayAbilityResult` | 激活 `GeneralData.Item.<id>.onUse` |
 | `consumeMovementSpecialPath` | `() -> sf.Vector2i[]` | 取出并清空已到达的地图格 |
 | `getClassPath` / `setClassPath` | `() -> string` / `(path)` | 访问可用于重建的 Blueprint path |
@@ -58,13 +58,8 @@ Metadata 来源：`Scripts/Source/MapActors/Player_meta.lua`
 | `restoreFromData` | `(data)` | 将存档状态恢复到同一 Blueprint 类的 Player 中，不重放成员图 |
 | `MeetPlayer` | `(actors, player) -> Player?` | 仅当 Actor 数组中出现指定 player 时，才返回该 Player |
 
-运行时装备或卸下时，先改变 Infinite Effect，再运行对应图。移动完成会发送 `Event.Movement.Step`。
+运行时装备或卸下时，先改变 Infinite 效果，再运行对应图。移动完成会发送 `Event.Movement.Step`。
 
-HP Current 限制在 `0..MAXHP` 范围内。永久 MAXHP 与 LEVEL 的成长通过 Base 增量实现。Effect 与 Constraint 的变化不会改动成长用的 Base。
+HP Current 限制在 `0..MAXHP` 范围内。永久 MAXHP 与 LEVEL 的成长通过 Base 增量实现。效果与 Constraint 的变化不会改动成长用的 Base。
 
 `setName` 会去除 Unicode 首尾空白，并接受 1 至 `Player.MAX_NAME_GRAPHEMES` 个字素簇。`Enums.PlayerNameValidationError.EMPTY` 为 `"empty"`，`TOO_LONG` 为 `"tooLong"`。输入非法时，名字保持不变。`getDisplayName` 返回自定义名字原文，或通用数据的本地化默认名。
-
-## 相关页面
-
-- [运行时数据、配置与存档](<../Game 玩法/运行时数据、配置与存档.md>)
-- [GlobalCore Gameplay API](<../全局与 Core 模块/Global APIs/Gameplay.md>)

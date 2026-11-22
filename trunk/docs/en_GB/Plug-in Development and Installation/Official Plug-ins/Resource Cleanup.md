@@ -39,9 +39,3 @@ Recycling uses the same system Trash, failure handling and recovery rules as [re
 ## Plug-in contract
 
 The plug-in registers one ordinary menu command and owns its Avalonia window, built-in resource list and translations. `PluginMenuContext.ResourceCleanupHost` supplies the narrow `IResourceCleanupHost` boundary: reading and saving additional keep paths, scanning with progress and cancellation, and recycling a previously returned report by ID. It does not expose mutable editor documents or arbitrary file deletion.
-
-## Related pages
-
-- [Installing and Managing Plug-ins](<../Installing and Managing Plug-ins.md>)
-- [Registration and Hook Reference](<../Registration and Hook Reference.md>)
-- [Project Settings and Asset Layout](<../../Editor User Guide/Project Settings and Asset Layout.md>)

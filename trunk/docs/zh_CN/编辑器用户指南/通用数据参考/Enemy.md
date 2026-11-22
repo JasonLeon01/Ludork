@@ -23,7 +23,7 @@
 
 ## 编辑说明
 
-Enemy schema 不声明成员事件，击败行为由 Gameplay Ability 处理。
+Enemy schema 不声明成员事件，击败行为由能力处理。
 
 在 `special` 中，只要存在对应的 key，`Compete`、`Hard`、`Magic`、`First`、`Flank` 和 `Blockade` 就会启用，它们的取值都是 `""`。`Vampire` 取有限的非负数，`Reborn` 取非空的蓝图类路径。`FixDmg` 既可以取有限的非负数，也可以取非空表达式字符串。只有字符串形式会在 `Engine.Eval` 之前把玩家与敌人的当前值代入 `{m<attribute>}` 和 `{e<attribute>}`。其他 special 取值一律不求值。
 

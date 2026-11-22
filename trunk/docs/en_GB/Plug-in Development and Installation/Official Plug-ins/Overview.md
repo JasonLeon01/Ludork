@@ -17,7 +17,3 @@ Ludork includes five official C# plug-ins: Official Locale Tools, Official Rando
 ## Installation and management
 
 See [Installing and Managing Plug-ins](<../Installing and Managing Plug-ins.md>) for installation commands, skip options, restart requirements, status and retained data. Installing the official plug-ins replaces all existing global and project plug-ins, their registrations and their data on every platform. Close Ludork and back up anything needed before continuing.
-
-## Related pages
-
-- [Registration and Hook Reference](<../Registration and Hook Reference.md>) — the registration methods and hook contracts behind these plug-ins

@@ -42,7 +42,3 @@ The macros generate virtual subobject query methods and `std::string_view ludork
 ## Limitations
 
 The table lists the supported markers, not every permitted option combination. `Pure`, execution protocols and property declarations remain subject to the validation rules on their dedicated pages.
-
-## Related pages
-
-- [Native UI Adapters](<Native UI Adapters.md>)

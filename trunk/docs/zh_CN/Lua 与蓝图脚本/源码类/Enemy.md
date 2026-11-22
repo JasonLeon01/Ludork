@@ -32,12 +32,6 @@ Enemy 继承 Actor 默认的 `tickable = false`。
 | `onCollision` | event | `other: Engine.Actor[]` | — | 默认执行输出 |
 | `onDefeat` | event | — | — | 默认执行输出 |
 
-`init(texture?, rect?, tag?)` 构造 Attribute Set、Ability System、Mota ability 以及配置好的 special Effect。碰撞会在提交反击伤害之前，先预校验战斗与必需的结算。战败时，会在动画结束后应用已准备好的 Game Over Effect。
+`init(texture?, rect?, tag?)` 构造 Attribute Set、Ability System、Mota 能力以及配置好的 special 效果。碰撞会在提交反击伤害之前，先预校验战斗与必需的结算。战败时，会在动画结束后应用已准备好的 Game Over 效果。
 
 胜利动画结束后，先执行 Actor Blueprint 的 `onDefeat` hook，再执行强制销毁、Reborn/掉落、奖励与 State。这些数值取自预先准备好的快照，`afterBattleVarChanges` 在 hook 之后求值。Enemy 通用数据没有 `onDefeat` 成员图。
-
-## 相关页面
-
-- [Source Gameplay API](<Gameplay.md>)
-- [Enemy](<../../编辑器用户指南/通用数据参考/Enemy.md>)
-- [ChildActor 组件配置](<../../编辑器用户指南/Actor 组件/ChildActor.md>)

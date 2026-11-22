@@ -1,6 +1,6 @@
 # GlobalFunctions Lua API
 
-`GlobalFunctions` 通过 `Components`、`Manager`、`NodeGraph` 与 `UI` 四个分组表暴露原生自由函数，其声明来自 `Scripts/stub/GlobalFunctions.d.lua` 与 `Engine/Source/GlobalFunctions/include/GlobalFunctions`。`Scripts/GlobalFunctions_meta.lua` 为空，因此这些函数属于 Lua API，而不是 Blueprint 节点。分组函数只出现在各自的分组表中。
+`GlobalFunctions` 通过 `Components`、`Manager`、`NodeGraph` 与 `UI` 四个分组表暴露原生自由函数，其声明来自 `Scripts/stub/GlobalFunctions.d.lua` 与 `Engine/Source/GlobalFunctions/include/GlobalFunctions`。`Scripts/GlobalFunctions_meta.lua` 为空，因此这些函数属于 Lua API，而不是蓝图节点。分组函数只出现在各自的分组表中。
 
 `Scripts/GlobalFunctions` 中的 Lua 蓝图函数以独立模块加载，例如 `require("GlobalFunctions.Math")`，不会加入这个原生根表。
 
@@ -91,7 +91,3 @@
 ## 限制
 
 类别 helper 只接受类别内的相对路径，并自动补上 `/Game/Assets/...` 前缀，例如 `loadCharacter("actors/Hero.png")` 与 `playSE("cursor.ogg")`。持久化数据和 `getSoundBuffer(filePath)` 则要求完整的逻辑路径。加载失败的行为遵循原生 manager 契约。
-
-## 相关页面
-
-- [函数、事件与执行](<../../../C++ 原生开发/函数、事件与执行.md>)

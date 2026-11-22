@@ -12,11 +12,11 @@ A Blueprint key is its case-preserving path relative to `Data/Blueprints`, with 
 
 Class attributes provide defaults for every instance, and a map Actor may override individual values. Components are declared by metadata and appear as structured fields. Hidden fields from `InvalidVars` are not ordinary editable properties.
 
-The Blueprint editor resolves variable and component declarations through the complete inheritance chain. A child’s explicit value takes precedence over inherited defaults. See [Actor Components](<Actor Components/Overview.md>) for available components, adding and editing them, and instance overrides.
+The Blueprint editor resolves variable and component declarations through the complete inheritance chain. A child's explicit value takes precedence over inherited defaults. See [Actor Components](<Actor Components/Overview.md>) for available components, adding and editing them, and instance overrides.
 
 In the Blueprint editor and **Actor Info**, ordinary variables are grouped in grey dashed frames beneath the component list. Each frame names the class that first declared its fields, and hovering over the grey heading shows the full class reference. Inherited fields appear only in their original group, even when a child overrides their values. Fields contributed by a Script Mixin and custom Blueprint fields are attributed to the Script Mixin or Blueprint that first declares them.
 
-When a Blueprint’s `ID` selects a General Data member, its `attributes` are shown read-only. Edit those values in General Data.
+When a Blueprint's `ID` selects a General Data member, its `attributes` are shown read-only. Edit those values in General Data.
 
 ### Add a typed attribute
 
@@ -34,17 +34,17 @@ Restoring a browser selection when switching tabs, navigating history or refresh
 
 In Actor mode, right-click an Actor on the map and choose **Locate Blueprint** to select its Blueprint file in the most recently active [File Explorer](<Start Page Workspace and Shortcuts.md#file-explorer-and-reference-tree>). The action is disabled on empty space and for Actors without a Blueprint in the project.
 
-For a selected map Actor, **Actor Info** shows its Blueprint reference with the **Open** and **Locate** actions, the grid position X/Y, the tag and the exposed class fields. Position and text edits merge into one Undo step for a continuous focused edit. A reset button beside an overridden field removes that instance override, and **Reset All** removes every class-field override for the instance and reveals the inherited Blueprint defaults again. When the Actor's layer is hidden, **Actor Info** stays available for inspection and Blueprint navigation, but its tag, position, reset actions and class fields are read-only.
+For a selected map Actor, **Actor Info** shows its Blueprint reference with the **Open** and **Locate** actions, the grid position X/Y, the tag and the exposed class fields. During a continuous focused edit, position and text edits merge into one Undo step. A reset button beside an overridden field removes that instance override, and **Reset All** removes every class-field override for the instance and reveals the inherited Blueprint defaults again. When the Actor's layer is hidden, **Actor Info** stays available for inspection and Blueprint navigation, but its tag, position, reset actions and class fields are read-only.
 
 Placing and deleting Actor instances can be undone in their map document. Deleting the Blueprint file itself follows the [resource deletion and recovery rules](<Start Page Workspace and Shortcuts.md#file-explorer-and-reference-tree>). If an instance was deleted and saved before its Blueprint was deleted, Undo cannot bring that instance back while the Blueprint is missing. Blueprint field changes, including Undo and Redo, refresh Actor visuals using the current inherited defaults.
 
 ## Graph mode
 
-Enabling **Script Mixin** hides the entire right-hand graph and preview area, and the variables fill the available width. Disabling it restores that area and the previous column widths immediately. The same layout follows the inherited mode, Undo/Redo and reload, and existing graph data is retained.
+Enabling **Script Mixin** hides the entire right-hand graph and preview area, and the variables fill the available width. Disabling it restores that area and the previous column widths immediately. The inherited mode, Undo/Redo and reload keep the same layout, and existing graph data is retained.
 
-Each graph has a red **Event** entry. Connect its execution output to begin the graph; an unconnected entry is translucent and shows a notice. A Blueprint can fall back to an inherited implementation, while Common Function and General Data graphs do not execute. Event parameters and Parent calls are explained in [Execution Flow, Events and Variables](<../Lua and Blueprint Scripting/Blueprint Scripting/Execution Flow Events and Variables.md#events>).
+Each graph has a red **Event** entry. Connect its execution output to select the start node and begin the graph; an unconnected entry is translucent and shows a notice. A Blueprint can fall back to an inherited implementation, while Common Function and General Data graphs do not execute. Event parameters and Parent calls are explained in [Execution Flow, Events and Variables](<../Lua and Blueprint Scripting/Blueprint Scripting/Execution Flow Events and Variables.md#events>).
 
-Use **New Event** to add a local graph. The name input offers inherited events that have no local graph; an existing local graph, even an empty one, cannot be added again. If the parent chain has the event, the new graph starts with a brown **Parent: Event Name** node connected to the entry and its parameters. This is one Undo operation. Opening an inherited event tab only displays it and does not initialise an override or modify saved data.
+Use **New Event** to add a local graph. The name input offers inherited events that have no local graph; an existing local graph, even an empty one, cannot be added again. If the parent chain has the event, the new graph starts with a brown **Parent: Event Name** node connected to the entry and its parameters. This is one Undo step. Opening an inherited event tab only displays it and does not initialise an override or modify saved data.
 
 Parent nodes are editable and available only in graph-mode class Blueprints. Add them from the node picker, or move, copy and delete them like other nodes. Right-click a node to disconnect all inputs or outputs, copy or delete it; right-click empty canvas to add, paste or organise nodes.
 
@@ -60,7 +60,7 @@ Invalid text remains visible as an unsaved draft with an error and does not repl
 
 New, pasted and duplicated nodes are placed at the pointer, or at the viewport centre if the pointer is outside the graph. Duplicating a selection preserves its relative layout and internal links.
 
-The primary modifier is `Ctrl` on Windows and `Command` on macOS.
+For the editor-wide shortcut list and the platform's primary modifier, see [Global shortcuts](<Start Page Workspace and Shortcuts.md#global-shortcuts>).
 
 | Shortcut | Action |
 |---|---|
@@ -75,12 +75,8 @@ The primary modifier is `Ctrl` on Windows and `Command` on macOS.
 
 The built-in entry is virtual and automatically positioned, so it is excluded from select-all, manual movement, duplication and deletion. Parent call nodes remain editable. Graph shortcuts do not replace keyboard input while a parameter editor or another input control has focus, and mutating shortcuts are disabled for read-only graphs.
 
-General Data member graphs use the type’s event list, have no class attributes and cannot contain latent nodes. Their runtime behaviour is described in [General Data and Text Config](<General Data and Text Config.md>).
+General Data member graphs use the type's event list, have no class attributes and cannot contain latent nodes. Their runtime behaviour is described in [General Data and Text Config](<General Data and Text Config.md>).
 
 ## Inheritance
 
 A child Blueprint inherits fields and behaviour. Changing a saved parent path can alter inherited fields, events and compatible component data, so treat such a change with care. A Blueprint inheritance chain must use either graph mode or Script Mixin mode throughout; see [Script Mixin Authoring Workflow](<../Lua and Blueprint Scripting/Script Mixins/Authoring Workflow.md>).
-
-## Related pages
-
-- [Tilesets, Autotiles and Maps](<Tilesets Autotiles and Maps.md>)

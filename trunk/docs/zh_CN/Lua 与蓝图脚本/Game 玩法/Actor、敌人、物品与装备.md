@@ -40,7 +40,7 @@ Tile 与 Actor 的绘制顺序遵循清单中的 `layerOrder`。仅运行时存�
 
 停止移动（包括打开 UI 时禁用移动）若使玩家吸附到新格子，仍会执行到格流程，不会跳过该格的重叠交互和移动步效果。危险变化导致点击路线重新规划时，会先退回最后一个完整的格子再停止。立即完成路线也会先回到该格再停止，然后统一处理一次目的地重叠交互和收集到的移动路径。
 
-A* 与实际移动使用同一条 Dir4 边规则：每个新进入的前导格都必须允许从来源图块离开，并允许从目标图块的反方向进入。点击移动对普通目标和单格受阻目标都复用直接 A* 的结果。若移动 Actor 的完整占用范围使该结果不可用，点击移动改为搜索目标的相邻格。碰撞目标仍是最后尝试的一步，因此它的碰撞交互照常执行。使用该回退且不可通行的目标没有碰撞体时，玩家停在相邻格，而不是向目标顶撞。寻路会绕过无碰撞且 `onOverlap` 可执行的 Actor，避免途经时意外进入其格子。玩家显式点击这类 Actor 作为地图目标时，则保留通往其格子的完整路线并走进去，触发 overlap 交互——与显式点击 Teleporter 进入其格子完成传送的方式一致。
+A* 与实际移动使用同一条 Dir4 边规则：每个新进入的前导格都必须允许从来源图块离开，并允许从目标图块的反方向进入。点击移动对普通目标和单格受阻目标都复用直接 A* 的结果。若移动 Actor 的完整占用范围使该结果不可用，点击移动改为搜索目标的相邻格。碰撞目标仍是最后尝试的一步，因此它的碰撞交互照常执行。使用该回退且不可通行的目标没有碰撞体时，玩家停在相邻格，而不是撞向目标。寻路会绕过无碰撞且 `onOverlap` 可执行的 Actor，避免途经时意外进入其格子。玩家显式点击这类 Actor 作为地图目标时，则保留通往其格子的完整路线并走进去，触发 overlap 交互——与显式点击 Teleporter 进入其格子完成传送的方式一致。
 
 通行性和寻路查询把 Actor 的占格范围精确放到请求的格子，保留自身边界，但不带入正在移动时的像素偏移。移动危险的直线检查也因此不受移动方向和进度影响。
 
@@ -48,7 +48,7 @@ A* 与实际移动使用同一条 Dir4 边规则：每个新进入的前导格�
 
 `GameMap.MapViewRect` 定义逻辑屏幕上的地图画布，默认值为 `sf.IntRect.new(192, 32, 416, 416)`。它的位置决定画布落点，尺寸同时决定裁剪后的绘制范围和 Camera 视野大小。某个轴小于画布时，地图在该轴内居中；轴大于画布时，限制在可滚动范围内。地图绘制、指针坐标转换、世界与 UI 定位、动画、光照、雾、远景和天气共用这个矩形。矩形之外的指针输入会被忽略。
 
-Domain、Flank 与 Blockade Effect 授予 `Gameplay.Movement.Hazard`。移动与 `MovementDangerGrid` 都使用 `MovementSpecials.Preview`，由它派发 `Event.Movement.QueryHazard`，因此空间规则要保留在这条路径上。Domain 覆盖曼哈顿距离小于或等于范围值（最小为 1）的格子：`Domain = 1` 包含上下左右四个相邻格，不包含对角格。其单回合伤害遵循战斗特性，因此 Magic 会忽略玩家防御。Flank 要求敌人位于相对的相邻两侧，Blockade 影响相邻格。各项正数伤害会累加。
+Domain、Flank 与 Blockade 效果授予 `Gameplay.Movement.Hazard`。移动与 `MovementDangerGrid` 都使用 `MovementSpecials.Preview`，由它派发 `Event.Movement.QueryHazard`，因此空间规则要保留在这条路径上。Domain 覆盖曼哈顿距离小于或等于范围值（最小为 1）的格子：`Domain = 1` 包含上下左右四个相邻格，不包含对角格。其单回合伤害遵循战斗特性，因此 Magic 会忽略玩家防御。Flank 要求敌人位于相对的相邻两侧，Blockade 影响相邻格。各项正数伤害会累加。
 
 取得 Enemy Book 后，共享的 [Gameplay 伤害提示设置](<运行时数据、配置与存档.md#共享玩法配置>)决定是否显示敌人伤害数值和移动危险格的合计伤害。提示不影响玩法。
 
@@ -60,15 +60,15 @@ Domain、Flank 与 Blockade Effect 授予 `Gameplay.Movement.Hazard`。移动与
 
 ## 敌人
 
-Enemy 蓝图选择一个 Enemy 通用数据成员。`GeneralDataTypes.Create` 把它复制为 `EnemyAttributeSet`；`Battler` 通过 `attributes` 公开该属性集，并持有它自己的 `AbilitySystemComponent`。Enemy 通用数据没有成员事件，战斗行为使用显式的 Gameplay Ability 与 Effect。
+Enemy 蓝图选择一个 Enemy 通用数据成员。`GeneralDataTypes.Create` 把它复制为 `EnemyAttributeSet`；`Battler` 通过 `attributes` 公开该属性集，并持有它自己的 `AbilitySystemComponent`。Enemy 通用数据没有成员事件，战斗行为使用显式的能力与效果。
 
 `MAXHP` 是敌人用于伤害计算的虚拟生命值，敌人自身不保存可变的 `HP`。Player 的 `HP` 属于 `PlayerAttributeSet`，初值 `1000` 来自 Player 通用数据，不作为蓝图属性覆盖保存。
 
-Player 的 HP 当前值在应用修饰项后限制到 `0..MAXHP`。永久 MAXHP 与 LEVEL 成长只响应 Base 变化，因此临时的 Infinite Effect 不会改变永久成长。
+Player 的 HP 当前值在应用修饰项后限制到 `0..MAXHP`。永久 MAXHP 与 LEVEL 成长只响应 Base 变化，因此临时的 Infinite 效果不会改变永久成长。
 
-敌人的 `special` 会保留整数次数/范围、仅表示存在的 `""`、`Vampire` 比率、`FixDmg` 数值/表达式以及 `Reborn` 类路径。每一项都会转为一个 Infinite 的 `Special.<id>` Effect，带有匹配的标签和专用的 ability。战斗类 special 修改战斗 Gameplay Event；移动类 special 使用 `Event.Movement.QueryHazard` 与 `Gameplay.Movement.Hazard`。
+敌人的 `special` 会保留整数次数/范围、仅表示存在的 `""`、`Vampire` 比率、`FixDmg` 数值/表达式以及 `Reborn` 类路径。每一项都会转为一个 Infinite 的 `Special.<id>` 效果，带有匹配的标签和专用的能力。战斗类 special 修改战斗 Gameplay Event；移动类 special 使用 `Event.Movement.QueryHazard` 与 `Gameplay.Movement.Hazard`。
 
-每个 Enemy 都授予 `Ability.Combat.MotaBattle`。它的计算没有副作用，返回伤害明细和数值形式的 `Enums.BattleResultCode`（`WIN`、`CANNOT_DAMAGE` 或 `LETHAL_COUNTER_DAMAGE`）。碰撞会在 `CommitResult(result)` 之前校验伤害、Game Over、奖励和 State Effect Spec。预览复用同一套计算，但不会修改状态。
+每个 Enemy 都授予 `Ability.Combat.MotaBattle`。它的计算没有副作用，返回伤害明细和数值形式的 `Enums.BattleResultCode`（`WIN`、`CANNOT_DAMAGE` 或 `LETHAL_COUNTER_DAMAGE`）。碰撞会在 `CommitResult(result)` 之前校验伤害、Game Over、奖励和 State 效果 Spec。预览复用同一套计算，但不会修改状态。
 
 普通敌人战斗通过场景计时器，在敌方攻击动画最早的 `dmg` 时间标签处弹出正数反击伤害；没有该标签或动画时立即弹出。HP 仍立即扣除，后续结算仍等待双方攻击动画的视觉时长结束。
 
@@ -92,7 +92,7 @@ Player 的 HP 当前值在应用修饰项后限制到 `0..MAXHP`。永久 MAXHP 
 
 Item 的成员图把 `onUse` 与 `onDrop` 实现为显式激活的 `GeneralDataGraphAbility` 实例，而不是 Actor 事件。`onUse` 的目标是 Player，`onDrop` 的目标是生成出来的 Item Actor。因此绑定目标的节点要使用 `GameplayEventData.target`，Player State 节点应放在 `onUse` 中。
 
-实例方法节点保留可见的 `self` 输入。调用 Player 或 Item 方法时应把目标对象连接到该输入，因为未设置的接收者默认使用图的 `GameplayEventData` 所属对象；公共函数也继承该所属对象。
+实例方法节点保留可见的 `self` 输入。调用 Player 或 Item 方法时应把目标对象连接到该输入，因为未设置的接收者默认使用图的 `GameplayEventData` 所属对象；公共函数也沿用该所属对象。
 
 EnemyBook 物品在自己的 `onUse` 图中通过 [GlobalFunctions.Scene](<../节点函数/Scene.md#showenemybook>) 打开怪物手册。
 
@@ -102,9 +102,9 @@ EnemyBook 物品在自己的 `onUse` 图中通过 [GlobalFunctions.Scene](<../�
 
 ## 装备
 
-装备的 `attrPlus` 会变成一个以装备槽为来源的 Infinite Effect。它在显式的 `onEquip` 图之前应用，在 `onUnequip` 之前移除。装备槽名称必须与 Class 数据一致。
+装备的 `attrPlus` 会变成一个以装备槽为来源的 Infinite 效果。它在显式的 `onEquip` 图之前应用，在 `onUnequip` 之前移除。装备槽名称必须与 Class 数据一致。
 
-State 是携带 `State.<id>`、stack、修饰项与 ability 的 Infinite Effect。Weak 每层减少 1 点 ATK/DEF，最小为 0。HUD 显示 Ability System 的 Current 值和 Weak 层数，因此 Base 为 10、两层 Weak 时显示 `8 (-2)`。Poisoned 通过 `Event.Combat.ResolveIncomingDamage` 增加伤害。State 图监听 `Event.Movement.Step`（`onWalk`）或 `Event.State.Trigger.<id>`（显式 hook）。
+State 是携带 `State.<id>`、stack、修饰项与能力的 Infinite 效果。Weak 每层减少 1 点 ATK/DEF，最小为 0。HUD 显示 Ability System 的 Current 值和 Weak 层数，因此 Base 为 10、两层 Weak 时显示 `8 (-2)`。Poisoned 通过 `Event.Combat.ResolveIncomingDamage` 增加伤害。State 图监听 `Event.Movement.Step`（`onWalk`）或 `Event.State.Trigger.<id>`（显式 hook）。
 
 ## 运行时引用
 
@@ -115,8 +115,3 @@ Game 项目的数据结构与成员列表见通用数据参考各页，从 [Clas
 ## 限制
 
 Game 项目的战斗与背包规则是可按项目需要替换的示例。
-
-## 相关页面
-
-- [Ludork Lua 进阶](<../../快速入门/Ludork Lua 进阶.md>)
-- [Source.Battler](<../源码类/Battler.md>)

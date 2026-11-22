@@ -1,17 +1,15 @@
 # Build and Module Layout
 
-Choose a C++ Source project when the Lua and Blueprint APIs are insufficient, when a new native UI adapter is required, or when producing an iOS, HarmonyOS or Android build. The runtime uses C++20, CMake and declaration-driven bindings.
+Choose a C++ Source project when the Lua and Blueprint APIs are insufficient, when a new native UI adapter is required, or when producing an iOS, HarmonyOS, Android or Web build. The runtime uses C++20, CMake and declaration-driven bindings.
 
 ## Prerequisites
 
 - A C++ Source project with CMake, a C++20 toolchain and the platform dependencies installed.
-- A supported target: Windows 10 or newer on x64, macOS 13.3 or newer on Apple Silicon, iOS 16.3 or newer on arm64, HarmonyOS 6.0.2 / API 22 or newer on arm64-v8a, or Android 7.0 / API 24 or newer on arm64-v8a.
+- A supported target: Windows 10 or newer on x64, macOS 13.3 or newer on Apple Silicon, iOS 16.3 or newer on arm64, HarmonyOS 6.0.2 / API 22 or newer on arm64-v8a, Android 7.0 / API 24 or newer on arm64-v8a, or Web on WebGL 2.
 
 Public headers contain ordinary C++ declarations plus `BIND_*` markers that expand to nothing at compile time. Core bindgen reads the module and shared Runtime declaration roots, then generates one stable LuaGlue source per class, one module aggregate and stub source, a LuaLS stub and editor metadata.
 
-The `LUDORK_OPTIMIZE_DEBUG` setting also controls Debug interprocedural optimisation for LuaSF binding objects and the shared LuaGlue runtime.
-
-Windows Release builds use reproducible compilation and linking, including the SFML and Lua dependencies and the separate FFmpeg build. MSVC uses deterministic compilation; LLVM Clang uses `/Brepro` during compilation and maps source and build paths. Both link with `/Brepro` and incremental linking disabled. MinGW suppresses PE timestamps. With the same sources, dependencies, compiler, SDK, build settings and paths, clean rebuilds preserve EXE/DLL hashes when updating a Standalone project's `Binaries`. Changing those inputs can change the output; this does not promise identical files between compilers or project paths, or byte-identical installers. Packages continue to omit PDB files; retain the matching build symbols for debugging.
+Windows Release builds use reproducible compilation and linking, including the SFML and Lua dependencies and the separate FFmpeg build. MSVC uses deterministic compilation; LLVM Clang uses `/Brepro` during compilation and maps source and build paths. Both link with `/Brepro` and incremental linking disabled. MinGW suppresses PE timestamps. With the same sources, dependencies, compiler, SDK, build settings and paths, clean rebuilds preserve EXE/DLL hashes when updating a Standalone project's `Binaries`. Changing those inputs can change the output; this does not promise identical files between compilers or project paths, or byte-identical installers. Packages continue to omit PDB files.
 
 ## Steps
 
@@ -80,9 +78,9 @@ LDC retains the `LDDC` envelope, version `1`, zlib compression, stream obfuscati
 
 Empty arrays and maps remain distinct. The decoded payload is limited to 512 MiB and nesting to 256. Invalid tags, truncation, invalid lengths, duplicate keys, non-finite numbers and trailing bytes fail decoding. Functions, objects, cycles and reference restoration are outside this pure-data format. Old LDC payloads containing JSON text are rejected without fallback or migration; regenerate them from source data. Shader payloads keep their separate format.
 
-### Experimental MRB rendering
+### MRB rendering
 
-This section applies to the experimental `MRB` branch. The ordinary `main` branch retains the OpenGL behaviour described elsewhere on this page. MRB uses a manually supplied SFML MRB source tree and matching regenerated LuaSF bindings; the dependency versions in `versions.conf` remain unchanged. Set `LUDORK_SFML_SOURCE_DIR`, `LUDORK_LUASF_SOURCE_DIR` and `LUDORK_LUAGLUE_SOURCE_DIR` in the existing CMake build when using external source directories. Dependency initialisation still follows the pinned release sources, so it is not the command for refreshing the experimental SFML copy.
+Rendering uses the SFML MRB source tree selected by `versions.conf` and matching regenerated LuaSF bindings. Set `LUDORK_SFML_SOURCE_DIR`, `LUDORK_LUASF_SOURCE_DIR` and `LUDORK_LUAGLUE_SOURCE_DIR` in the existing CMake build when using external source directories. Dependency initialisation follows the pinned sources, so it cannot refresh a locally supplied SFML copy.
 
 | Target | Game backend | Editor preview backend |
 |---|---|---|
@@ -90,6 +88,7 @@ This section applies to the experimental `MRB` branch. The ordinary `main` branc
 | macOS | Metal | OpenGL 3.2 Core |
 | iOS | Metal | No local PreviewHost |
 | Android and HarmonyOS, including 2in1 | OpenGL ES 3 | No local PreviewHost |
+| Web | WebGL 2 | No local PreviewHost |
 
 Desktop builds contain OpenGL alongside the native game backend. The game selects its platform backend before creating GPU resources; it does not switch to OpenGL if that backend fails. PreviewHost is a separate process and explicitly holds an OpenGL Core context. Preview programs are created from GLSL in memory and do not populate the game's persistent shader cache.
 
@@ -109,7 +108,7 @@ MRB GPU particles keep simulation and drawing on the GPU through SFML RHI, inclu
 
 ### GPU particle ownership
 
-Core keeps the public `Emitter`, `EmitterComponent`, `EmitterView` and Scene scheduling interfaces. Its `EmitterConfiguration` contains `EmitterTrack` values, each combining Runtime's `EmitterTrackParameters` with Core's eight named `EmitterCurves` channels of `Curve::CurveData`. `setConfiguration` centrally validates these values, samples the existing `Curve` implementation into a 256 × 8 float lookup table per track and restarts playback. `Runtime/Graphics/GpuEmitterCurveLayout.hpp` owns this layout: 256 samples across eight channels, packed into two RGBA rows. CPU baking, GPU texture allocation and generated shader coordinates use the same sample counts and indexing. `getConfiguration` returns an independent value copy. The existing ParticleSystem remains in Core.
+Core keeps the public `Emitter`, `EmitterComponent`, `EmitterView` and Scene scheduling interfaces. Its `EmitterConfiguration` contains `EmitterTrack` values, each combining Runtime's `EmitterTrackParameters` with Core's eight named `EmitterCurves` channels of `Curve::CurveData`. `setConfiguration` centrally validates these values, samples the existing `Curve` implementation into a 256 × 8 float lookup table per track and restarts playback. `Runtime/Graphics/GpuEmitterCurveLayout.hpp` owns this layout and its packing into two RGBA rows. CPU baking, GPU texture allocation and generated shader coordinates use the same sample counts and indexing. `getConfiguration` returns an independent value copy. The existing ParticleSystem remains in Core.
 
 Within the Emitter path, `RuntimeData` is confined to resource JSON input in Core's `EmitterResource.hpp/.cpp`. The resource adapter maps authored string choices, 0–255 colours, arrays and curve references to the fixed configuration fields. The Emitter stores that configuration value; the backend stores its compiled configuration.
 
@@ -117,11 +116,11 @@ Within the Emitter path, `RuntimeData` is confined to resource JSON input in Cor
 
 The public Core `Emitter` forwards playback operations to this backend. Configuration, track, curve, burst and statistics records each keep a separate class-named header, and their Lua registrations and declarations are generated through the normal binding build under `Engine`. Runtime has no additional Lua root.
 
-On `main`, GPU implementation files live under `Runtime/src/Graphics/Emitters`. Raw OpenGL functions, shaders, buffer/query identifiers and private GPU headers stay there. Texture reads reuse Runtime AssetStore and AssetInputStream, including the existing loose and packed layouts. Runtime depends on Standard and SFML; Core includes only Runtime's public graphics headers.
+GPU implementation files live under `Runtime/src/Graphics/Emitters`. GPU programs, buffers and private GPU headers stay there, built on SFML RHI. Texture reads reuse Runtime AssetStore and AssetInputStream, including the existing loose and packed layouts. Runtime depends on Standard and SFML; Core includes only Runtime's public graphics headers.
 
 The Runtime Graphics CMake subdirectory compiles this backend once in both full and `LUDORK_WITH_LUA=OFF` builds.
 
-On `main`, shared GPU resources are keyed by the active SFML context ID. Shutdown queues GPU objects without requiring a context on the caller's thread; collection runs with the matching resource context active. Scene and preview hosts retain ownership of windows/render targets and collect retired resources before destroying those contexts. This GPU lifetime is independent of the Lua VM lifetime.
+Shared GPU resources are keyed by the active SFML RHI device. Shutdown queues GPU objects without requiring a context on the caller's thread; collection runs with the matching resource context active. Scene and preview hosts retain ownership of windows/render targets and collect retired resources before destroying those contexts. This GPU lifetime is independent of the Lua VM lifetime.
 
 ### Session and module lifetime
 
@@ -143,7 +142,7 @@ Host-private implementation stays under `src` and uses an `Impl` suffix, such as
 
 Core shares SpriteVisuals, joystick device tracking and text configuration codecs through `src/Shared/include/CoreShared`. Their implementation and state remain under `src/Shared/src`; consumers include only the interface headers. Host companion headers stay beside their host source and are not shared interfaces.
 
-Application platform implementations share neutral interfaces under `Application/src/Platform/include`. The application host depends on those interfaces and applies platform results to runtime launch options. Platform implementations do not include host-private headers or own the host’s startup-error reporting.
+Application platform implementations share neutral interfaces under `Application/src/Platform/include`. The application host depends on those interfaces and applies platform results to runtime launch options. Platform implementations do not include host-private headers or own the host's startup-error reporting.
 
 Windows editor and game launchers compile the shared source under `Engine/PlatformHosts/Common`; `WindowsLauncher.hpp` exposes `RunLauncher` with a relative executable path and `LauncherWorkingDirectory` policy. The editor launches `Binaries\Ludork.exe` with the launcher directory as its working directory. The game launches `Binaries\Main.exe` while inheriting the caller's working directory. Both forward arguments, standard streams and the child exit status. C++ Source templates retain this shared source.
 
@@ -215,7 +214,7 @@ The platform scripts locate the toolchain directory automatically. Direct CMake 
 
 In the editor, **Construct** runs the Debug build for a C++ Source project. After a direct CMake build, run an incremental `build_cpp` to update the build record used by **Play**. Changes to third-party sources or external CMake settings also require **Construct** or `build_cpp`. See [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>) for the editor workflow.
 
-Windows x64 game builds support MSVC, MinGW-w64 GCC and LLVM Clang through `clang-cl.exe`, including PreviewHost, the FFmpeg-enabled variant, Source-to-Standalone conversion and game packaging. These builds use the prepared native dependency sources and Toolchain; GNU Make and Git Bash remain required where used by the build, including FFmpeg. LLVM Clang requires `lld-link.exe` and `llvm-lib.exe` from the same LLVM installation, Visual Studio 2022 C++ build tools and a Windows SDK, plus Ninja on `PATH`. It uses the MSVC ABI and runtime libraries. Its Ninja build does not require Visual Studio's ClangCL integration component. Tool preparation and editor packaging retain their existing toolchain.
+Windows x64 game builds support MSVC, MinGW-w64 GCC and LLVM Clang through `clang-cl.exe`, including PreviewHost, the FFmpeg-enabled variant, Source-to-Standalone conversion and game packaging. These builds use the prepared native dependency sources and Toolchain; GNU Make and Git Bash remain required wherever the build uses them, including for FFmpeg. LLVM Clang requires `lld-link.exe` and `llvm-lib.exe` from the same LLVM installation, Visual Studio 2022 C++ build tools and a Windows SDK, plus Ninja on `PATH`. It uses the MSVC ABI and runtime libraries. Its Ninja build does not require Visual Studio's ClangCL integration component. Tool preparation and editor packaging retain their existing toolchain.
 
 For CI, download the standalone `Ludork-BuildTools-<version>-<platform>.tar.gz` from the matching Release. Extract it and run the build or packaging entry point under `BuildTools/`. Install the compiler and SDK required by the project on the build runner.
 
@@ -225,17 +224,17 @@ All three compilers keep CMake output under `build` and runtime output under `bi
 
 WinLibs GCC 14.2 can fail to create generated `.obj.d` files when their full paths exceed Windows' traditional path-length limit, even when the containing directory exists. Create MinGW projects under a shorter root path to leave room for generated binding filenames.
 
-MinGW builds publish `WebView2Loader.dll` and the required GCC runtime DLLs beside the game and PreviewHost in `bin/<configuration>`. Editable Standalone projects and final game packages carry these files in `Binaries`, so the target machine needs no MinGW installation. Web pages still use the installed Evergreen WebView2 Runtime; the loader DLL does not contain a browser engine. Keep the accompanying runtime notices and the matching compiler runtime source-distribution materials described in `Licenses/NativeDependencies/MinGW-RUNTIME-NOTICE.md` when distributing a MinGW-built game.
+MinGW builds publish `WebView2Loader.dll` and the required GCC runtime DLLs beside the game and PreviewHost in `bin/<configuration>`. Editable Standalone projects and final game packages carry these files in `Binaries`, so the target machine needs no MinGW installation. Web pages still use the installed Evergreen WebView2 Runtime; the loader DLL does not contain a browser engine. When distributing a MinGW-built game, keep the accompanying runtime notices and the matching compiler runtime source-distribution materials described in `Licenses/NativeDependencies/MinGW-RUNTIME-NOTICE.md`.
 
-`LUDORK_OPTIMIZE_DEBUG` defaults to `ON` and controls Debug optimisation. LuaGlue checks argument types and bounds in every configuration.
+`LUDORK_OPTIMIZE_DEBUG` defaults to `ON` and controls Debug optimisation, including Debug interprocedural optimisation for LuaSF binding objects and the shared LuaGlue runtime. LuaGlue checks argument types and bounds in every configuration.
 
 First-party C++ must not use `dynamic_cast`, `std::dynamic_pointer_cast` or `typeid`. `Engine/cmake/LudorkCppOptions.cmake` disables RTTI for C++ and Objective-C++ in every configuration with `/GR-` on MSVC and clang-cl, and `-fno-rtti` on GCC and the GNU-style Clang and AppleClang drivers. This covers game, Preview, Lua-disabled builds and source-built dependencies. LuaGlue identifies types without RTTI; exception handling stays enabled. Rebuild all native modules together after changing this policy. Imported libraries and system frameworks retain their own settings.
 
 Release builds enable IPO/LTO for Standard, its separate ClassRuntime OBJECT target and the final mobile application target, alongside Runtime and Core. MinGW keeps IPO disabled. ClassRuntime uses hidden symbols and hidden inline symbols, while explicit public exports remain available. On Apple platforms, the game application, Standard, Runtime and Core use `-dead_strip` for their final Release links. MSVC and LLVM Clang keep separate PDB files and `/OPT:REF /OPT:ICF`; Android and HarmonyOS use their toolchain's section garbage collection. These Release settings do not change Debug optimisation or the public Lua API. Keep the matching unstripped build outputs and any generated debug-symbol files for diagnosing a release; [packaging](<../Editor User Guide/Run Debug and Package.md#packaging>) strips only the platform's final distribution output.
 
-Precompiled headers (PCH) are enabled by default for `LudorkStandard`, `LudorkStandardClassRuntime`, `LudorkRuntime`, `Engine`, `GlobalCore`, `GlobalFunctions`, `PreviewHostRuntime` and `PreviewHostExecutable`. PCH avoids repeatedly parsing shared headers in each source file. Each target builds its own PCH for the selected compiler, configuration, architecture and compile definitions; do not reuse these files across targets or build variants. Lua-enabled builds precompile the stable `LuaSF.hpp` and `LuaGlue/LuaGlue.hpp` headers; `LUDORK_WITH_LUA=OFF` builds precompile standard-library headers. Objective-C/Objective-C++ sources and sources with per-file MSVC or clang-cl Debug optimisation overrides compile without PCH in every configuration. Keep each source's direct includes and each public header's independent compilation requirements.
+Precompiled headers (PCH) are enabled by default for `LudorkStandard`, `LudorkStandardClassRuntime`, `LudorkRuntime`, `Engine`, `GlobalCore`, `GlobalFunctions`, `PreviewHostRuntime` and `PreviewHostExecutable`. PCH avoids repeatedly parsing shared headers in each source file. Each target builds its own PCH for the selected compiler, configuration, architecture and compile definitions; do not reuse these files across targets or build variants. Lua-enabled builds precompile the stable `LuaSF.hpp` and `LuaGlue/LuaGlue.hpp` headers; `LUDORK_WITH_LUA=OFF` builds precompile standard-library headers. Objective-C/Objective-C++ sources and sources with per-file MSVC or clang-cl Debug optimisation overrides compile without PCH in every configuration. Each source still needs its direct includes, and each public header must still compile independently.
 
-Generated Core bindings compile in the internal `EngineBindings`, `GlobalCoreBindings` and `GlobalFunctionsBindings` OBJECT targets. Their PCH starts with the owning module's generated conversion traits, and their object files are included in the existing host libraries; they produce no additional runtime libraries or Lua modules. On macOS, single-arm64 AppleClang Release builds use `-Os` for both each binding target's PCH and its generated sources. Handwritten runtime sources and other platforms, architectures and configurations retain their existing optimisation levels.
+Generated Core bindings compile in the internal `EngineBindings`, `GlobalCoreBindings` and `GlobalFunctionsBindings` OBJECT targets. Their PCH starts with the owning module's generated conversion traits, and their object files are included in the existing host libraries; they produce no additional runtime libraries or Lua modules. On macOS, single-arm64 AppleClang Release builds use `-Os` for each binding target's PCH and its generated sources. Handwritten runtime sources and other platforms, architectures and configurations retain their existing optimisation levels.
 
 To disable PCH in an already configured build, run `cmake -S Game -B Game/build -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON`, using the existing project's source and build paths. Generated binding units then receive their conversion traits through forced inclusion. Run the normal `build_cpp` entry afterwards to build and publish the record used by editor **Play**. Set the same CMake option to `OFF` to restore PCH.
 
@@ -245,11 +244,11 @@ CMake reads LuaSF, LuaGlue, SFML and Lua from their directories under `Game/Engi
 
 Dependency initialisation also installs IXWebSocket 12.1.0 at `Engine/ThirdParty/IXWebSocket`, pinned by `versions.conf` to commit `bf7ad53c02612643e1cf72e37c8749491798d33d`. `Engine/cmake/LudorkIXWebSocket.cmake` provides the static `ixwebsocket::ixwebsocket` target for GlobalCore's optional WebSocket transport. TLS, message compression, demos, tests and installation are disabled in that dependency's scope without changing parent build options. Source templates and mobile packaging retain its source; packages include `Licenses/IXWebSocket/LICENSE.txt` and `THIRD-PARTY.txt`. Native clients accept an `http://` configuration and derive its `ws://` endpoint. Web builds use browser HTTP and WebSocket transports; HTTPS/WSS configuration is described in [server deployment](<../Simple Server/Deployment and Editor Settings.md#configure-a-packaged-client>).
 
-SFML is a required source project rather than an optional override, and LuaSF reuses the `sfml-*` targets Ludork builds from it. Mobile uses static SFML; desktop follows `LUASF_BUILD_SHARED_SFML`, defaulting to shared. `versions.conf` selects the SFML variant by repository and tag; the current pin is the SFML-ME `310-ME-OH-macOSJoystick` tag. OHOS GPU particles require an SFML source that preserves the GLES 3 context request; see [Common Particles](<../Editor User Guide/Common Particles.md>).
+SFML is a required source project rather than an optional override, and LuaSF reuses the `sfml-*` targets Ludork builds from it. Mobile uses static SFML; desktop follows `LUASF_BUILD_SHARED_SFML`, defaulting to shared. `versions.conf` selects the SFML variant by repository and tag; the current pin is the SFML-ME `MRB3100` tag. OHOS GPU particles require an SFML source that preserves the GLES 3 context request; see [Common Particles](<../Editor User Guide/Common Particles.md>).
 
 Local source archives can be selected with `LUASF_SOURCE_ARCHIVE` before dependency initialisation: use a `.tar.gz` with the shell entry point or a `.zip` on Windows. The archive must extract directly to `LuaSF/` and `LuaGlue/`; older source layouts are rejected. `SFML_SOURCE_ARCHIVE` similarly selects a local `.zip` or `.tar.gz` rooted at `SFML/`, including `CMakeLists.txt` and `include/SFML/Config.hpp`. These explicit imports replace the selected installed sources; packaging itself never replaces them. Both projects consume one Lua 5.5 runtime. Desktop builds share LuaGlue; mobile and Web targets link it statically.
 
-Web builds use Emscripten's CMake toolchain with Ninja and keep outputs in `build-web`, separate from native preview builds. The runtime, Lua modules and optional FFmpeg libraries are linked into one Wasm module. WebGL 2 uses the existing OpenGL ES 3 shader translation path. The browser main thread runs the game with Asyncify; background resource work advances cooperatively, without pthreads or cross-origin isolation headers. Custom native code must yield during long work and must not start native threads or rely on operating-system sockets. The host restores browser storage and prepares audio before the start gesture enters Lua.
+Web builds use Emscripten's CMake toolchain with Ninja and keep outputs in `build-web`, separate from native preview builds. The runtime, Lua modules and optional FFmpeg libraries are linked statically into one Wasm module. WebGL 2 uses the existing OpenGL ES 3 shader translation path. The browser main thread runs the game with Asyncify; background resource work advances cooperatively, without pthreads or cross-origin isolation headers. Custom native code must yield during long work and must not start native threads or rely on operating-system sockets. The host restores browser storage and prepares audio before the start gesture enters Lua.
 
 `Engine/cmake/FFmpeg/build_web.sh` builds the existing MOV/H.264/AAC software decoder set as static Wasm libraries, with swscale and swresample. It excludes native threading, hardware acceleration, network protocols, encoders and command-line programs. Windows uses Git Bash and GNU Make for this configure-based dependency. See [WebGL packaging](<../Editor User Guide/Run Debug and Package.md#webgl>) for SDK discovery and distribution layout.
 
@@ -257,13 +256,13 @@ CMake runs `ludork-codegen core-bindgen` automatically. See [Generated Metadata 
 
 `Intermediate/` is excluded from templates and recreated by a normal build when missing. `bin/` and `build/` remain at the project root.
 
-iOS uses a single-window `UIScene` host. The application scene manifest selects its scene delegate. The host associates its window with a `UIWindowScene` and starts the runtime once that scene is active. A temporary scene disconnection pauses the live runtime and retains its window for reconnection within the same session. This supports SDKs that require the scene lifecycle while the application and optional FFmpeg build retain an iOS 16.3 deployment target.
+iOS uses a single-window `UIScene` host. The application scene manifest selects its scene delegate. The host associates its window with a `UIWindowScene` and starts the runtime once that scene is active. A temporary scene disconnection pauses the live runtime and retains its window for reconnection within the same session. This supports SDKs that require the scene lifecycle. The application and the optional FFmpeg build retain an iOS 16.3 deployment target.
 
 HarmonyOS packaging is an Apple Silicon macOS cross-build through DevEco Studio's OpenHarmony native SDK. Each package recreates its Stage and native build directories. The HAP target and the compatible SDK are both `6.0.2(22)`, and CMake receives `OHOS_COMPATIBLE_SDK_VERSION=22`. The toolchain therefore compiles Ludork, Lua, LuaSF, LuaGlue and SFML for `aarch64-linux-ohos22.0.0` with API availability diagnostics enabled. A newer installed SDK serves as the compile SDK only and does not raise that deployment target.
 
-The application selects OpenGL ES 3 before creating graphics resources. Its Stage manifest declares `phone`, `tablet` and `2in1` and requests `ohos.permission.LOCK_WINDOW_CURSOR`. Phones and tablets open in landscape. A 2in1 can use fullscreen and floating windows. FFmpeg-enabled builds use the same versioned compiler target for C and C++ compilation and linking, with the OpenHarmony sysroot, MUSL selection and availability checks.
+The application selects OpenGL ES 3 before creating graphics resources. Its Stage manifest declares `phone`, `tablet` and `2in1`, and requests `ohos.permission.LOCK_WINDOW_CURSOR`. Phones and tablets open in landscape. A 2in1 can use fullscreen and floating windows. FFmpeg-enabled builds use the same versioned compiler target for C and C++ compilation and linking, with the OpenHarmony sysroot, MUSL selection and availability checks.
 
-Android packaging is a cross-build from Apple Silicon macOS. The packer invokes host CMake 3.28 or newer with `Unix Makefiles`, the highest complete stable NDK r27-or-newer toolchain found under the local SDK's `ndk` directory, `ANDROID_PLATFORM=android-24`, `ANDROID_ABI=arm64-v8a` and `ANDROID_STL=c++_static`. The project never contains its own SDK or NDK. Lua, LuaSF, LuaGlue, Runtime, Core, cjson, SFML and optional FFmpeg targets are static. The only shared output is `libludork.so`, which Gradle consumes as a prebuilt `jniLibs` entry. Android Studio's SDK CMake and Ninja are not used.
+Android packaging is a cross-build from Apple Silicon macOS. The packer invokes host CMake 3.28 or newer with `Unix Makefiles`, the highest complete stable NDK toolchain (r27 or newer) found under the local SDK's `ndk` directory, `ANDROID_PLATFORM=android-24`, `ANDROID_ABI=arm64-v8a` and `ANDROID_STL=c++_static`. The project never contains its own SDK or NDK. Lua, LuaSF, LuaGlue, Runtime, Core, cjson, SFML and optional FFmpeg targets are static. The only shared output is `libludork.so`, which Gradle consumes as a prebuilt `jniLibs` entry. Android Studio's SDK CMake and Ninja are not used.
 
 ### Load the runtime modules
 
@@ -279,8 +278,3 @@ local Manager = GlobalFunctions.Manager
 ```
 
 Load these three roots in the displayed order. `GlobalFunctions` groups are accessed through their tables and must not leak into the module root. Standard globals are already installed. `CoreSystem` is not a runtime module.
-
-## Related pages
-
-- [Binding a Class](<Binding a Class.md>)
-- [Functions, Events and Execution](<Functions Events and Execution.md>)

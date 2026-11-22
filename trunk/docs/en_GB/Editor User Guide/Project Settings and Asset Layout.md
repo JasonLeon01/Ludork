@@ -55,7 +55,7 @@ Editor appearance and tool preferences are shared independently of this project 
 
 ## Game configuration
 
-Open **Game → Game Config** (`F3`) to edit the game’s language, display and audio settings.
+Open **Game → Game Config** (`F3`) to edit the game's language, display and audio settings.
 
 macOS stores these settings in `Main.plist`, an XML plist. Other platforms, including iOS, use `Main.ini`. The section names, keys and defaults are the same in both formats. macOS does not read or migrate an existing `Main.ini`; if `Main.plist` is absent, new settings use the defaults and the INI file is left untouched. The plist structure is described in [Platform, configuration and files](<../Getting Started/Ludork Lua Advanced.md#platform-configuration-and-files>).
 
@@ -83,7 +83,7 @@ Clear **Use default** to fill the editor with the current script default and cre
 
 Enum fields use a drop-down; numeric and text fields accept typed input, and boolean fields use a checkbox. Clearing a numeric input restores Use default. An empty string and `false` remain explicit values; use the Use default checkbox to clear those overrides.
 
-A numeric zero is an explicit value, not Use default; enter a positive value for the save-slot count and tutorial duration before saving. The [shared Gameplay configuration reference](<../Lua and Blueprint Scripting/Default Gameplay/Runtime Data Configuration and Saves.md#shared-gameplay-configuration>) lists the supported settings and their script defaults. Save the configuration and restart the game to apply it.
+A numeric zero is an explicit value, not Use default; enter a positive value for the save-slot count and tutorial shrink duration before saving. The [shared Gameplay configuration reference](<../Lua and Blueprint Scripting/Default Gameplay/Runtime Data Configuration and Saves.md#shared-gameplay-configuration>) lists the supported settings and their script defaults. Save the configuration and restart the game to apply it.
 
 Switching configurations keeps pending edits and does not save automatically. An asterisk in the list and window title marks changes. Use Ctrl+S on Windows or Command+S on macOS for global Save; Undo/Redo applies to the configuration selected in the list.
 
@@ -134,7 +134,7 @@ These logical paths are read interfaces. Write downloaded files, saves and cache
 
 ### Map and world-map assets
 
-An ordinary map is `Data/Maps/<Name>.json`. A world is `Data/Maps/<WorldFolder>/` with exactly one `_world.json` and direct child-map `.json` files, and deeper nesting is not allowed. World loading reads only the direct `.json` files and ignores other regular files such as `.DS_Store`. `_info.json` in `Data/Maps` and in each world folder stores the editor's [Map List order](<Tilesets Autotiles and Maps.md#map-list-and-composite-worlds>) as `{"order": ["Map_01", {"Map_02": ["Map_03"]}, "World_01"]}`, where a string is a file stem or world folder name and a single-key object nests rows under that entry. The runtime ignores it, [game packaging](<Run Debug and Package.md#packaging>) excludes it, and `_info` cannot be used as a map or world name. The folder name is the world's path identity, while `_world.json` stores its independent `worldName`. Each direct child keeps its own editable `mapName`, so the file remains a complete map after it is moved out of the world, and the child file name remains its path and placement identity. The manifest is the world's selector and save identity, and it stays hidden in the Map List.
+An ordinary map is `Data/Maps/<Name>.json`. A world is `Data/Maps/<WorldFolder>/` with exactly one `_world.json` and direct child-map `.json` files, and deeper nesting is not allowed. World loading reads only the direct `.json` files and ignores other regular files such as `.DS_Store`. `_info.json` in `Data/Maps` and in each world folder stores the editor's [Map List order](<Tilesets Autotiles and Maps.md#map-list-and-composite-worlds>) as `{"order": ["Map_01", {"Map_02": ["Map_03"]}, "World_01"]}`, where a string is a file stem or world folder name and a single-key object nests rows under that entry. The runtime ignores it, [game packaging](<Run Debug and Package.md#packaging>) excludes it, and `_info` cannot be used as a map or world name. The folder name is the world's path identity, while `_world.json` stores its independent `worldName`. Each direct child keeps its own editable `mapName`, so the file remains a complete map after it is moved out of the world, and the child file name remains its path and placement identity. The manifest is the world's identity in selectors and in saves, and it stays hidden in the Map List.
 
 The manifest has this closed editor-owned shape:
 
@@ -173,7 +173,3 @@ Ordinary maps and worlds store fog in the same `fog` object. Configure its proce
 ## Limitations
 
 Map renames and moves update recognised map-file settings and destinations in `GotoMap` and `RecordTelepoint` graph nodes. Arbitrary strings and dynamically constructed paths must be updated manually.
-
-## Related pages
-
-- [Project Templates](<../Getting Started/Project Templates.md>)

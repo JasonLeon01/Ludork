@@ -4,7 +4,7 @@ The UI Asset Editor lays out a declarative UI asset visually, with the Palette, 
 
 ## Open or create an asset
 
-Choose **Game → New UI Asset**, or create and open the JSON asset beneath `Data/UI` through the project file explorer. Asset ownership (`Parts/<Owner>` versus `Shared`) is described in [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>).
+Choose **Game → New UI Asset**, or create and open the JSON asset beneath `Data/UI` through the project's File Explorer. Asset ownership (`Parts/<Owner>` versus `Shared`) is described in [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>).
 
 ![UI Asset Editor showing Palette, Hierarchy, Designer and Inspector](../../../images/editor/ui-asset-editor.png)
 
@@ -12,7 +12,7 @@ Choose **Game → New UI Asset**, or create and open the JSON asset beneath `Dat
 
 1. Set the design width and height for the asset.
 2. Add a root control. A new screen normally starts with `Engine.Canvas`.
-3. Drag system controls or exposed project assets from the Palette into the Hierarchy. [UI Controls in the Palette](<UI Controls in the Palette.md>) says what each control is for and helps you choose between them.
+3. Drag system controls or exposed project assets from the Palette into the Hierarchy. [UI Controls in the Palette](<UI Controls in the Palette.md>) describes each control's purpose and helps you choose between them.
 4. Select each node and edit control properties in the Inspector.
 5. Configure the child Slot according to the container's [child and Slot rules](<UI Controls in the Palette.md#children-and-slots>).
 6. Give every node a meaningful name that is unique within the asset. Generated Views preserve these names as typed control or child-View keys.
@@ -21,7 +21,7 @@ Choose **Game → New UI Asset**, or create and open the JSON asset beneath `Dat
 
 Drag a Palette control onto the middle of a container's Hierarchy row to add a child, or onto the top or bottom quarter of a row to insert a sibling. Dropping in blank Hierarchy space appends to the root. Double-clicking a Palette control also adds it using the current selection.
 
-Moving a node to a Canvas preserves its visual position and fixed dimensions; stretched axes follow the new parent’s available size. Rotation and scale are retained, so a differently transformed parent can change the result. Reordering within one parent preserves the Slot. Each reparenting or indent/outdent action is one Undo step.
+Moving a node to a Canvas preserves its visual position and fixed dimensions; stretched axes follow the new parent's available size. Rotation and scale are retained, so a differently transformed parent can change the result. Reordering within one parent preserves the Slot. Each reparenting or indent/outdent action is one Undo step.
 
 Nested project assets cannot be expanded or edited from their parent. Open the original asset to change its contents.
 
@@ -29,16 +29,12 @@ A WrapBox has one child template. The Designer displays every repetition, but ed
 
 ## Timeline
 
-The Timeline lists animations on the left and starts with no selection, an empty detail area and the authored UI appearance. Right-click to add or delete a local animation, then select one to edit its name, target, duration, pivot, tracks and keys. Clicking blank list space clears the selection. Colour keys use integer RGBA components.
+The Timeline lists animations on the left. It starts with no selection, an empty detail area and the authored UI appearance. Right-click to add or delete a local animation, then select one to edit its name, target, duration, pivot, tracks and keys. Clicking blank list space clears the selection. Colour keys use integer RGBA components.
 
 Animation playback and scrubbing are described in [UI previews](<../PreviewHost/UI Actor Particle and Subtitle Previews.md#ui-previews>).
 
-A nested project node lists the Global animations inherited from its asset. Use the override action to create a same-name animation targeted at this instance, and then edit it locally, because inherited definitions themselves remain read-only.
+A nested project node lists the Global animations inherited from its asset. Use the **Override Animation** action to create a same-name animation targeted at this instance, then edit it locally; inherited definitions themselves remain read-only.
 
 ## Asset paths and node names
 
 The asset identity is the exact-case path relative to `Data/UI`, with forward slashes and no extension. Moving or renaming an asset rewrites managed JSON nesting references. The next Export regenerates its View and declarations, so update handwritten `require` paths and references to renamed nodes before exporting. The full key contract is in [UI Asset Schema and Control Registry](<../Lua and Blueprint Scripting/Declarative UI/Asset Schema and Control Registry.md>).
-
-## Related pages
-
-- [Declarative UI Controller Examples](<../Lua and Blueprint Scripting/Declarative UI/Controller Examples.md>)

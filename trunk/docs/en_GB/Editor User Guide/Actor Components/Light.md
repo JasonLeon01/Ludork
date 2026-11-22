@@ -2,7 +2,7 @@
 
 Attach a light to an Actor so its position follows the Actor's transform, for example a carried lamp or wall torch.
 
-`Engine.Actor` and its derived classes expose `lightComp`, an optional `Engine.LightComponent`. Map lighting is authored through these Actor components, using the ordinary Actor selection and inspector.
+`Engine.Actor` and its derived classes expose `lightComp`, an optional `Engine.LightComponent`. Map lighting is authored through these Actor components, using ordinary Actor selection and **Actor Info**.
 
 ## Configuration
 

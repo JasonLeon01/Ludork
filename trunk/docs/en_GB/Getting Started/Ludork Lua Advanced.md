@@ -50,7 +50,7 @@ An explicit `nil` restored from Blueprint, Component or General Data is an own f
 
 ### Construction, lifecycle and inheritance
 
-`Type.new(...)` constructs an instance and calls `init`. Finalised classes are also callable, but project code follows the style of the neighbouring module. A class without `init` accepts no arguments unless a single native root defines the constructor contract. Invoke required native-base initialisers explicitly. Lifecycle methods such as `onCreate`, `onTick` and `onDestroy` run only when their owning runtime contract calls them. `instance:dispose()` runs the resolved implementation at most once, releases native ownership and instance fields, and is not repeated by garbage collection.
+`Type.new(...)` constructs an instance and calls `init`. Finalised classes are also callable, but project code should follow the style of the neighbouring module. A class without `init` accepts no arguments unless a single native root defines the constructor contract. Invoke required native-base initialisers explicitly. Lifecycle methods such as `onCreate`, `onTick` and `onDestroy` run only when their owning runtime contract calls them. `instance:dispose()` runs the resolved implementation at most once, releases native ownership and instance fields, and is not repeated by garbage collection.
 
 Before a native root is constructed, typed assignments to its properties are stored on the composite and applied during native-base initialisation. Native property access uses that root; script getters and setters are resolved from script classes. Setter errors propagate to the caller.
 
@@ -93,7 +93,7 @@ local isNativeVector = Class.isInstance(position, sf.Vector2f)
 local isInteger = Class.isInstance(value, "number") and math.type(value) == "integer"
 ```
 
-String targets preserve Lua `type` semantics: native containers are userdata, and callable tables remain tables. Unknown names return false. Targets that are neither strings nor tables are argument errors. Use `math.type` only after a number check, and `Class.type` only when the resolved type value is needed. Never compare Lua `type` with `==` or `~=`.
+String targets preserve Lua `type` semantics: native containers are userdata, and callable tables remain tables. Unknown names return false. Targets that are neither strings nor tables are argument errors. Use `math.type` only after a number check, and `Class.type` only when the resolved type value is needed. Never compare a Lua `type` result with `==` or `~=`.
 
 ## Project truth values and copies
 
@@ -182,7 +182,7 @@ Standard adds these helpers to Lua's existing libraries:
 
 ## Platform, configuration and files
 
-`PLATFORM` is the lower-case target name (`win32`, `darwin`, `ios`, `android`, `ohos` or the CMake system name). `LUDORK_MOBILE` and `LUDORK_DESKTOP` expose the runtime host category. On HarmonyOS, phones and tablets report mobile and 2in1 devices report desktop. Do not infer a platform from paths or environment variables.
+`PLATFORM` is the lower-case target name (`win32`, `darwin`, `ios`, `android`, `ohos`, `web` or the CMake system name). `LUDORK_MOBILE` and `LUDORK_DESKTOP` expose the runtime host category. On HarmonyOS, phones and tablets report mobile and 2in1 devices report desktop. Do not infer a platform from paths or environment variables.
 
 `configparser.ConfigParser()` provides `read`, `write`, `has_section`, `add_section`, `get`, `getfloat`, `getint`, `getboolean` and `set`. `read(path)` and `write(path)` select XML plist for a `.plist` extension, ignoring extension case; that backend is available only on macOS. Other paths use INI, so explicit `.ini` files remain usable on macOS. Use [the game configuration path API](<../Lua and Blueprint Scripting/Default Gameplay/Runtime Data Configuration and Saves.md#configuration>) for the platform's default game file.
 
@@ -214,7 +214,7 @@ Filesystem extensions are:
 |---|---|
 | `os.getcwd`, `os.listdir` | Read the current directory, or sorted direct entry names (relative to that directory). |
 | `os.createDirectories` | Create a UTF-8 directory path and its missing parents. Existing directories are accepted. |
-| `os.removeFile` | Remove one UTF-8 file path. Missing files and failures raise. This does not replace `os.remove`. |
+| `os.removeFile` | Remove the file at a UTF-8 path. Missing files and failures raise. This does not replace `os.remove`. |
 | `os.path.join`, `os.path.splitext`, `os.path.basename`, `os.path.dirname`, `os.path.abspath` | Build or inspect paths. |
 | `os.path.isdir`, `os.path.isfile` | Test existing directory or file paths. Missing paths return false, and inspection errors propagate. |
 | `os.path.getmtime` | Return a file modification timestamp. |
@@ -254,14 +254,10 @@ For larger reads, `asyncio.start_file_batch(specs)` scans and reads at most four
 
 The snapshot returned by `poll_file_batch` has a string `state`. Compare it with the constants on `asyncio`: `FILE_BATCH_SCANNING = "scanning"`, `FILE_BATCH_RUNNING = "running"`, `FILE_BATCH_COMPLETED = "completed"`, `FILE_BATCH_CANCELLING = "cancelling"`, `FILE_BATCH_CANCELLED = "cancelled"` and `FILE_BATCH_FAILED = "failed"`. Completed, cancelled and failed are terminal job states; a separately delivered data conversion still follows its own stepping contract below.
 
-With `parseData = true`, the suffix must end in `.json` or `.ldc`; workers decode JSON or binary LDC and polling returns a `FileBatchDataConversion`. Decode failures use `operation = "parse"`. Advance the conversion on the Lua logic thread with `asyncio.step_file_batch_data(conversion, maxNodes, maxMilliseconds)`, using positive budgets. It returns `completed, processed, data`, with data delivered once on completion. Arrays carry their logical length in `n`; root null is nil, null array slots are absent keys, and null object fields retain `cjson.null`, matching `Engine.loadData`. `contentBytes` is the decoded payload byte count, before conversion into Lua values. `asyncio.clear_file_batch_data` releases the conversion idempotently. Cancellation, collection and shutdown also invalidate it. Conversions cannot cross Lua VMs or threads.
+With `parseData = true`, the suffix must be `.json` or `.ldc`; workers decode JSON or binary LDC and polling returns a `FileBatchDataConversion`. Decode failures use `operation = "parse"`. Advance the conversion on the Lua logic thread with `asyncio.step_file_batch_data(conversion, maxNodes, maxMilliseconds)`, using positive budgets. It returns `completed, processed, data`, with data delivered once on completion. Arrays carry their logical length in `n`; root null is nil, null array slots are absent keys, and null object fields retain `cjson.null`, matching `Engine.loadData`. `contentBytes` is the decoded payload byte count, before conversion into Lua values. `asyncio.clear_file_batch_data` releases the conversion idempotently. Cancellation, collection and shutdown also invalidate it. Conversions cannot cross Lua VMs or threads.
 
 Without `parseData`, `item.content` contains the original file bytes, including the LDC header and encoded payload. Pass them to `Engine.decodeData` when the data is needed. Blueprint caches retain these bytes for deferred decoding.
 
 ## Timing and memory diagnostics
 
 `perfCounter()` returns a monotonic high-resolution time in seconds. `processMemoryMB()` returns the current process memory in MiB. Use `asizeof` for an owned value graph rather than process-wide memory.
-
-## Related pages
-
-- [SFML Quickstart](<SFML Quickstart.md>)

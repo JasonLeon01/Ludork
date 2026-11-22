@@ -32,8 +32,3 @@ The key ID must match an Item member and its pickup Blueprint, such as `KEY_Y` a
 ## Limitations
 
 Door logic does not perform scene travel. Use Teleporter for map-to-map movement. Update every stored reference when a key or condition identifier is renamed.
-
-## Related pages
-
-- [Script Mixin Authoring Workflow](<../../Script Mixins/Authoring Workflow.md>)
-- [Source.MapActors.Teleporter](<../../Source Classes/Teleporter.md>)

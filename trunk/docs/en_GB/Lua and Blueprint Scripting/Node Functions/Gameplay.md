@@ -32,8 +32,3 @@ The context accessors and the context-bound mutation nodes require a General Dat
 Dynamic attribute pins are `any`, but the Ability System requires a finite number of the selected schema type. `SetNumericAttributeBase` writes Base. `ApplyAttributeDelta` applies an Instant Add modifier.
 
 `SendEvent` runs synchronously, preserves the instigator, and targets the supplied Battler. `ApplyEffect` accepts a `GameplayEffect`. Instant Effects return no persistent handle and cannot grant tags or abilities.
-
-## Related pages
-
-- [GlobalCore Gameplay API](<../Global and Core Modules/Global APIs/Gameplay.md>)
-- [Source Gameplay API](<../Source Classes/Gameplay.md>)

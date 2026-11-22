@@ -2,9 +2,9 @@
 
 ## Animations
 
-Open **Database → Animation Overview** (`F5`) to browse animation data. **Game → New Animation** creates a JSON asset beneath `Data/Animations`. The editor exposes the frames, timing, visual resources and event data of the animation format.
+Open **Database → Animation Overview** (`F5`) to browse animation data. **Game → New Animation** creates a JSON asset beneath `Data/Animations`. The editor exposes the animation format's frames, timing, visual resources and event data.
 
-Keep source images under `Assets/Animations` or another intended asset folder. Non-empty image and sound entries store complete `/Game/Assets/...` paths.
+Keep source images under `Assets/Animations` or another asset folder. Non-empty image and sound entries store complete `/Game/Assets/...` paths.
 
 ![Animation editor showing frame timing and preview controls](../../../images/editor/animation.png)
 
@@ -45,9 +45,3 @@ Use the curve editor to add, move and remove keys. Keep key times ordered. Avoid
 ## Referencing data
 
 Metadata-driven selectors can reference animation and curve keys from Blueprints or General Data. Renaming the JSON file changes the logical key derived from its path, so inspect the reference tree first.
-
-## Related pages
-
-- [Common Particles](<Common Particles.md>) — GPU emitter tracks, atlas playback and normalised lifetime curves.
-- [Project Settings and Asset Layout](<Project Settings and Asset Layout.md>)
-- [Execution Flow, Events and Variables](<../Lua and Blueprint Scripting/Blueprint Scripting/Execution Flow Events and Variables.md>)

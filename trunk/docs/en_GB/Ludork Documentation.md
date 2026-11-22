@@ -41,8 +41,9 @@ Ludork combines a visual editor, Blueprint graphs, Lua scripts and an extensible
 | iOS | iOS 16.3, arm64 | C++ Source project required. |
 | HarmonyOS | HarmonyOS 6.0.2 / API 22, arm64-v8a | Phones, tablets and 2in1 devices. Requires a C++ Source project. |
 | Android | Android 7.0 / API 24, arm64-v8a | C++ Source project required. |
+| Web | WebGL 2 | C++ Source project required. |
 
-Mobile packages are produced on Apple Silicon macOS. A Standalone project uses the prebuilt runtime for the editor’s host platform. See [Run, Debug and Package](<Editor User Guide/Run Debug and Package.md>) for platform tools and signing options.
+Mobile packages are produced on Apple Silicon macOS. A Standalone project uses the prebuilt runtime for the editor's host platform. See [Run, Debug and Package](<Editor User Guide/Run Debug and Package.md>) for platform tools and signing options.
 
 ## Documentation conventions
 

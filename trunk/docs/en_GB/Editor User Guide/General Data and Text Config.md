@@ -58,17 +58,17 @@ Form edits one member in full. Table shows the ID and schema fields in declarati
 
 ## Game Variable Manager
 
-Open **Database → Game Variables** (`F9`) to declare mutable values shared by Blueprint and the active game instance. The left side lists the declared variable names. Select one to edit its type, initial value and optional remark on the right; the remark remains editor-only with no runtime effect. Variable names are runtime identifiers, so keep them stable once graphs, maps or scripts begin to reference them.
+Open **Database → Game Variables** (`F9`) to declare mutable values shared by Blueprints and the active game instance. The left side lists the declared variable names. Select one to edit its type, initial value and optional remark on the right; the remark remains editor-only with no runtime effect. Variable names are runtime identifiers, so keep them stable once graphs, maps or scripts begin to reference them.
 
 Use the search box to filter variable names, ignoring case. **New Variable** adds a declaration after asking for its name and type, and **Delete Variable** removes the selected declaration after confirmation.
 
 ![Game Variable Manager with a selected integer variable](../../../images/editor/game-variables.png)
 
-Choose the type when creating a variable. The manager offers `bool`, `int`, `float`, `string`, `list` and `dict`, and these are written to metadata as `bool`, `int`, `float`, `string`, `any[]` and `Dict[string, any]` respectively. Lists and dictionaries use ordinary Lua tables, not the native `list` or `dict` of Standard. Changing an existing variable's type clears its initial value and replaces it with the empty default of the new type.
+The manager offers `bool`, `int`, `float`, `string`, `list` and `dict`, and these are written to metadata as `bool`, `int`, `float`, `string`, `any[]` and `Dict[string, any]` respectively. Lists and dictionaries use ordinary Lua tables, not the native `list` or `dict` of Standard. Changing an existing variable's type clears its initial value and replaces it with the empty default of the new type.
 
 Save generates `Scripts/Source/Configs/GameVariables.lua` and `GameVariables_meta.lua` together. The first holds initial values and the second holds declarations. Edit variables through the manager, not these files; opening the manager alone writes nothing.
 
-Blueprint fields or node parameters marked with `InstVar` use a searchable selector instead of a free-form text box. A corresponding `InstVarValue` field reads the type of the selected declaration and switches to the normal editor for that type. A type-filtered selector, such as the Game project conditional door, lists compatible variables only.
+Blueprint fields or node parameters marked with `InstVar` use a searchable selector instead of a free-form text box. A corresponding `InstVarValue` field reads the type of the selected declaration and switches to the normal editor for that type. A type-filtered selector, such as the Game project's conditional door, lists compatible variables only.
 
 ## Text Config
 
@@ -83,8 +83,3 @@ See [General Data Reference](<General Data Reference/Overview.md>) for the Game 
 ## Limitations
 
 Changing a schema or a game-variable declaration cannot automatically repair scripts, graphs, saves or string references. General Data and the generated game-variable declarations are project definition data, not stores for mutable play-session state.
-
-## Related pages
-
-- [Class](<General Data Reference/Class.md>) — the Game project Class schema
-- [Blueprints, Common Functions and Actors](<Blueprints Common Functions and Actors.md>)

@@ -13,7 +13,3 @@ Source compilation and the optional IDE project's role are described in [Manifes
 ## Installation
 
 Recipients import the complete source directory and restart Ludork. See [Installing and Managing Plug-ins](<Installing and Managing Plug-ins.md>) for scope, updates and retained data.
-
-## Related pages
-
-- [Registration and Hook Reference](<Registration and Hook Reference.md>)

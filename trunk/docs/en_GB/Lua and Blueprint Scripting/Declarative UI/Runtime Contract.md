@@ -108,8 +108,3 @@ A missing animation warns with its asset, target and name, returns `false` and i
 `UIManager` destruction clears callbacks registered to its lifetime, including on detached controls. `removeUI` preserves them for a later `loadUI`, and loading or reparenting a subtree transfers callback ownership. Removing a root from the manager therefore does not replace View or Controller disposal.
 
 Disposed UI is terminal and must not be reused. Hot reload, described in [Lua Runtime and Modules](<../Lua Runtime and Modules.md#lua-hot-reload>), updates compatible methods while preserving UI state and subscriptions. It does not rerun `bind`, remount controls or rebuild the JSON tree.
-
-## Related pages
-
-- [Declarative UI Controller Examples](<Controller Examples.md>)
-- [UI Asset Schema](<Asset Schema and Control Registry.md>)

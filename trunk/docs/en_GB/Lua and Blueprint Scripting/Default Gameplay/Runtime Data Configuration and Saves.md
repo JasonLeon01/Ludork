@@ -168,8 +168,3 @@ Decoding either format yields ordinary Lua tables. Arrays include their logical 
 ## Limitations
 
 Changing the save format does not rename or migrate existing slots. Choose the format before release, or provide a migration. Save upgrades, atomic writes, backups, cloud synchronisation and tuple-key record formats remain project responsibilities.
-
-## Related pages
-
-- [GlobalFunctions.Save](<../Node Functions/Save.md>)
-- [Game Settings Reference](<Game Settings Reference.md>)

@@ -35,8 +35,3 @@ If Android signing fails, check that the JKS or PKCS12 path is absolute and read
 ## Limitations
 
 Native crashes, binding-generation failures and plug-in load failures require the specialised diagnostics in their respective development sections.
-
-## Related pages
-
-- [C++ Binding Troubleshooting](<../../Native C++ Development/C++ Binding Troubleshooting.md>)
-- [Distribution](<../../Plug-in Development and Installation/Distribution.md>)

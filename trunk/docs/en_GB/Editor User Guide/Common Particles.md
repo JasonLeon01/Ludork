@@ -4,7 +4,7 @@ Common Particle assets contain ordered GPU emitter tracks. Use them on an Actor 
 
 ## Authoring
 
-Choose **Game → New Common Particle** or create a particle in the project file explorer. **Database → Common Particle Overview** (`F6`) lists the resources under `Data/Particles`. Select a resource to edit its tracks, properties and lifetime curves. Right-click the track list to add a track; right-click a track to select it and enable Duplicate Track and Remove Track for that item. Those two actions are disabled when opening the menu on empty space. Track order also determines drawing order within an emitter.
+Choose **Game → New Common Particle** or create a particle in the project file explorer. **Database → Common Particle Overview** (`F6`) lists the resources under `Data/Particles`. Select a resource to edit its tracks, properties and lifetime curves. Right-click the track list to add a track; right-click a track to select it and enable Duplicate Track and Remove Track. Both actions are disabled when the menu opens on empty space. Track order also determines drawing order within an emitter.
 
 ![Common particle editor showing a resident-loop effect](../../../images/editor/common-particle-editor.png)
 
@@ -101,13 +101,8 @@ See [Emitter, EmitterComponent and EmitterView APIs](<../Lua and Blueprint Scrip
 
 ## GPU requirements
 
-Common Particles require a compatible GPU; mobile builds require OpenGL ES 3. Missing GPU capabilities produce an error, with no CPU fallback.
+Common Particles require a compatible GPU; mobile builds need OpenGL ES 3. Missing GPU capabilities produce an error, with no CPU fallback.
 
 ## Limitations
 
 Collision, trails, noise and sub-emitters are not part of this particle feature.
-
-## Related pages
-
-- [Project Settings and Asset Layout](<Project Settings and Asset Layout.md>)
-- [Resources, Audio, Video and Effects](<../Lua and Blueprint Scripting/Default Gameplay/Resources Audio Video and Effects.md>)

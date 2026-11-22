@@ -72,7 +72,7 @@ The isolated state uses the module search path captured when AudioManager initia
 
 ## ShaderManager
 
-In the experimental MRB branch, finish [shader preparation](<../Engine/Maps and Materials.md#shader-preparation-in-mrb>) before these loads. Register non-default stage combinations in that request; load methods do not translate or compile missing programs during rendering.
+Finish [shader preparation](<../Engine/Maps and Materials.md#shader-preparation-in-mrb>) before these loads. Register non-default stage combinations in that request; load methods do not translate or compile missing programs during rendering.
 
 ### Functions and events
 

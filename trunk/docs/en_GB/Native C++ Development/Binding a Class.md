@@ -27,7 +27,7 @@ public:
 };
 ```
 
-Header dependencies and runtime value types follow [Build and Module Layout](<Build and Module Layout.md#core-headers-and-runtime-boundary>). `BIND_METHOD(name = "...")` selects the Lua method name, and applies to `metadata = false` methods as well.
+Header dependencies and runtime value types follow [Build and Module Layout](<Build and Module Layout.md#core-headers-and-runtime-boundary>). `BIND_METHOD(name = "...")` selects the Lua method name and also applies to `metadata = false` methods.
 
 Place the declaration in the module's `include/Counter.hpp` and the member definitions in `src/Counter.cpp`:
 
@@ -56,7 +56,7 @@ counter:add(3)
 Logging.info(counter:getValue())
 ```
 
-The module root is the only public runtime location for the class. The `name` option selects the Lua identifier for that root field. Do not create a second table path for the same native class.
+The module root is the only public runtime location for the class. The `name` option selects the Lua identifier for that root field.
 
 `BIND_CLASS(callbacks = true)` dispatches this class's non-static virtual bound methods through Lua. The opt-in is not inherited, but an override of a method the base class selected as a callback remains active.
 

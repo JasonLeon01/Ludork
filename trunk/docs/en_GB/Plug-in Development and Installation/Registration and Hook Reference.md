@@ -145,9 +145,3 @@ Use the scoped `PluginMenuContext.SecretStore` for API keys; platform support an
 ## Unsupported extension points
 
 There are no public hooks for host-docked panels, toolbars, arbitrary context menus, data types or editor events. The map-item command described above is the only context-menu extension point. A plug-in can carry and open its own Avalonia window from a command, but it cannot inject arbitrary controls into editor-owned views.
-
-## Related pages
-
-- [Manifest and Minimal Plug-in](<Manifest and Minimal Plug-in.md>)
-- [Official Random Map](<Official Plug-ins/Random Map.md>)
-- [Distribution](<Distribution.md>)

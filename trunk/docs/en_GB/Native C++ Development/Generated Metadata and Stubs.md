@@ -74,7 +74,3 @@ If output appears stale, confirm that the annotated header belongs to the module
 ## Generated UI Views
 
 UI Views and window declarations use a separate generator, `ludork-assets ui-assets generate <project-root>`. Generated file ownership and export steps are described in the [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>).
-
-## Related pages
-
-- [C++ Binding Troubleshooting](<C++ Binding Troubleshooting.md>)

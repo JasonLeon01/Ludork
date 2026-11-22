@@ -75,7 +75,7 @@ return class(RouteFollower)
 
 `Class.monitor(target, name, callback, params?, notifyEqualWrites?, identifier?)` 订阅 table 或 userdata 上的字段，注册时不会立刻调用回调。`identifier` 默认为 `""`：标识相同就在原位替换订阅，标识不同则按注册顺序依次执行。`Class.unmonitor(target, name, identifier?)` 只移除对应的那条订阅，订阅不存在时不做处理。
 
-被监听的字段拒绝 `nil` 赋值，默认只在可见值发生变化时通知；该订阅把 `notifyEqualWrites` 传为 `true` 后，等值写入也会收到通知。旧值缺失或是显式 `nil` 时，回调收到 `Class.MISSING`。每个回调收到的参数是 `(oldValue, newValue, ...)`，后面接着 `params` 中的各项。回调中再次赋值仍然生效，但每个订阅会抑制自身的递归。回调报错会终止本次分发并向外传播，不会回滚赋值。
+被监听的字段拒绝 `nil` 赋值，默认只在可见值发生变化时通知；把 `notifyEqualWrites` 传为 `true`，该订阅也会收到等值写入的通知。旧值缺失或是显式 `nil` 时，回调收到 `Class.MISSING`。每个回调收到的参数是 `(oldValue, newValue, ...)`，后面接着 `params` 中的各项。回调中再次赋值仍然生效，但每个订阅会抑制自身的递归。回调报错会终止本次分发并向外传播，不会回滚赋值。
 
 分发使用订阅快照。轮到某条订阅之前它已被移除或替换，就跳过它的旧回调；新注册的回调从后续赋值开始生效。最后一条订阅被移除后，恢复普通字段存储与 table 的原始元表。
 
@@ -182,7 +182,7 @@ Standard 在 Lua 自带库的基础上补充了下列辅助函数：
 
 ## 平台、配置与文件
 
-`PLATFORM` 是目标平台的小写名称（`win32`、`darwin`、`ios`、`android`、`ohos`，或 CMake 系统名）。`LUDORK_MOBILE` 与 `LUDORK_DESKTOP` 给出运行时宿主类别。HarmonyOS 手机和平板报告为移动端，二合一设备报告为桌面端。不要从路径或环境变量推断平台。
+`PLATFORM` 是目标平台的小写名称（`win32`、`darwin`、`ios`、`android`、`ohos`、`web`，或 CMake 系统名）。`LUDORK_MOBILE` 与 `LUDORK_DESKTOP` 给出运行时宿主类别。HarmonyOS 手机和平板报告为移动端，二合一设备报告为桌面端。不要从路径或环境变量推断平台。
 
 `configparser.ConfigParser()` 提供 `read`、`write`、`has_section`、`add_section`、`get`、`getfloat`、`getint`、`getboolean` 与 `set`。`read(path)` 和 `write(path)` 在扩展名为 `.plist` 时选择 XML plist，扩展名不区分大小写；该后端仅在 macOS 上可用。其他路径使用 INI，因此 macOS 仍可显式读写 `.ini` 文件。默认游戏配置应通过[游戏配置路径 API](<../Lua 与蓝图脚本/Game 玩法/运行时数据、配置与存档.md#配置>)获取。
 
@@ -200,7 +200,7 @@ Standard 在 Lua 自带库的基础上补充了下列辅助函数：
 </plist>
 ```
 
-不支持二进制 plist，也不支持 `<integer>`、`<real>`、`<true/>`、数组或嵌套字典等非字符串设置值。空配置节、空字符串、Unicode 文本和值内部的空白都会保留，写入时会转义 `&`、`<` 等 XML 字符。同一 plist 配置节中，只有大小写不同的重复键会被拒绝。
+不支持二进制 plist，也不支持 `<integer>`、`<real>`、`<true/>`、数组或嵌套字典等非字符串设置值。空配置节、空字符串、Unicode 文本和值内部的空白都会保留，写入时会转义 `&`、`<` 等 XML 字符。同一 plist 配置节中，大小写不同的重复键会被拒绝。
 
 运行时解析器的配置节名称区分大小写，设置键不区分大小写，并保留最近一次 `set` 提供的键名拼写。所有值以字符串保存，`getfloat`、`getint` 与 `getboolean` 在读取时转换。布尔文本把 `1`、`yes`、`true`、`on` 解析为真，把 `0`、`no`、`false`、`off` 解析为假，并忽略大小写及两端空白。键缺失或转换失败时，返回传入的回退值；未传回退值则返回 `nil`。多次成功读取会合并到现有配置节中，并保留无关键。
 
@@ -214,7 +214,7 @@ Standard 在 Lua 自带库的基础上补充了下列辅助函数：
 |---|---|
 | `os.getcwd`、`os.listdir` | 读取当前目录，或列出其中已排序的直接条目名（相对于该目录）。 |
 | `os.createDirectories` | 创建 UTF-8 目录路径及其缺失的父目录；目录已存在也视为成功。 |
-| `os.removeFile` | 删除一个 UTF-8 文件路径；文件不存在或操作失败都会报错。它不取代 `os.remove`。 |
+| `os.removeFile` | 删除 UTF-8 路径指向的文件；文件不存在或操作失败都会报错。它不取代 `os.remove`。 |
 | `os.path.join`、`os.path.splitext`、`os.path.basename`、`os.path.dirname`、`os.path.abspath` | 拼接或解析路径。 |
 | `os.path.isdir`、`os.path.isfile` | 判断路径是否为已存在的目录或文件；路径不存在时返回 false，检查过程中的错误照常抛出。 |
 | `os.path.getmtime` | 返回文件的修改时间戳。 |
@@ -261,7 +261,3 @@ end)
 ## 计时与内存诊断
 
 `perfCounter()` 返回单调递增的高精度时间，单位为秒。`processMemoryMB()` 返回当前进程占用的内存，单位为 MiB。估算值图占用的内存应使用 `asizeof`，而非进程整体内存。
-
-## 相关页面
-
-- [SFML 快速入门](<SFML 快速入门.md>)

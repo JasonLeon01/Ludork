@@ -91,7 +91,3 @@ The component utilities in this group support class metadata, serialisation and 
 ## Limitations
 
 Category helpers accept only category-relative paths and prepend their `/Game/Assets/...` prefix, as in `loadCharacter("actors/Hero.png")` and `playSE("cursor.ogg")`. Stored data and `getSoundBuffer(filePath)` require complete logical paths instead. Loading failures follow the native manager contract.
-
-## Related pages
-
-- [Functions, Events and Execution](<../../../Native C++ Development/Functions Events and Execution.md>)

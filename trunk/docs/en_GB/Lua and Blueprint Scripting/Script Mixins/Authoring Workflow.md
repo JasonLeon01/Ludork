@@ -37,8 +37,3 @@ You can create the pair manually using the [runtime table contract](<Runtime Con
 ## Inherited scripts
 
 A child Blueprint may omit `scriptPath` to inherit the current mixin. Supplying another path merges a compatible child mixin over inherited members. Before replacing a script, check that field and function kinds remain compatible, and remove stale saved attributes that no longer belong to the resolved class.
-
-## Related pages
-
-- [Script Mixins Overview](<Overview.md>)
-- [Game Script Mixins](<Game Mixins.md>)

@@ -30,8 +30,3 @@ Owning an Item grants its `onUse` ability; removing the last copy revokes it. `P
 ## Limitations
 
 Renaming a member does not repair stored references automatically. A Class slot mismatch and an unknown record ID are still explicit data errors.
-
-## Related pages
-
-- [Item](<../../../Editor User Guide/General Data Reference/Item.md>)
-- [Equip](<../../../Editor User Guide/General Data Reference/Equip.md>)

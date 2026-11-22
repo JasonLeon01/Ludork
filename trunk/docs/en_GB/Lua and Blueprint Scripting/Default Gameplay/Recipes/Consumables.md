@@ -25,8 +25,3 @@ The Bottle script applies an Instant Add Effect to `HP`. The Gem script applies 
 ## Limitations
 
 The Game project scripts depend on the parent capabilities, metadata fields and General Data or configuration keys that they declare. They are not universal inventory components.
-
-## Related pages
-
-- [Game Script Mixins](<../../Script Mixins/Game Mixins.md>)
-- [Item](<../../../Editor User Guide/General Data Reference/Item.md>)

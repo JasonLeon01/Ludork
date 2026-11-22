@@ -101,7 +101,7 @@ The local file is `~/Ludork/.localserver/<project-directory-name>/test.json` on 
 
 These are local settings, including a plaintext test key. They are ignored by Git and are not written to `Main.proj` or Lua. Projects with the same directory name share this local settings location. A missing file or `enabled: false` disables the integration.
 
-**Construct** builds Debug and **Play** runs Debug. Changing the effective settings requires a new native build, so construct again or accept Build and Play. Debug builds read the local file through `LUDORK_SERVER_CONFIG_FILE`.
+**Construct** builds Debug and **Play** runs Debug. Changing the effective settings requires a new native build, so construct again or choose **Build and Play**. Debug builds read the local file through `LUDORK_SERVER_CONFIG_FILE`.
 
 ## Configure a packaged client
 

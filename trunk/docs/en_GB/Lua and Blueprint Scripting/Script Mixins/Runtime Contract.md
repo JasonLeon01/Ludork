@@ -45,8 +45,3 @@ The parent class must provide the native properties and methods the mixin uses. 
 [Lua hot reload](<../Lua Runtime and Modules.md#lua-hot-reload>) applies to used Script Mixins: `$r` updates compatible methods without rerunning lifecycle callbacks or replacing defaults and instance state. Structural changes require a restart.
 
 Lua compilation and `.ldpak` packaging preserve mixin module paths and fresh-load behaviour. See [Run, Debug and Package](<../../Editor User Guide/Run Debug and Package.md>) for packaging options.
-
-## Related pages
-
-- [Script Mixin Authoring Workflow](<Authoring Workflow.md>)
-- [Ludork Lua Advanced](<../../Getting Started/Ludork Lua Advanced.md>)

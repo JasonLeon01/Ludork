@@ -4,7 +4,7 @@
 
 A UI asset uses `type = "uiAsset"` and follows the field contract below. It does not carry a schema-version field. Unknown fields are rejected. Its only asset identity is the exact-case path relative to `Data/UI`, with forward slashes and no extension. `Title.json` has key `Title`, and `Parts/Shared/WindowChrome.json` has key `Parts/Shared/WindowChrome`.
 
-Keys cannot be absolute, contain backslashes, empty segments, `.` or `..`, include an extension, or repeat prefixes such as `Assets/`, `UI/` or `Data/UI/`. Every path segment must be free of dots, so its generated Lua module has an unambiguous require path. Spaces, hyphens and Unicode names remain supported. The asset object contains `designSize`, `palette` and one `root` node. Neither assets nor nodes contain UUID fields.
+Keys cannot be absolute, and cannot contain backslashes, empty segments, `.`, `..`, an extension, or a repeated prefix such as `Assets/`, `UI/` or `Data/UI/`. Every path segment must be free of dots, so its generated Lua module has an unambiguous require path. Spaces, hyphens and Unicode names remain supported. The asset object contains `designSize`, `palette` and one `root` node. Neither assets nor nodes contain UUID fields.
 
 Each node contains:
 
@@ -37,7 +37,7 @@ Renaming a node rewrites its animation targets. Deleting a node removes animatio
 
 A Canvas parent supplies anchors, offsets, alignment, auto-size and z-order. A List parent supplies list placement and does not accept Canvas Slot fields. The parent's adapter declaration determines child policy and Slot type.
 
-Canvas Slots position the control's local bounds, including their non-zero offset. Text `lineAlignment` controls line placement within the text, while Slot `alignment` places the resulting bounds in the parent. Right-aligned text can therefore use a right-aligned, auto-sized Slot without moving its right edge when the text width changes.
+Canvas Slots position the control's local bounds, including the bounds' non-zero offset. Text `lineAlignment` controls line placement within the text, while Slot `alignment` places the resulting bounds in the parent. Right-aligned text can therefore use a right-aligned, auto-sized Slot without moving its right edge when the text width changes.
 
 `Engine.ScrollBox` is a multi-child Layout control with List Slots and serialised `size` and `windowSkin`. The native control owns scrolling, indicators and clipping.
 
@@ -73,8 +73,3 @@ Only assets with `palette.exposed = true` appear as project controls.
 `Engine.TabView` serialises `size`, `windowSkin`, the construction-only non-empty `items: string[]` and the same inline text style or optional `textConfig` as plain text, and has no children or Slot of its own. Before the first visible frame, the Controller supplies localised labels and binds selection behaviour through [Engine: Interactive and Declarative UI Controls](<../Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#tabview>). `selectedIndex` and key-hint tables are runtime-only, and `tabCount` is not accepted.
 
 `Engine.CharacterView` serialises `size`, `texture`, optional `textureRect`, `characterScale`, `animatable`, `switchInterval`, `material`, `materialParameters` and `colour`, and accepts no children. `material` is empty or a complete `Data/Materials/...json` resource path; `materialParameters` is a string-keyed pure-data override dictionary. The control owns cropping, animation, Actor-scale fitting, material drawing and fixed bounds.
-
-## Related pages
-
-- [UI Asset Editor](<../../Editor User Guide/UI Asset Editor.md>)
-- [Native UI Adapters](<../../Native C++ Development/Native UI Adapters.md>)

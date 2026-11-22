@@ -2,7 +2,7 @@
 
 ## Template reference
 
-The picker presents two template cards, **Standalone** and **C++ Source**, and an independent **Enable video playback (FFmpeg)** switch.
+New Project presents two template cards, **Standalone** and **C++ Source**, and an independent **Enable video playback (FFmpeg)** switch.
 
 Enter a project name for the new folder and a separate, required **APP_NAME** for the game. `APP_NAME` identifies the game's [user data directory](<../Editor User Guide/Project Settings and Asset Layout.md#game-configuration>) and [packaged application](<../Editor User Guide/Run Debug and Package.md#packaging>); choose a name dedicated to this game. An empty or invalid value keeps **Create** disabled. Renaming the project folder does not change `APP_NAME`.
 
@@ -10,10 +10,10 @@ Project creation fills `APP_NAME` into the template's `Scripts/Entry.lua.in` and
 
 | Template | Native source | Native compiler required | Use when |
 |---|---|---|---|
-| Standalone | No | No | Authoring Lua, Blueprint, data and assets with the supplied runtime. |
+| Standalone | No | No | Authoring Lua, Blueprint, data and assets with the prebuilt runtime. |
 | C++ Source | Yes | Yes | Changing native services, bindings or building an iOS, HarmonyOS, Android or WebGL target. |
 
-Each card and FFmpeg combination has its own template. To turn an existing C++ Source project into an editable Standalone project, use [Pack Project → Standalone project](<../Editor User Guide/Run Debug and Package.md#convert-source-to-a-standalone-project>). This creates a separate project that keeps the original export outputs, rather than a fresh template.
+Each card and FFmpeg combination has its own template. To turn an existing C++ Source project into an editable Standalone project, use [Pack Project → Standalone project](<../Editor User Guide/Run Debug and Package.md#convert-source-to-a-standalone-project>). This creates a separate project that keeps the original export outputs, rather than starting from a fresh template.
 
 Before the first Play, use **Construct** for C++ Source, then **Export**. Standalone needs only Export. See [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>) for later builds and exports. C++ Source templates include a project-root `.clang-format` for native source formatting.
 
@@ -40,7 +40,7 @@ All four downloaded variants use `~/Ludork/Templates/v<base-version>/` for valid
 
 New Project shows download or copy progress and extraction progress. **Cancel**, or closing the window during creation, cancels the operation and removes the unfinished project and download files. Completed, valid cache entries remain available for later use.
 
-New Project always creates the editor's current major.minor project version, such as `v1.0` for editor `1.0.7`. It offers no older-version creation option. Opening supported older projects is handled by a separate [project-version check](<../Editor User Guide/Project Settings and Asset Layout.md#mainproj>).
+New Project always creates the project version matching the editor's major.minor, such as `v1.0` for any `1.0.x` editor. It offers no older-version creation option. Opening supported older projects is handled by a separate [project-version check](<../Editor User Guide/Project Settings and Asset Layout.md#mainproj>).
 
 ## FFmpeg option
 
@@ -60,9 +60,3 @@ Templates also retain the optional `Data/MaterialCombinations.json` for [additio
 The retained `Scripts/stub/**/*.d.lua` files support Lua language tools. They are removed from [game packages](<../Editor User Guide/Run Debug and Package.md#loose-and-packed-output>).
 
 Runtime licence texts are in `Licenses`; FFmpeg variants also include `Licenses/FFmpeg`. Asset notices remain beside their assets. Packaging includes available licence texts, but their completeness remains the distributor's responsibility.
-
-## Related pages
-
-- [Create Your First Project](<Create Your First Project.md>)
-- [Ludork Lua Advanced](<Ludork Lua Advanced.md>)
-- [Build and Module Layout](<../Native C++ Development/Build and Module Layout.md>)

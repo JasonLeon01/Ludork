@@ -61,7 +61,7 @@ local moved = start + step * 2.0   -- Vector2f(96, 64)
 local isSame = moved == sf.Vector2f.new(96.0, 64.0) -- true
 ```
 
-Operators are `+`, `-`, unary `-`, `*` and `/` by a scalar number, and `==`. `==` is the only comparison operator, so ordering comparisons such as `<` are not available on vectors. Multiplication between two vectors is a method rather than an operator. `lengthSquared`, `perpendicular`, `dot`, `cross`, `componentWiseMul`, `componentWiseDiv` and `unpack` exist on all three `Vector2` types, and `unpack` returns the components as separate values. The floating-point type adds `length`, `normalized`, `angle`, `angleTo`, `rotatedBy` and `projectedOnto`, which works in `sf.Angle` rather than degrees.
+Operators are `+`, `-`, unary `-` and `==`, plus `*` and `/` with a scalar number. `==` is the only comparison operator, so ordering comparisons such as `<` are not available on vectors. Multiplication between two vectors is a method rather than an operator. `lengthSquared`, `perpendicular`, `dot`, `cross`, `componentWiseMul`, `componentWiseDiv` and `unpack` exist on all three `Vector2` types, and `unpack` returns the components as separate values. The floating-point type adds `length`, `normalized`, `angle`, `angleTo`, `rotatedBy` and `projectedOnto`, which works in `sf.Angle` rather than degrees.
 
 `sf.Vector2f.new` also accepts a length and an `sf.Angle`, which builds the vector from polar coordinates:
 
@@ -71,7 +71,7 @@ local forward = sf.Vector2f.new(1.0, sf.degrees(90)) -- Vector2f(0, 1)
 
 ### Colour, rectangles and time
 
-`sf.Color` holds `r`, `g`, `b` and `a` in the range 0 to 255. The four-argument constructor takes red, green, blue and alpha, and shorter forms default the missing components:
+`sf.Color` holds `r`, `g`, `b` and `a` in the range 0 to 255. The four-argument constructor takes red, green, blue and alpha, and shorter forms use defaults for the missing components:
 
 ```lua
 local solid = sf.Color.new(32, 96, 160)
@@ -178,11 +178,4 @@ JSON and metadata hold pure data, while `sf` values are native userdata, so conv
 
 ## Where to read more
 
-`Scripts/stub/LuaSF.d.lua` contains the complete Lua declarations and SFML comments, indexed by EmmyLua for completion and hover. The official C++ reference linked above uses closely matching member names and argument order.
-
-## Related pages
-
-- [Lua Basics](<Lua Basics.md>)
-- [Ludork Lua Advanced](<Ludork Lua Advanced.md>)
-- [Engine: Gameplay Types](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Gameplay Types.md>)
-- [Build and Module Layout](<../Native C++ Development/Build and Module Layout.md>)
+`Scripts/stub/LuaSF.d.lua` contains the complete Lua declarations and SFML comments, indexed by EmmyLua for completion and hover. The official C++ reference linked above uses member names and argument order that closely match the Lua declarations.

@@ -65,7 +65,7 @@ local StairDirection = {
 return StairDirection
 ```
 
-运行时直接加载枚举，例如 `local StairDirection = require("Enums.StairDirection")`，随后使用 `StairDirection.Up`。蓝图metadata使用 `type = { enum = "Enums.StairDirection" }` 引用该模块，完整规则见 [Metadata 结构与 Decorator](<蓝图脚本/Metadata 结构与 Decorator.md>)。
+运行时直接加载枚举，例如 `local StairDirection = require("Enums.StairDirection")`，随后使用 `StairDirection.Up`。蓝图 metadata 使用 `type = { enum = "Enums.StairDirection" }` 引用该模块，完整规则见 [Metadata 结构与 Decorator](<蓝图脚本/Metadata 结构与 Decorator.md>)。
 
 | Game 枚举模块 | 值或用途 |
 |---|---|
@@ -116,7 +116,7 @@ LuaSF 注册全局 `sf`。API 声明 `sf.Vector2i`、`sf.Vector2f`、`sf.Color` 
 
 应用改动前，运行时会编译全部有效的 Lua 源码，包括用户目录覆盖的源码。入口脚本只做检查，不会重新执行。新增模块与尚未加载的模块仍可由 `require` 按需加载。Metadata、声明文件、JSON 数据、UI 资产与原生代码都不参与热更新。已有的[音频处理器](<Game 玩法/资源、音频、视频与特效.md#音频>)继续使用原代码，直到开始新的播放。
 
-语法、兼容性或候选代码执行失败时，原有定义保持不变，控制台会报告错误。候选执行造成的外部副作用无法回滚。错误一旦可能改动过原生资源或共享对象，就应重启。模块顶层只放定义与依赖加载，资源创建与订阅放进显式的启动函数或生命周期回调，参见 [Game 入口顺序](<Game 玩法/默认模板概述.md#入口与模块>)。
+语法、兼容性或候选代码执行失败时，原有定义保持不变，控制台会报告错误。候选执行造成的外部副作用无法回滚，因此出错后若原生资源或共享对象可能已被改动，就应重启。模块顶层只放定义与依赖加载，资源创建与订阅放进显式的启动函数或生命周期回调，参见 [Game 入口顺序](<Game 玩法/默认模板概述.md#入口与模块>)。
 
 ## 日志与错误
 
