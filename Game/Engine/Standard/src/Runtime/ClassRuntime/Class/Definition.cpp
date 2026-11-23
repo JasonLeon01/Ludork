@@ -20,6 +20,7 @@ extern "C" {
 #include <cstddef>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -32,32 +33,34 @@ namespace {
 
 int classInstanceIndex(lua_State* state) {
     return ludork::standard::protectedLuaCallback(state, [&]() -> int {
-        lua_glue::StateView lua(state);
-        const lua_glue::Table classTable = constructorClass(state);
-        const lua_glue::Object target =
-            lua_glue::Read<lua_glue::Object>(state, 1);
-        const lua_glue::Object key = lua_glue::Read<lua_glue::Object>(state, 2);
-        const lua_glue::Object disposeMethod =
-            instanceDisposeMethod(lua, classTable, key);
-        if (disposeMethod.is<lua_glue::Function>()) {
-            disposeMethod.push(state);
-            return 1;
+        const int classIndex = lua_upvalueindex(1);
+        if (lua_type(state, 2) == LUA_TSTRING) {
+            std::size_t length = 0;
+            const char* key = lua_tolstring(state, 2, &length);
+            if (std::string_view(key, length) == "dispose") {
+                const lua_glue::Object dispose = instanceDisposeMethod(
+                    lua_glue::StateView(state), constructorClass(state),
+                    lua_glue::Object(state, 2));
+                if (dispose.is<lua_glue::Function>()) {
+                    dispose.push(state);
+                    return 1;
+                }
+            }
         }
-        const lua_glue::Object getter =
-            findAccessor(lua, classTable, protocol::CLASS_GETTERS_FIELD, key);
-        if (getter.is<lua_glue::Function>()) {
-            getter.push(state);
-            target.push(state);
+        pushClassGetter(state, classIndex, 2);
+        if (lua_isfunction(state, -1)) {
+            lua_pushvalue(state, 1);
             if (ludork::standard::protectedLuaCall(state, 1, 1) != LUA_OK) {
                 throw std::runtime_error(
                     ludork::standard::luaErrorMessage(state, -1));
             }
             return 1;
         }
-        if (hasExplicitNilField(lua, target, key)) {
+        lua_pop(state, 1);
+        if (hasExplicitNilField(state, 1, 2)) {
             lua_pushnil(state);
         } else {
-            findInClass(lua, classTable, key).push(state);
+            pushClassMember(state, classIndex, 2);
         }
         return 1;
     });
@@ -103,12 +106,10 @@ int classInstanceNewIndex(lua_State* state) {
 
 int classMetatableIndex(lua_State* state) {
     return ludork::standard::protectedLuaCallback(state, [&]() -> int {
-        lua_glue::StateView lua(state);
-        const lua_glue::Object key = lua_glue::Read<lua_glue::Object>(state, 2);
         if (hasExplicitNilField(state, 1, 2)) {
             lua_pushnil(state);
         } else {
-            findInClass(lua, constructorClass(state), key, false).push(state);
+            pushClassMember(state, lua_upvalueindex(1), 2, false);
         }
         return 1;
     });

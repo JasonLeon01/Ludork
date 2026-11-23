@@ -13,10 +13,8 @@ namespace ludork::standard::class_runtime::detail {
 
 lua_glue::Object rawMember(lua_glue::StateView lua, const lua_glue::Table& type,
                            const lua_glue::Object& key);
-lua_glue::Object findInClass(lua_glue::StateView lua,
-                             const lua_glue::Table& classTable,
-                             const lua_glue::Object& key,
-                             bool includeClass = true);
+void pushClassMember(lua_State* state, int classIndex, int keyIndex,
+                     bool includeClass = true);
 bool nativeTypeAccepts(lua_glue::StateView lua,
                        const lua_glue::Table& nativeType,
                        const lua_glue::Object& value);

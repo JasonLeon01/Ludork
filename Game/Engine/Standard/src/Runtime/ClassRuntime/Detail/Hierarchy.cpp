@@ -27,40 +27,10 @@ void pushRawField(lua_State* state, int tableIndex, const char* name) {
     lua_rawget(state, tableIndex);
 }
 
-bool isScriptClassAt(lua_State* state, int index) {
-    pushRawField(state, index, protocol::CLASS_MARKER_FIELD);
-    const bool result = lua_isboolean(state, -1) && lua_toboolean(state, -1);
-    lua_pop(state, 1);
-    return result;
-}
-
-void pushLookupOwners(lua_State* state, int classIndex, const char* category) {
-    classIndex = lua_absindex(state, classIndex);
-    luaL_checktype(state, classIndex, LUA_TTABLE);
-    pushRawField(state, classIndex, LOOKUP_CACHE_FIELD);
-    if (!lua_istable(state, -1)) {
-        lua_pop(state, 1);
-        lua_newtable(state);
-        lua_pushstring(state, LOOKUP_CACHE_FIELD);
-        lua_pushvalue(state, -2);
-        lua_rawset(state, classIndex);
-    }
-    const int cacheIndex = lua_absindex(state, -1);
-    pushRawField(state, cacheIndex, category);
-    if (!lua_istable(state, -1)) {
-        lua_pop(state, 1);
-        lua_newtable(state);
-        lua_pushstring(state, category);
-        lua_pushvalue(state, -2);
-        lua_rawset(state, cacheIndex);
-    }
-    lua_remove(state, cacheIndex);
-}
-
 int lookupOwnersThunk(lua_State* state) {
     luaL_checkstack(state, 8, "Class lookup stack cannot grow");
-    pushLookupOwners(state, 1,
-                     static_cast<const char*>(lua_touserdata(state, 2)));
+    pushClassLookupOwners(state, 1,
+                          static_cast<const char*>(lua_touserdata(state, 2)));
     return 1;
 }
 
@@ -81,7 +51,7 @@ int cachedLookupThunk(lua_State* state) {
     luaL_checkstack(state, 12, "Class lookup stack cannot grow");
     const char* category = static_cast<const char*>(lua_touserdata(state, 3));
     const bool accessor = lua_toboolean(state, 4) != 0;
-    pushLookupOwners(state, 1, category);
+    pushClassLookupOwners(state, 1, category);
     const int ownersIndex = lua_absindex(state, -1);
     lua_pushvalue(state, 2);
     lua_rawget(state, ownersIndex);
@@ -92,7 +62,7 @@ int cachedLookupThunk(lua_State* state) {
         const int ownerIndex = lua_absindex(state, -1);
         // Native descriptors have the same metadata field names, but their
         // receivers must follow native-root initialization and shadow replay.
-        if (accessor && isScriptClassAt(state, ownerIndex)) {
+        if (accessor && isClass(state, ownerIndex)) {
             pushRawField(state, ownerIndex, category);
             if (lua_istable(state, -1)) {
                 lua_pushvalue(state, 2);
@@ -124,7 +94,7 @@ int scanLookupThunk(lua_State* state) {
     const bool accessor = lua_toboolean(state, 5) != 0;
     for (std::size_t index = 1; index <= lua_rawlen(state, 2); ++index) {
         lua_geti(state, 2, static_cast<lua_Integer>(index));
-        if (lua_istable(state, -1) && isScriptClassAt(state, -1)) {
+        if (lua_istable(state, -1) && isClass(state, -1)) {
             const int ownerIndex = lua_absindex(state, -1);
             bool present = false;
             if (accessor) {
@@ -160,26 +130,14 @@ int scanLookupThunk(lua_State* state) {
     return 2;
 }
 
-lua_glue::Object findLookup(lua_glue::StateView lua,
-                            const lua_glue::Table& classTable,
-                            const lua_glue::Object& key, const char* category,
-                            bool accessor, bool* found) {
-    if (found != nullptr) {
-        *found = false;
-    }
-    lua_State* state = lua.lua_state();
-    lua_glue::detail::AccessScope execution(state);
-    if (!execution.active()) {
-        throw std::runtime_error("Class lookup requires an active Lua state");
-    }
-    lua_glue::StackGuard stack(state);
+bool pushScriptLookup(lua_State* state, int classIndex, int keyIndex,
+                      const char* category, bool accessor) {
     if (!lua_checkstack(state, 10)) {
         throw std::runtime_error("Class lookup stack cannot grow");
     }
-    classTable.push(state);
-    const int classIndex = lua_absindex(state, -1);
-    key.push(state);
-    const int keyIndex = lua_absindex(state, -1);
+    classIndex = lua_absindex(state, classIndex);
+    keyIndex = lua_absindex(state, keyIndex);
+    const int resultIndex = lua_gettop(state) + 1;
     lua_pushcfunction(state, cachedLookupThunk);
     lua_pushvalue(state, classIndex);
     lua_pushvalue(state, keyIndex);
@@ -187,30 +145,98 @@ lua_glue::Object findLookup(lua_glue::StateView lua,
     lua_pushboolean(state, accessor);
     lua_glue::ProtectedStackCall(state, 4, 3);
     if (lua_toboolean(state, -1)) {
-        lua_glue::Object result(state, -2);
-        if (found != nullptr) {
-            *found = true;
-        }
-        return result;
+        lua_copy(state, -2, resultIndex);
+        lua_settop(state, resultIndex);
+        return true;
     }
     lua_pop(state, 2);
     const int ownersIndex = lua_absindex(state, -1);
-    const lua_glue::Table mro = getMro(lua, classTable);
     lua_pushcfunction(state, scanLookupThunk);
     lua_pushvalue(state, ownersIndex);
-    mro.push(state);
+    getMro(lua_glue::StateView(state), lua_glue::Table(state, classIndex))
+        .push(state);
     lua_pushvalue(state, keyIndex);
     lua_pushlightuserdata(state, const_cast<char*>(category));
     lua_pushboolean(state, accessor);
     lua_glue::ProtectedStackCall(state, 5, 2);
-    lua_glue::Object result(state, -2);
-    if (found != nullptr) {
-        *found = lua_toboolean(state, -1) != 0;
+    const bool resolved = lua_toboolean(state, -1);
+    lua_copy(state, -2, resultIndex);
+    lua_settop(state, resultIndex);
+    return resolved;
+}
+
+lua_glue::Object findLookup(lua_glue::StateView lua,
+                            const lua_glue::Table& classTable,
+                            const lua_glue::Object& key, const char* category,
+                            bool accessor, bool* found) {
+    lua_State* state = lua.lua_state();
+    lua_glue::detail::AccessScope execution(state);
+    if (!execution.active()) {
+        throw std::runtime_error("Class lookup requires an active Lua state");
     }
-    return result;
+    lua_glue::StackGuard stack(state);
+    classTable.push(state);
+    key.push(state);
+    const bool resolved = pushScriptLookup(state, -2, -1, category, accessor);
+    if (found != nullptr) {
+        *found = resolved;
+    }
+    return lua_glue::Object(state, -1);
 }
 
 }  // namespace
+
+bool isClass(lua_State* state, int index) {
+    pushRawField(state, index, protocol::CLASS_MARKER_FIELD);
+    const bool result = lua_isboolean(state, -1) && lua_toboolean(state, -1);
+    lua_pop(state, 1);
+    return result;
+}
+
+void pushClassLookupOwners(lua_State* state, int classIndex,
+                           const char* category) {
+    classIndex = lua_absindex(state, classIndex);
+    luaL_checktype(state, classIndex, LUA_TTABLE);
+    pushRawField(state, classIndex, LOOKUP_CACHE_FIELD);
+    if (!lua_istable(state, -1)) {
+        lua_pop(state, 1);
+        lua_newtable(state);
+        lua_pushstring(state, LOOKUP_CACHE_FIELD);
+        lua_pushvalue(state, -2);
+        lua_rawset(state, classIndex);
+    }
+    const int cacheIndex = lua_absindex(state, -1);
+    pushRawField(state, cacheIndex, category);
+    if (!lua_istable(state, -1)) {
+        lua_pop(state, 1);
+        lua_newtable(state);
+        lua_pushstring(state, category);
+        lua_pushvalue(state, -2);
+        lua_rawset(state, cacheIndex);
+    }
+    lua_remove(state, cacheIndex);
+}
+
+void pushClassLookupMro(lua_State* state, int classIndex) {
+    classIndex = lua_absindex(state, classIndex);
+    pushRawField(state, classIndex, MRO_FIELD);
+    if (lua_istable(state, -1)) {
+        pushRawField(state, classIndex, MRO_SET_FIELD);
+        const bool prepared = lua_istable(state, -1);
+        lua_pop(state, 1);
+        if (prepared) {
+            return;
+        }
+    }
+    lua_pop(state, 1);
+    getMro(lua_glue::StateView(state), lua_glue::Table(state, classIndex))
+        .push(state);
+}
+
+void pushClassGetter(lua_State* state, int classIndex, int keyIndex) {
+    pushScriptLookup(state, classIndex, keyIndex, protocol::CLASS_GETTERS_FIELD,
+                     true);
+}
 
 lua_glue::Table classLookupOwners(lua_glue::StateView lua,
                                   lua_glue::Table classTable,

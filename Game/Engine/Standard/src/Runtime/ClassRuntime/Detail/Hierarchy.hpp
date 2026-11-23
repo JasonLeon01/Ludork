@@ -9,7 +9,12 @@
 
 namespace ludork::standard::class_runtime::detail {
 
+bool isClass(lua_State* state, int index);
 bool isClass(const lua_glue::Table& value);
+void pushClassLookupOwners(lua_State* state, int classIndex,
+                           const char* category);
+void pushClassLookupMro(lua_State* state, int classIndex);
+void pushClassGetter(lua_State* state, int classIndex, int keyIndex);
 lua_glue::Table classLookupOwners(lua_glue::StateView lua,
                                   lua_glue::Table classTable,
                                   const char* category);
