@@ -119,6 +119,10 @@ private:
         double maintenanceMilliseconds{};
         double fixedTickMilliseconds{};
         int fixedSteps{};
+
+        void record(std::chrono::steady_clock::time_point start,
+                    std::chrono::steady_clock::time_point workEnd,
+                    std::chrono::steady_clock::time_point end) const;
     };
 
     void systemMain() final;

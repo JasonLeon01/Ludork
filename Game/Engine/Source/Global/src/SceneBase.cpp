@@ -160,6 +160,9 @@ void SceneBase::systemMain() {
             TimeManager::update();
             startLogicThread();
         }
+#ifdef SFML_SYSTEM_HARMONY
+        std::uint64_t logicVideoSequence = getVideoPlaybackCompletionSequence();
+#endif
         while (!lifecycleImpl_->isStopping() && System::isActive() &&
                SceneManager::getScene().get() == this) {
             ludork::standard::BackgroundTask::poll();
@@ -207,7 +210,7 @@ void SceneBase::systemMain() {
                     break;
                 }
 #if defined(SFML_SYSTEM_ANDROID) || defined(SFML_SYSTEM_IOS) || \
-    defined(SFML_SYSTEM_EMSCRIPTEN)
+    defined(SFML_SYSTEM_HARMONY) || defined(SFML_SYSTEM_EMSCRIPTEN)
                 if (inputService().isFocusLost()) {
                     lifecycleImpl_->setSuspended(true);
                 }
@@ -242,12 +245,17 @@ void SceneBase::systemMain() {
                 }
                 const std::shared_ptr<sf::RenderWindow> uploadWindow =
                     Display::getWindow();
-                lock.unlock();
-                if (uploadWindow != nullptr) {
-                    if (!uploadWindow->setActive(true)) {
-                        throw std::runtime_error(
-                            "Failed to activate the texture upload context");
-                    }
+                const bool hasReadyUploads =
+                    uploadWindow != nullptr &&
+                    TextureManager::getStatistics().readyRequests != 0;
+                if (hasReadyUploads) {
+                    lock.unlock();
+                }
+                if (uploadWindow != nullptr && !uploadWindow->setActive(true)) {
+                    throw std::runtime_error(
+                        "Failed to activate the texture upload context");
+                }
+                if (hasReadyUploads) {
                     TextureManager::pumpUploads();
                 }
                 if (profile) {
@@ -258,7 +266,9 @@ void SceneBase::systemMain() {
                         TextureManager::getStatistics();
                     phaseStart = phaseEnd;
                 }
-                lock = lockLogicDataForMain();
+                if (hasReadyUploads) {
+                    lock = lockLogicDataForMain();
+                }
                 if (!System::isActive() || lifecycleImpl_->isStopping() ||
                     SceneManager::hasPendingSceneOperations() ||
                     SceneManager::getScene().get() != this) {
@@ -268,7 +278,37 @@ void SceneBase::systemMain() {
                 TimeManager::update();
                 deltaTime =
                     resumed ? 0.0f : TimeManager::getDeltaTime().asSeconds();
-#ifdef __EMSCRIPTEN__
+#ifdef SFML_SYSTEM_HARMONY
+                const auto beforeLogic = getVideoPlaybackCompletionSequence();
+                if (logicVideoSequence != beforeLogic) {
+                    deltaTime = 0.0f;
+                    fixedAccumulator_ = 0.0f;
+                }
+                const auto logicStart =
+                    profile ? std::chrono::steady_clock::now()
+                            : std::chrono::steady_clock::time_point{};
+                const LogicStepPerformance step =
+                    runLogicStep(deltaTime, profile);
+                if (profile) {
+                    const auto logicEnd = std::chrono::steady_clock::now();
+                    step.record(logicStart, logicEnd, logicEnd);
+                    measurement.runtimeMilliseconds +=
+                        durationMilliseconds(logicEnd - logicStart);
+                    phaseStart += logicEnd - logicStart;
+                }
+                logicVideoSequence = getVideoPlaybackCompletionSequence();
+                if (beforeLogic != logicVideoSequence) {
+                    TimeManager::update();
+                    fixedAccumulator_ = 0.0f;
+                    deltaTime = 0.0f;
+                }
+                if (!System::isActive() || lifecycleImpl_->isStopping() ||
+                    SceneManager::hasPendingSceneOperations() ||
+                    SceneManager::getScene().get() != this) {
+                    lifecycleImpl_->requestStop();
+                    break;
+                }
+#elif defined(__EMSCRIPTEN__)
                 const auto videoSequence = getVideoPlaybackCompletionSequence();
                 lock.unlock();
                 static_cast<void>(runLogicStep(deltaTime, profile));
@@ -679,8 +719,23 @@ SceneBase::LogicStepPerformance SceneBase::runLogicStep(float deltaTime,
     return performance;
 }
 
+void SceneBase::LogicStepPerformance::record(
+    std::chrono::steady_clock::time_point start,
+    std::chrono::steady_clock::time_point workEnd,
+    std::chrono::steady_clock::time_point end) const {
+    LogicTickPerformanceMeasurement measurement;
+    measurement.start = start;
+    measurement.end = end;
+    measurement.sceneTickMilliseconds = sceneTickMilliseconds;
+    measurement.maintenanceMilliseconds = maintenanceMilliseconds;
+    measurement.fixedTickMilliseconds = fixedTickMilliseconds;
+    measurement.sleepMilliseconds = durationMilliseconds(end - workEnd);
+    measurement.fixedSteps = fixedSteps;
+    PerformanceProfiler::recordLogicTick(measurement);
+}
+
 void SceneBase::startLogicThread() {
-#ifdef __EMSCRIPTEN__
+#if defined(__EMSCRIPTEN__) || defined(SFML_SYSTEM_HARMONY)
     lifecycleImpl_->resetStop();
     fixedAccumulator_ = 0.0f;
 #else
@@ -766,20 +821,8 @@ void SceneBase::logicLoop() {
             std::this_thread::sleep_for(logicFrameTime - elapsed);
         }
         if (profile) {
-            const auto frameEnd = std::chrono::steady_clock::now();
-            LogicTickPerformanceMeasurement measurement;
-            measurement.start = frameStart;
-            measurement.end = frameEnd;
-            measurement.sceneTickMilliseconds =
-                stepPerformance.sceneTickMilliseconds;
-            measurement.maintenanceMilliseconds =
-                stepPerformance.maintenanceMilliseconds;
-            measurement.fixedTickMilliseconds =
-                stepPerformance.fixedTickMilliseconds;
-            measurement.sleepMilliseconds =
-                durationMilliseconds(frameEnd - workEnd);
-            measurement.fixedSteps = stepPerformance.fixedSteps;
-            PerformanceProfiler::recordLogicTick(measurement);
+            stepPerformance.record(frameStart, workEnd,
+                                   std::chrono::steady_clock::now());
         }
     }
 }
