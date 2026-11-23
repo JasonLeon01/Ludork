@@ -162,7 +162,9 @@ CMake's `ImplBoundaryValidate` target records a successful check in the build di
 
 System privately composes Display, FramePipeline, SceneStack and Lifecycle. Display owns the window. FramePipeline owns the canvas, effects and transition targets. SceneStack owns queued operations and retired scenes. Lifecycle owns shutdown state. Components expose operations instead of mutable state aggregates. Frame presentation remains outside the scene logic lock, and render targets rebuild between frames.
 
-Each Scene logic worker creates and releases its own shared graphics context on that thread. The context stays alive throughout the logic loop, so rebuilding a Camera render texture on the render thread cannot destroy the logic worker's active context. The scene logic lock continues to serialise access to shared render textures.
+On hosts with a separate scene logic worker, the OpenGL and OpenGL ES backends give that worker its own shared graphics context for the lifetime of the logic loop. Rebuilding a Camera render texture on the game thread leaves the worker’s context active. The scene logic lock serialises access to shared render textures. See the [SceneBase threading rules](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/GlobalCore/Scenes and System.md#scenebase>).
+
+During the game loop, a synchronous video playback request from another thread is queued for the game thread. The caller waits until playback finishes or fails.
 
 `EngineState::CellSize` is a positive C++ compile-time constant. Changing it requires a rebuild of the engine, the editor and the templates. There is no project-level or runtime override.
 

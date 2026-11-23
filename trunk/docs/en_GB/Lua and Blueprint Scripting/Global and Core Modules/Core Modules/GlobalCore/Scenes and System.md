@@ -2,9 +2,11 @@
 
 ## SceneBase
 
+On HarmonyOS, the game thread runs the scene’s `onTick`, advances any `onFixedTick` steps due, and then renders the frame. WebGL runs the same callbacks and rendering on the browser main thread. Other native game hosts run these callbacks on a separate scene logic worker while the game thread handles rendering.
+
 Closing the window during runtime or input processing ends the current frame before further UI updates, emitter simulation or rendering. Closing it from an input or UI callback also skips the remaining frame work. The loop stops scene logic and runs `onQuit` through the normal Scene exit lifecycle.
 
-On Android, iOS and WebGL, losing focus pauses scene and UI updates, rendering, runtime callbacks and scene timers while the loop continues processing system events. Hiding a Web page also pauses its scene. Returning to the foreground in the same process preserves the scene and Lua state, resets the frame and fixed-update timing, and resumes without catching up on time spent in the background. An actual close still follows the normal exit lifecycle.
+On Android, iOS, HarmonyOS and WebGL, losing focus pauses scene and UI updates, rendering, runtime callbacks and scene timers while the loop continues processing system events. Hiding a Web page also pauses its scene. Returning to the foreground in the same process preserves the scene and Lua state, resets the frame and fixed-update timing, and resumes without catching up on time spent in the background. An actual close still follows the normal exit lifecycle.
 
 ### Scene timers
 
@@ -175,7 +177,7 @@ A new request of the same kind cancels the previous unfinished operation. `cance
 
 ## SceneManager
 
-`GlobalCore.SceneManager` owns the current scene, scene stack and queued switches. It preserves the scene-thread and deferred-destruction lifecycle. Request application exit through `System.exit()`.
+`GlobalCore.SceneManager` owns the current scene, scene stack and queued switches. It defers destruction of outgoing scenes. Request application exit through `System.exit()`.
 
 ### Functions and events
 
