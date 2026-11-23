@@ -62,6 +62,7 @@ inline constexpr const char* BLUEPRINT_EVENT_DESCRIPTOR_CACHE_KEY =
 inline constexpr const char* BLUEPRINT_CALLABLE_PARAMETER_CACHE_KEY =
     "Ludork.Runtime.blueprintCallableParameterCache";
 
+bool blueprintObjectIsDestroyed(const RuntimeValue& receiver);
 void invokeCompletion(const std::function<void()>& callback);
 std::shared_ptr<const EventDescriptor> runtimeEventDescriptor(
     const RuntimeValue& method, const RuntimeValue& classType,
@@ -75,10 +76,6 @@ void invokeNamedRuntimeMethod(const RuntimeValue& object,
 bool runtimeMethodHasImplementation(const RuntimeValue& method);
 ObjectGraphResolver& objectGraphResolver();
 std::shared_ptr<Graph> objectGraph(const RuntimeValue& object);
-bool blueprintIsInstance(const RuntimeValue& value, const RuntimeValue& type);
-RuntimeValue callRuntimeMethodFirst(
-    const RuntimeValue& object, const char* name,
-    const std::vector<RuntimeValue>& arguments = {});
 bool generatedBlueprintGraphHasExecutableEvent(const RuntimeValue& classType,
                                                const std::string& eventName);
 std::shared_ptr<Graph> generatedBlueprintGraph(const RuntimeValue& object,

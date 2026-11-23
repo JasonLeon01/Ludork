@@ -3,6 +3,11 @@
 #include "BlueprintRuntimeInternal.hpp"
 
 #include <Runtime/Components/ComponentRuntime.hpp>
+#include <Runtime/RuntimeSession.hpp>
+#include <LudorkRuntimeBinding/DynamicValueCodec.hpp>
+#include "LuaServices/RuntimeBindingTraits.hpp"
+#include <ClassServices.hpp>
+#include <LuaInvocation.hpp>
 #include <Blueprint/ClassRuntime/ClassRuntimeInternal.hpp>
 #include <Runtime/NodeGraph/Graph.hpp>
 #include <Runtime/Blueprint/ClassRuntime.hpp>
@@ -47,23 +52,28 @@ std::shared_ptr<Graph> requireBlueprintGraph(const RuntimeValue& graph) {
     return nativeGraph;
 }
 
-bool blueprintIsInstance(const RuntimeValue& value, const RuntimeValue& type) {
-    return isTable(type) && isInstance(value, type);
-}
-
-RuntimeValue callRuntimeMethodFirst(
-    const RuntimeValue& object, const char* name,
-    const std::vector<RuntimeValue>& arguments) {
-    const RuntimeValue method =
-        get(ludork::runtime::reference::intern(object), name);
-    if (!isFunction(method)) {
-        return RuntimeValue();
+bool blueprintObjectIsDestroyed(const RuntimeValue& receiver) {
+    RuntimeScope scope;
+    lua_State* state = scope.state();
+    const lua_glue::StateView lua(state);
+    const lua_glue::Object object = binding::writeLuaValue(lua, receiver);
+    const lua_glue::Object key = lua_glue::MakeObject(lua, "isDestroyed");
+    const auto readMethod = [&]() {
+        return standard::class_runtime::protectedGet(lua, object, key);
+    };
+    // The callable test and method read can invoke a user getter separately.
+    if (!readMethod().is<lua_glue::Function>()) {
+        return false;
     }
-    std::vector<RuntimeValue> values;
-    values.reserve(arguments.size() + 1);
-    values.push_back(object);
-    values.insert(values.end(), arguments.begin(), arguments.end());
-    return first(invoke(ludork::runtime::reference::intern(method), values));
+    const lua_glue::Object method = readMethod();
+    if (!method.is<lua_glue::Function>()) {
+        return false;
+    }
+    const lua_glue::StackGuard stack(state);
+    const int results = standard::invokeLuaFunction(state, method, {object},
+                                                    "blueprint isDestroyed");
+    return results > 0 && lua_isboolean(state, -results) &&
+           lua_toboolean(state, -results);
 }
 
 std::optional<double> runtimeNumber(const RuntimeValue& value) {

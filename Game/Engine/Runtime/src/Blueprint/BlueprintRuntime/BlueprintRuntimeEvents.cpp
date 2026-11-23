@@ -62,6 +62,16 @@ void invokeBlueprintEvent(const RuntimeValue& object,
 
 namespace {
 
+bool dispatchUsesScriptMixin(const RuntimeHandle& type) {
+    const RuntimeValue own = rawGet(type, "scriptMixin");
+    if (!own.isNil()) {
+        return boolean(own);
+    }
+    // An inherited lookup may execute a getter on the class metatable.
+    return is<bool>(get(type, "scriptMixin")) &&
+           as<bool>(get(type, "scriptMixin"));
+}
+
 std::shared_ptr<Graph> objectEventGraph(const RuntimeValue& object,
                                         const RuntimeValue& rawClass) {
     const RuntimeValue rawScriptMixin =
@@ -269,29 +279,28 @@ void dispatchBlueprintEvent(const RuntimeValue& object,
                             const EventArguments& keywordArguments,
                             const std::function<void()>& onComplete,
                             const RuntimeHandle& keywordSource) {
-    const RuntimeValue isDestroyed =
-        get(ludork::runtime::reference::intern(object), "isDestroyed");
-    if (isFunction(isDestroyed) &&
-        boolean(callRuntimeMethodFirst(object, "isDestroyed"))) {
+    const RuntimeHandle receiver = intern(object);
+    if (blueprintObjectIsDestroyed(object)) {
         invokeCompletion(onComplete);
         return;
     }
+    const bool explicitType = !rawObjectType.isNil() && isTable(rawObjectType);
     const RuntimeValue objectType =
-        isTable(rawObjectType) ? rawObjectType : classType(object);
-    if (!blueprintIsInstance(object, objectType)) {
+        explicitType ? rawObjectType : classType(object);
+    // Validating a native type can call a Lua predicate that changes the
+    // receiver.
+    const bool reuseObjectType = !explicitType && isClass(objectType);
+    if (!isInstance(object, objectType)) {
         invokeCompletion(onComplete);
         return;
     }
-    const RuntimeValue rawClass = classType(object);
+    const RuntimeValue rawClass =
+        reuseObjectType ? objectType : classType(object);
+    const bool classIsTable = isTable(rawClass);
     const bool scriptMixin =
-        isTable(rawClass) &&
-        is<bool>(
-            get(ludork::runtime::reference::intern(rawClass), "scriptMixin")) &&
-        as<bool>(
-            get(ludork::runtime::reference::intern(rawClass), "scriptMixin"));
+        classIsTable && dispatchUsesScriptMixin(intern(rawClass));
     if (scriptMixin) {
-        const RuntimeValue method =
-            get(ludork::runtime::reference::intern(object), eventName);
+        const RuntimeValue method = get(receiver, eventName);
         invokeNamedRuntimeMethod(object, method, rawClass, eventName,
                                  keywordArguments, keywordSource);
         invokeCompletion(onComplete);
@@ -299,7 +308,7 @@ void dispatchBlueprintEvent(const RuntimeValue& object,
     }
     const std::shared_ptr<Graph> graph = objectGraph(object);
     const bool generated =
-        isTable(rawClass) &&
+        classIsTable &&
         boolean(rawGet(ludork::runtime::reference::intern(rawClass),
                        "_GENERATED_CLASS"));
     if (generated && graph != nullptr) {
@@ -317,15 +326,8 @@ void dispatchBlueprintEvent(const RuntimeValue& object,
                                         RuntimeValue(), onComplete)) {
             return;
         }
-        const RuntimeValue method =
-            get(ludork::runtime::reference::intern(object), eventName);
-        invokeNamedRuntimeMethod(object, method, rawClass, eventName,
-                                 keywordArguments, keywordSource);
-        invokeCompletion(onComplete);
-        return;
     }
-    const RuntimeValue method =
-        get(ludork::runtime::reference::intern(object), eventName);
+    const RuntimeValue method = get(receiver, eventName);
     invokeNamedRuntimeMethod(object, method, rawClass, eventName,
                              keywordArguments, keywordSource);
     invokeCompletion(onComplete);
