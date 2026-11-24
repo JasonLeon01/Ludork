@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Threading;
 
 namespace Ludork.Services;
@@ -50,62 +49,85 @@ internal static class ResourceCleanupFileSystem
         CancellationToken token)
     {
         List<string> files = [];
-        foreach (string directory in new[] { "Data", "Assets", "Scripts" })
+        string[] roots = ["Data", "Assets", "Scripts"];
+        List<string> directories = [.. roots];
+        List<ResourceCleanupIssue> directoryIssues = [];
+        bool optionalRoots = true;
+        while (directories.Count != 0)
         {
-            token.ThrowIfCancellationRequested();
-            try
+            (string[] Entries, ResourceCleanupIssue? Issue)[] listings = EditorValidationBatch.RunFiles(
+                directories, directory => inspectInput(projectPath, directory, optionalRoots,
+                    path => enumerateDirectory(projectPath, path, optionalRoots)), token);
+            optionalRoots = false;
+            List<string> entries = [];
+            foreach ((string[] children, ResourceCleanupIssue? issue) in listings)
             {
-                string path = ResolveSafePath(projectPath, directory, allowMissing: true);
-                if (Directory.Exists(path))
-                    enumerateDirectory(projectPath, path, files, issues, progress, token);
+                if (issue is not null)
+                    directoryIssues.Add(issue);
+                else
+                    entries.AddRange(children);
             }
-            catch (Exception exception) when (IsReadFailure(exception))
+            (bool Directory, ResourceCleanupIssue? Issue)[] inspected = EditorValidationBatch.RunFiles(
+                entries, relative => inspectInput(projectPath, relative, false, Directory.Exists), token);
+            directories.Clear();
+            for (int index = 0; index < entries.Count; index++)
             {
-                issues.Add(new ResourceCleanupIssue(directory, exception.Message));
+                token.ThrowIfCancellationRequested();
+                string relative = entries[index];
+                (bool isDirectory, ResourceCleanupIssue? issue) = inspected[index];
+                if (issue is not null)
+                    directoryIssues.Add(issue);
+                else if (isDirectory)
+                    directories.Add(relative);
+                else
+                {
+                    files.Add(relative);
+                    if (files.Count % 32 == 0)
+                        progress?.Report(new ResourceCleanupProgress("Inventory", files.Count, 0, relative));
+                }
             }
         }
-        foreach (string relative in new[] { "Main.proj", KeepListPath,
-                     "Data.ldpak", "Scripts.ldpak", "Assets.ldpak" })
+        foreach (ResourceCleanupIssue issue in directoryIssues
+            .OrderBy(issue => Array.IndexOf(roots, issue.Path.Split('/', 2)[0]))
+            .ThenBy(issue => issue.Path.Replace('/', '\0'), StringComparer.Ordinal))
         {
-            try
+            issues.Add(issue);
+        }
+        string[] optionalFiles = ["Main.proj", KeepListPath, "Data.ldpak", "Scripts.ldpak", "Assets.ldpak"];
+        (bool Present, ResourceCleanupIssue? Issue)[] checkedFiles = EditorValidationBatch.RunFiles(
+            optionalFiles, relative => inspectInput(projectPath, relative, true, File.Exists), token);
+        for (int index = 0; index < optionalFiles.Length; index++)
+        {
+            token.ThrowIfCancellationRequested();
+            string relative = optionalFiles[index];
+            (bool present, ResourceCleanupIssue? issue) = checkedFiles[index];
+            if (issue is not null)
+                issues.Add(issue);
+            else if (present)
             {
-                string path = ResolveSafePath(projectPath, relative, allowMissing: true);
-                if (!File.Exists(path))
-                    continue;
                 files.Add(relative);
                 if (relative.EndsWith(".ldpak", StringComparison.Ordinal))
                     issues.Add(new ResourceCleanupIssue(relative, "Resource cleanup requires loose authoring files."));
-            }
-            catch (Exception exception) when (IsReadFailure(exception))
-            {
-                issues.Add(new ResourceCleanupIssue(relative, exception.Message));
             }
         }
         return files.OrderBy(path => path, StringComparer.Ordinal).ToArray();
     }
 
-    public static ResourceCleanupFileFingerprint Fingerprint(
-        string projectPath, string relativePath, CancellationToken token)
+    public static (ResourceCleanupFileFingerprint Fingerprint, byte[]? Content) ReadFile(
+        string projectPath, string relativePath, FileFingerprintCache cache, byte[] buffer,
+        CancellationToken token, bool includeContent = false, bool forceRead = false)
     {
         string path = ResolveSafePath(projectPath, relativePath);
         FileInfo before = new(path);
         long size = before.Length;
         long modified = before.LastWriteTimeUtc.Ticks;
-        using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.Read,
-            131072, FileOptions.SequentialScan);
-        using IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        byte[] buffer = new byte[131072];
-        int read;
-        while ((read = stream.Read(buffer)) != 0)
-        {
-            token.ThrowIfCancellationRequested();
-            hash.AppendData(buffer, 0, read);
-        }
+        using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1, FileOptions.SequentialScan);
+        (byte[] digest, byte[]? content) = cache.Read(path, stream, buffer, token, includeContent, forceRead);
         FileInfo after = new(path);
         if (after.Length != size || after.LastWriteTimeUtc.Ticks != modified)
             throw new InvalidDataException($"The file changed while reading; scan again: {relativePath}");
         ResolveSafePath(projectPath, relativePath);
-        return new ResourceCleanupFileFingerprint(size, modified, Convert.ToHexString(hash.GetHashAndReset()));
+        return (new ResourceCleanupFileFingerprint(size, modified, Convert.ToHexString(digest)), content);
     }
 
     public static bool IsReadFailure(Exception exception)
@@ -113,51 +135,25 @@ internal static class ResourceCleanupFileSystem
         return EditorPathSandbox.IsPathFailure(exception) || exception is InvalidDataException or System.Text.Json.JsonException;
     }
 
-    private static void enumerateDirectory(
-        string projectPath,
-        string directory,
-        ICollection<string> files,
-        ICollection<ResourceCleanupIssue> issues,
-        IProgress<ResourceCleanupProgress>? progress,
-        CancellationToken token)
+    private static string[] enumerateDirectory(string projectPath, string directory, bool optional)
     {
-        string[] entries = Directory.GetFileSystemEntries(directory).Order(StringComparer.Ordinal).ToArray();
-        (string Relative, bool Directory, ResourceCleanupIssue? Issue)[] results =
-            EditorValidationBatch.RunFiles<string, (string, bool, ResourceCleanupIssue?)>(entries, path =>
+        if (optional && !Directory.Exists(directory))
+            return [];
+        return Directory.GetFileSystemEntries(directory)
+            .Select(path => Path.GetRelativePath(projectPath, path).Replace('\\', '/'))
+            .Order(StringComparer.Ordinal).ToArray();
+    }
+
+    private static (T Value, ResourceCleanupIssue? Issue) inspectInput<T>(
+        string projectPath, string relative, bool allowMissing, Func<string, T> inspect)
+    {
+        try
         {
-            string relative = Path.GetRelativePath(projectPath, path).Replace('\\', '/');
-            try
-            {
-                ResolveSafePath(projectPath, relative);
-                return (relative, Directory.Exists(path), null);
-            }
-            catch (Exception exception) when (IsReadFailure(exception))
-            {
-                return (relative, false, new ResourceCleanupIssue(relative, exception.Message));
-            }
-        }, token);
-        for (int index = 0; index < entries.Length; index++)
+            return (inspect(ResolveSafePath(projectPath, relative, allowMissing)), null);
+        }
+        catch (Exception exception) when (IsReadFailure(exception))
         {
-            token.ThrowIfCancellationRequested();
-            (string relative, bool isDirectory, ResourceCleanupIssue? issue) = results[index];
-            if (issue is not null)
-            {
-                issues.Add(issue);
-                continue;
-            }
-            try
-            {
-                if (isDirectory)
-                    enumerateDirectory(projectPath, ResolveSafePath(projectPath, relative), files, issues, progress, token);
-                else
-                    files.Add(relative);
-                if (files.Count % 32 == 0)
-                    progress?.Report(new ResourceCleanupProgress("Inventory", files.Count, 0, relative));
-            }
-            catch (Exception exception) when (IsReadFailure(exception))
-            {
-                issues.Add(new ResourceCleanupIssue(relative, exception.Message));
-            }
+            return (default!, new ResourceCleanupIssue(relative, exception.Message));
         }
     }
 }

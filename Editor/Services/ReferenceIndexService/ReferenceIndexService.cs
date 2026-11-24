@@ -97,8 +97,7 @@ public sealed partial class ReferenceIndexService : IDisposable
 
         string normalized = relativePath.Replace('\\', '/');
         string lower = normalized.ToLowerInvariant();
-        if (Directory.Exists(absolutePath)
-            && lower.StartsWith("data/maps/", StringComparison.Ordinal))
+        if (lower.StartsWith("data/maps/", StringComparison.Ordinal) && Directory.Exists(absolutePath))
         {
             string worldKey = normalized["Data/Maps/".Length..].Trim('/');
             if (!worldKey.Contains('/') && gameData.Worlds.WorldMapData.ContainsKey(worldKey))

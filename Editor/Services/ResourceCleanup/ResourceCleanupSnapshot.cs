@@ -9,4 +9,5 @@ internal sealed record ResourceCleanupSnapshot(
     string ProjectPath,
     ResourceCleanupReport Report,
     IReadOnlyDictionary<string, ResourceCleanupFileFingerprint> Fingerprints,
-    IReadOnlyList<string> DeletionOrder);
+    IReadOnlyList<string> DeletionOrder,
+    FileFingerprintCache FileCache);

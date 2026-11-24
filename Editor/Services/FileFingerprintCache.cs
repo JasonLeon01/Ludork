@@ -38,12 +38,19 @@ internal sealed class FileFingerprintCache(StringComparer comparer)
     {
         token.ThrowIfCancellationRequested();
         using FileStream stream = new(path, FileMode.Open, FileAccess.Read, share, 1, FileOptions.SequentialScan);
+        return Read(path, stream, buffer, token, includeContent, previousFingerprint: previousFingerprint);
+    }
+
+    internal (byte[] Digest, byte[]? Content) Read(string path, FileStream stream, byte[] buffer,
+        CancellationToken token, bool includeContent, bool forceRead = false, string? previousFingerprint = null)
+    {
+        token.ThrowIfCancellationRequested();
         FileContentVersion? version = FileContentVersion.Read(stream.SafeFileHandle);
         lock (entries)
         {
             if (!version.HasValue)
                 entries.Remove(path);
-            else if (entries.TryGetValue(path, out Entry? cached) && cached.Version == version.Value
+            else if (!forceRead && entries.TryGetValue(path, out Entry? cached) && cached.Version == version.Value
                 && (!includeContent || matches(cached.Digest, previousFingerprint)))
                 return (cached.Digest, null);
         }

@@ -12,6 +12,7 @@ namespace Ludork.Services;
 
 internal sealed class ResourceCleanupScanner
 {
+    private const int BufferSize = 128 * 1024;
     private static readonly IReadOnlySet<string> RemovableTypes = new HashSet<string>(StringComparer.Ordinal)
     {
         "material", "tileset", "autoTile", "blueprint", "commonFunction", "animation", "particle", "curve", "textConfig",
@@ -27,16 +28,30 @@ internal sealed class ResourceCleanupScanner
         string root = Path.GetFullPath(projectPath);
         List<ResourceCleanupIssue> issues = [];
         IReadOnlyList<string> files = ResourceCleanupFileSystem.EnumerateInputs(root, issues, progress, token);
+        FileFingerprintCache cache = new(StringComparer.Ordinal);
+        bool analyze = issues.Count == 0;
+        Action<string> reportFile = createProgressReporter("Fingerprint", files.Count, progress);
+        FileRead[] reads = EditorValidationBatch.RunFiles(files, static () => new byte[BufferSize], (buffer, path) =>
+        {
+            reportFile(path);
+            return readInput(root, path, cache, buffer, analyze, token);
+        }, cancellationToken: token);
         Dictionary<string, ResourceCleanupFileFingerprint> fingerprints = new(StringComparer.Ordinal);
-        scanFiles(files, path => ResourceCleanupFileSystem.Fingerprint(root, path, token),
-            (path, fingerprint) => fingerprints.Add(path, fingerprint), issues, "Fingerprint", progress, token);
+        foreach (FileRead read in reads)
+        {
+            if (read.Fingerprint is ResourceCleanupFileFingerprint fingerprint)
+                fingerprints.Add(read.Path, fingerprint);
+            else
+                issues.Add(read.Issue!);
+        }
         Dictionary<string, HashSet<string>> edges = files.ToDictionary(
             path => path, _ => new HashSet<string>(StringComparer.Ordinal), StringComparer.Ordinal);
         HashSet<string> candidates = new(StringComparer.Ordinal);
         HashSet<string> roots = new(StringComparer.Ordinal);
         if (issues.Count == 0)
         {
-            readData(root, files, edges, issues, progress, token);
+            applyReferences(reads, "Data/", (path, targets) => edges[path].UnionWith(targets),
+                issues, "References", progress, token);
             if (issues.Count == 0)
                 buildIndex(root, edges, candidates, issues, progress, token);
         }
@@ -49,7 +64,8 @@ internal sealed class ResourceCleanupScanner
         }
         applyKeepPaths(root, nativeKeepPaths.Concat(userKeepPaths), files, roots, issues, token);
         if (issues.Count == 0)
-            readLua(root, files, roots, issues, progress, token);
+            applyReferences(reads, "Scripts/", (_, targets) => roots.UnionWith(targets),
+                issues, "Lua", progress, token);
         progress?.Report(new ResourceCleanupProgress("Reachability", 0, edges.Count, string.Empty));
         HashSet<string> reachable = new(StringComparer.Ordinal);
         Queue<string> pending = new(roots);
@@ -68,7 +84,7 @@ internal sealed class ResourceCleanupScanner
             path, path.StartsWith("Assets/", StringComparison.Ordinal) ? "Assets" : "Data",
             fingerprints[path].Size)).ToArray();
         ResourceCleanupReport report = new(Guid.NewGuid().ToString("N"), items, issues.ToArray());
-        ResourceCleanupSnapshot snapshot = new(root, report, fingerprints, order);
+        ResourceCleanupSnapshot snapshot = new(root, report, fingerprints, order, cache);
         if (issues.Count == 0)
         {
             try
@@ -98,11 +114,12 @@ internal sealed class ResourceCleanupScanner
         if (!current.SequenceEqual(snapshot.Fingerprints.Keys.OrderBy(path => path, StringComparer.Ordinal), StringComparer.Ordinal))
             throw new InvalidDataException("Project files were added or deleted; scan again.");
         Action<string> report = createProgressReporter("Validation", current.Count, progress);
-        EditorValidationBatch.ForEachFile(current, path =>
+        EditorValidationBatch.RunFiles(current, static () => new byte[BufferSize], (buffer, path) =>
         {
             report(path);
-            validateFingerprint(snapshot, path, token);
-        }, token);
+            validateFingerprint(snapshot, path, buffer, token);
+            return true;
+        }, cancellationToken: token);
     }
 
     public string ValidateCandidate(ResourceCleanupSnapshot snapshot, string relativePath, CancellationToken token)
@@ -110,34 +127,48 @@ internal sealed class ResourceCleanupScanner
         token.ThrowIfCancellationRequested();
         if (!snapshot.Report.CanTrash || !snapshot.DeletionOrder.Contains(relativePath, StringComparer.Ordinal))
             throw new InvalidDataException("The file is not an approved cleanup candidate.");
-        validateFingerprint(snapshot, relativePath, token);
+        validateFingerprint(snapshot, relativePath, new byte[BufferSize], token, forceRead: true);
         return ResourceCleanupFileSystem.ResolveSafePath(snapshot.ProjectPath, relativePath);
     }
 
-    private static void validateFingerprint(ResourceCleanupSnapshot snapshot, string relativePath, CancellationToken token)
+    private static void validateFingerprint(ResourceCleanupSnapshot snapshot, string relativePath, byte[] buffer,
+        CancellationToken token, bool forceRead = false)
     {
         if (!snapshot.Fingerprints.TryGetValue(relativePath, out ResourceCleanupFileFingerprint? previous)
-            || previous != ResourceCleanupFileSystem.Fingerprint(snapshot.ProjectPath, relativePath, token))
+            || previous != ResourceCleanupFileSystem.ReadFile(snapshot.ProjectPath, relativePath,
+                snapshot.FileCache, buffer, token, forceRead: forceRead).Fingerprint)
             throw new InvalidDataException($"The project changed; scan again: {relativePath}");
     }
 
-    private static void readData(
-        string root,
-        IReadOnlyList<string> files,
-        Dictionary<string, HashSet<string>> edges,
-        ICollection<ResourceCleanupIssue> issues,
-        IProgress<ResourceCleanupProgress>? progress,
-        CancellationToken token)
+    private sealed record FileRead(string Path, ResourceCleanupFileFingerprint? Fingerprint,
+        IReadOnlySet<string>? References, ResourceCleanupIssue? Issue);
+
+    private static FileRead readInput(string root, string path, FileFingerprintCache cache, byte[] buffer,
+        bool analyze, CancellationToken token)
     {
-        string[] documents = files.Where(path => path.StartsWith("Data/", StringComparison.Ordinal)
-            && path.EndsWith(".json", StringComparison.OrdinalIgnoreCase)).ToArray();
-        scanFiles(documents, path =>
+        ResourceCleanupFileFingerprint? fingerprint = null;
+        try
         {
+            bool json = analyze && path.StartsWith("Data/", StringComparison.Ordinal)
+                && path.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
+            bool lua = analyze && ResourceCleanupLuaScanner.IsHandwrittenRuntime(path);
+            (fingerprint, byte[]? content) = ResourceCleanupFileSystem.ReadFile(root, path, cache, buffer,
+                token, includeContent: json || lua);
+            if (content is null)
+                return new(path, fingerprint, null, null);
+            using MemoryStream stream = new(content, writable: false);
+            using StreamReader reader = new(stream);
+            string source = reader.ReadToEnd();
+            if (lua)
+                return new(path, fingerprint, ResourceCleanupLuaScanner.ReadReferences(source, token), null);
             HashSet<string> targets = new(StringComparer.Ordinal);
-            JsonNode? data = JsonNode.Parse(File.ReadAllText(ResourceCleanupFileSystem.ResolveSafePath(root, path)));
-            readJsonReferences(data, targets, token);
-            return targets;
-        }, (path, targets) => edges[path] = targets, issues, "References", progress, token);
+            readJsonReferences(JsonNode.Parse(source), targets, token);
+            return new(path, fingerprint, targets, null);
+        }
+        catch (Exception exception) when (ResourceCleanupFileSystem.IsReadFailure(exception))
+        {
+            return new(path, fingerprint, null, new ResourceCleanupIssue(path, exception.Message));
+        }
     }
 
     private static void readJsonReferences(JsonNode? node, ISet<string> targets, CancellationToken token)
@@ -199,7 +230,17 @@ internal sealed class ResourceCleanupScanner
                     issues.Add(new ResourceCleanupIssue($"Data/Blueprints/{keys[offset]}.json", error));
             }
             IReadOnlyList<ReferenceNode> nodes = index.GetAllNodes();
-            string[] absolutePaths = nodes.Select(node => index.GetNodePath(node.Id)).ToArray();
+            string[] absolutePaths = new string[nodes.Count];
+            List<int> assetOffsets = [];
+            for (int offset = 0; offset < nodes.Count; offset++)
+            {
+                if (nodes[offset].Type == "asset")
+                    assetOffsets.Add(offset);
+                else
+                    absolutePaths[offset] = index.GetNodePath(nodes[offset].Id);
+            }
+            EditorValidationBatch.ForEachFile(assetOffsets,
+                offset => absolutePaths[offset] = index.GetNodePath(nodes[offset].Id), token);
             string[] uniquePaths = absolutePaths.Where(path => path.Length != 0).Distinct(StringComparer.Ordinal).ToArray();
             EditorValidationBatch.ForEachFile(uniquePaths, path =>
                 ResourceCleanupFileSystem.ResolveSafePath(root, Path.GetRelativePath(root, path).Replace('\\', '/'), allowMissing: true), token);
@@ -243,12 +284,27 @@ internal sealed class ResourceCleanupScanner
         CancellationToken token)
     {
         HashSet<string> protectedPaths = new(StringComparer.Ordinal);
-        scanFiles(keepPaths.ToArray(), path =>
+        (string? Path, ResourceCleanupIssue? Issue)[] checkedPaths =
+            EditorValidationBatch.RunFiles<string, (string?, ResourceCleanupIssue?)>(keepPaths.ToArray(), path =>
         {
-            string normalized = ResourceCleanupFileSystem.NormalizeKeepPath(path);
-            ResourceCleanupFileSystem.ResolveSafePath(root, normalized, allowMissing: true);
-            return normalized;
-        }, (_, path) => protectedPaths.Add(path), issues, "References", null, token);
+            try
+            {
+                string normalized = ResourceCleanupFileSystem.NormalizeKeepPath(path);
+                ResourceCleanupFileSystem.ResolveSafePath(root, normalized, allowMissing: true);
+                return (normalized, null);
+            }
+            catch (Exception exception) when (ResourceCleanupFileSystem.IsReadFailure(exception))
+            {
+                return (null, new ResourceCleanupIssue(path, exception.Message));
+            }
+        }, token);
+        foreach ((string? path, ResourceCleanupIssue? issue) in checkedPaths)
+        {
+            if (issue is not null)
+                issues.Add(issue);
+            else
+                protectedPaths.Add(path!);
+        }
         foreach (string file in files)
         {
             token.ThrowIfCancellationRequested();
@@ -268,45 +324,21 @@ internal sealed class ResourceCleanupScanner
         }
     }
 
-    private static void readLua(
-        string root,
-        IReadOnlyList<string> files,
-        ISet<string> roots,
-        ICollection<ResourceCleanupIssue> issues,
-        IProgress<ResourceCleanupProgress>? progress,
+    private static void applyReferences(FileRead[] reads, string prefix, Action<string, IReadOnlySet<string>> apply,
+        ICollection<ResourceCleanupIssue> issues, string stage, IProgress<ResourceCleanupProgress>? progress,
         CancellationToken token)
     {
-        string[] scripts = files.Where(ResourceCleanupLuaScanner.IsHandwrittenRuntime).ToArray();
-        scanFiles(scripts, path =>
+        FileRead[] sources = reads.Where(read => (read.References is not null || read.Issue is not null)
+            && read.Path.StartsWith(prefix, StringComparison.Ordinal)).ToArray();
+        for (int index = 0; index < sources.Length; index++)
         {
-            string source = File.ReadAllText(ResourceCleanupFileSystem.ResolveSafePath(root, path));
-            return ResourceCleanupLuaScanner.ReadReferences(source, token);
-        }, (_, references) => roots.UnionWith(references), issues, "Lua", progress, token);
-    }
-
-    private static void scanFiles<T>(IReadOnlyList<string> paths, Func<string, T> read, Action<string, T> apply,
-        ICollection<ResourceCleanupIssue> issues, string stage, IProgress<ResourceCleanupProgress>? progress,
-        CancellationToken token) where T : class
-    {
-        Action<string> report = createProgressReporter(stage, paths.Count, progress);
-        (T? Value, ResourceCleanupIssue? Issue)[] results = EditorValidationBatch.RunFiles<string, (T?, ResourceCleanupIssue?)>(paths, path =>
-        {
-            report(path);
-            try
-            {
-                return (read(path), null);
-            }
-            catch (Exception exception) when (ResourceCleanupFileSystem.IsReadFailure(exception))
-            {
-                return (null, new ResourceCleanupIssue(path, exception.Message));
-            }
-        }, token);
-        for (int index = 0; index < paths.Count; index++)
-        {
-            if (results[index].Issue is ResourceCleanupIssue issue)
-                issues.Add(issue);
+            token.ThrowIfCancellationRequested();
+            FileRead source = sources[index];
+            progress?.Report(new ResourceCleanupProgress(stage, index, sources.Length, source.Path));
+            if (source.Issue is not null)
+                issues.Add(source.Issue);
             else
-                apply(paths[index], results[index].Value!);
+                apply(source.Path, source.References!);
         }
     }
 
