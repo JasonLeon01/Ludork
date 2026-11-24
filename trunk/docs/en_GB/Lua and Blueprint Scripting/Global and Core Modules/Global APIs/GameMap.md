@@ -41,7 +41,7 @@ Region builders also implement the resource-lifetime contract:
 | `resolvePendingResources()` | Synchronously finish already-discovered pending resource loads for an explicit drain. This does not advance layer construction, Actors or publication; those still proceed through normal builder steps. |
 | `cancel()` | Release resource subscriptions and close the construction coroutine. Safe to call repeatedly when publication is cancelled, the region is evicted or the world is disposed. A cancelled builder cannot advance again. |
 
-The default builder requests tileset and autotile textures as its existing dependency scan discovers them, including autotiles introduced by saved terrain changes. It collects dependencies across layers before constructing those layers, reuses duplicate requests and reads autotile frame counts only after the textures are ready. [TextureManager](<../Core Modules/GlobalCore/Resource Managers.md#texturemanager>) owns the request, error and memory semantics.
+Ordinary maps queue distinct tileset and autotile textures across all layers before resolving them for layer construction. The default world-region builder requests tileset and autotile textures as its existing dependency scan discovers them, including autotiles introduced by saved terrain changes. It collects dependencies across layers before constructing those layers, reuses duplicate requests and reads autotile frame counts only after the textures are ready. [TextureManager](<../Core Modules/GlobalCore/Resource Managers.md#texturemanager>) owns the request, error and memory semantics.
 
 During background streaming, a resource wait ends the current builder step. A waiting region is attempted at most once in the same logic update, leaving the remaining budget available to other regions. Required texture failures propagate rather than producing a partial layer. `ensureRegionLoadedAt` and explicit viewport preparation retain their synchronous completion contract by resolving pending resources while draining the builder; background preparation keeps its normal time budget.
 
@@ -67,7 +67,7 @@ For world manifests, `WorldGameMap` exposes world coordinates. A native sparse-r
 
 `getGameplayCellRect()` returns a copied cell rectangle without loading regions. The result is the full bounds for an ordinary map. For a world map it is the Active bounds, and it falls back to the visible bounds until the Active area exists.
 
-`prepareViewportAt` prepares and renders the required camera neighbourhood synchronously, while surrounding placements remain asynchronous. Failures of required children, Actors or publications propagate.
+`prepareViewportAt` queues the required camera neighbourhood's cold child maps together and reuses reads already in flight. It completes their Actors and publication and renders the destination before returning. Surrounding placements continue streaming asynchronously. Failures in a required child, Actor or publication propagate.
 
 ### Rendering and fog
 
