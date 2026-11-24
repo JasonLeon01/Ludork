@@ -13,7 +13,7 @@ internal static class ReferenceDocumentBatchScanner
         CancellationToken cancellationToken = default, Action<int>? completed = null)
     {
         LuaValidationReadCache reads = new(projectPath, projectEnums, cancellationToken);
-        return EditorValidationBatch.Run<ReferenceBuildDocument, ReferenceDocumentScanWorker, DocumentReferenceResult>(
+        return EditorValidationBatch.RunFiles<ReferenceBuildDocument, ReferenceDocumentScanWorker, DocumentReferenceResult>(
             documents, () => new ReferenceDocumentScanWorker(reads, blueprints, projectEnums, cancellationToken),
             static (worker, document) => worker.Scan(document), static worker => worker.Dispose(),
             cancellationToken, completed);

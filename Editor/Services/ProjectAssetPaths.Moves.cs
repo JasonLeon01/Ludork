@@ -94,12 +94,7 @@ public sealed partial class ProjectAssetPaths
 
     private IEnumerable<ProjectAssetPathEntry> enumerateTree(string directory)
     {
-        string physical = ResolveReadPath(directory);
-        if (Directory.Exists(physical))
-            foreach (FileSystemInfo entry in new DirectoryInfo(physical).EnumerateFileSystemInfos())
-                if (EditorPathSandbox.IsLink(entry))
-                    throw new IOException($"The asset directory contains a symbolic link: {entry.FullName}");
-        foreach (ProjectAssetPathEntry entry in EnumerateEntries(directory))
+        foreach (ProjectAssetPathEntry entry in enumerateEntries(directory, rejectLinks: true))
         {
             yield return entry;
             if (entry.IsDirectory)

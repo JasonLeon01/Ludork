@@ -66,6 +66,7 @@ internal static class ProjectTemplateArchive
         }
         List<ArchiveLink> links = [];
         List<(string Path, UnixFileMode Mode)> directoryModes = [];
+        List<(string Source, string Target)> files = [];
         long completed = 0;
         foreach (FileSystemInfo entry in entries)
         {
@@ -84,17 +85,25 @@ internal static class ProjectTemplateArchive
                     directoryModes.Add((path, File.GetUnixFileMode(entry.FullName)));
                 continue;
             }
-            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            await using FileStream input = new(entry.FullName, FileMode.Open, FileAccess.Read,
-                FileShare.Read, 65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
-            await copyFileAsync(input, path, chunk =>
-            {
-                completed += chunk.Length;
-                progress.Report(new(ProjectTemplateStage.Copying, completed, total));
-            }, cancellationToken);
-            if (!OperatingSystem.IsWindows())
-                File.SetUnixFileMode(path, File.GetUnixFileMode(entry.FullName));
+            files.Add((entry.FullName, path));
         }
+        object progressLock = new();
+        await EditorValidationBatch.ForEachFileAsync(files, async (file, token) =>
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(file.Target)!);
+            await using FileStream input = new(file.Source, FileMode.Open, FileAccess.Read,
+                FileShare.Read, 65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            await copyFileAsync(input, file.Target, chunk =>
+            {
+                lock (progressLock)
+                {
+                    completed += chunk.Length;
+                    progress.Report(new(ProjectTemplateStage.Copying, completed, total));
+                }
+            }, token);
+            if (!OperatingSystem.IsWindows())
+                File.SetUnixFileMode(file.Target, File.GetUnixFileMode(file.Source));
+        }, cancellationToken);
         installLinks(targetPath, links, cancellationToken);
         applyDirectoryModes(directoryModes);
         progress.Report(new(ProjectTemplateStage.Copying, completed, total));

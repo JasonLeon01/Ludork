@@ -54,12 +54,12 @@ public sealed partial class ProjectDataStore
             List<(string Section, string Key, JsonObject Data)> copies = [(source.Section, key, source.Data!)];
             if (source.Section == "WorldMaps")
             {
-                foreach (string child in Worlds.getWorldChildren(source.Key).ToArray())
+                Maps.LoadMaps(Worlds.getWorldChildren(source.Key), (child, data) =>
                 {
-                    JsonObject data = GetDocument("Maps", child)?.Data
-                        ?? throw new InvalidDataException($"The world child could not be read: {child}");
-                    copies.Add(("Maps", key + child[source.Key.Length..], data));
-                }
+                    if (data is null)
+                        throw new InvalidDataException($"The world child could not be read: {child}");
+                    copies.Add(("Maps", key + child[source.Key.Length..], (JsonObject)data.DeepClone()));
+                });
             }
             else if (source.Section == "UI")
                 copies[0] = (source.Section, key, UiAssetSchema.CloneForCopy(source.Data!, Path.GetFileName(key)));
@@ -200,8 +200,8 @@ public sealed partial class ProjectDataStore
         List<EditorDocument> targets = [document];
         if (section == "WorldMaps")
         {
-            foreach (string child in Worlds.getWorldChildren(key).ToArray())
-                targets.Add(GetDocument("Maps", child) ?? throw new InvalidDataException($"Cannot read world child: {child}"));
+            Maps.LoadMaps(Worlds.getWorldChildren(key), (child, _) =>
+                targets.Add(GetDocument("Maps", child) ?? throw new InvalidDataException($"Cannot read world child: {child}")));
         }
         assertDocumentsUnreferenced(this, targets.Select(target => target.Path).ToArray());
         string[] savedPaths = targets.Where(target => target.SavedState.InternalData is not null)

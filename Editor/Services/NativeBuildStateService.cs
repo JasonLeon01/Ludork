@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -53,19 +54,21 @@ public sealed class NativeBuildStateService : IDisposable
             || File.Exists(Path.Combine(cacheDirectory, "Preview.building")))
             return false;
         string[] modules = ["Engine", "GlobalCore", "GlobalFunctions"];
-        if (modules.Any(module => !File.Exists(Path.Combine(projectPath, "Scripts", module + "_meta.lua"))
-                || !File.Exists(Path.Combine(projectPath, "Scripts", "stub", module + ".d.lua")))
-            || !File.Exists(Path.Combine(projectPath, "Scripts", "stub", "LuaSF.d.lua"))
-            || !File.Exists(Path.Combine(cacheDirectory, "UiPreview.registry.json")))
-            return false;
         try
         {
             string buildPath = Path.Combine(projectPath, "build").Replace('\\', '/');
             string buildHash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(buildPath)))[..8];
             string intermediate = Path.Combine(projectPath, "Intermediate", "build-" + buildHash);
-            if (modules.Any(module => !File.Exists(Path.Combine(intermediate, module,
-                    "generated-bindings", module + ".bindings.stamp"))
-                || !File.Exists(Path.Combine(intermediate, module, "generated-declarations", module + "_meta.lua"))))
+            List<string> required = [Path.Combine(projectPath, "Scripts", "stub", "LuaSF.d.lua"),
+                Path.Combine(cacheDirectory, "UiPreview.registry.json")];
+            foreach (string module in modules)
+            {
+                required.Add(Path.Combine(projectPath, "Scripts", module + "_meta.lua"));
+                required.Add(Path.Combine(projectPath, "Scripts", "stub", module + ".d.lua"));
+                required.Add(Path.Combine(intermediate, module, "generated-bindings", module + ".bindings.stamp"));
+                required.Add(Path.Combine(intermediate, module, "generated-declarations", module + "_meta.lua"));
+            }
+            if (!filesExist(required))
                 return false;
             using JsonDocument build = JsonDocument.Parse(File.ReadAllText(successfulBuildPath));
             JsonElement record = build.RootElement;
@@ -75,9 +78,9 @@ public sealed class NativeBuildStateService : IDisposable
                 return false;
             string executable = OperatingSystem.IsWindows() ? "Main.exe" : "Main";
             string runtimeDirectory = Path.Combine(projectPath, "bin", "Debug");
-            if (!artifacts.TryGetProperty(executable, out _)
-                || artifacts.EnumerateObject().Any(artifact => !isFileName(artifact.Name)
-                    || !File.Exists(Path.Combine(runtimeDirectory, artifact.Name))))
+            string[] names = artifacts.EnumerateObject().Select(artifact => artifact.Name).ToArray();
+            if (!artifacts.TryGetProperty(executable, out _) || !names.All(isFileName)
+                || !filesExist(names.Select(name => Path.Combine(runtimeDirectory, name)).ToArray()))
                 return false;
             using JsonDocument preview = JsonDocument.Parse(File.ReadAllText(Path.Combine(cacheDirectory, "Preview.json")));
             JsonElement manifest = preview.RootElement;
@@ -90,22 +93,24 @@ public sealed class NativeBuildStateService : IDisposable
                 return false;
             string host = OperatingSystem.IsWindows() ? "PreviewHost.exe" : "PreviewHost";
             bool hasHost = false;
+            List<string> previewFiles = [];
             foreach (JsonElement file in files.EnumerateArray())
             {
-                if (file.ValueKind != JsonValueKind.String || file.GetString() is not string name
-                    || !isFileName(name)
-                    || !File.Exists(name == "UiPreview.registry.json"
-                        ? Path.Combine(cacheDirectory, name) : Path.Combine(runtimeDirectory, name)))
+                if (file.ValueKind != JsonValueKind.String || file.GetString() is not string name || !isFileName(name))
                     return false;
+                previewFiles.Add(Path.Combine(name == "UiPreview.registry.json" ? cacheDirectory : runtimeDirectory, name));
                 hasHost |= name == host;
             }
-            return hasHost;
+            return hasHost && filesExist(previewFiles);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
         {
             return false;
         }
     }
+
+    private static bool filesExist(IReadOnlyList<string> paths)
+        => EditorValidationBatch.RunFiles(paths, File.Exists).All(exists => exists);
 
     private static bool isCurrentContext(JsonElement record, bool preview)
     {

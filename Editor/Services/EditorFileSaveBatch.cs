@@ -12,6 +12,7 @@ namespace Ludork.Services;
 internal sealed class EditorFileSaveBatch
 {
     internal static event Action<IReadOnlyDictionary<string, string?>>? FilesCommitted;
+    private static readonly object failedPath = new();
     private static readonly StringComparer pathComparer = OperatingSystem.IsWindows()
         ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
     private readonly Dictionary<string, byte[]> writes = new(pathComparer);
@@ -68,6 +69,7 @@ internal sealed class EditorFileSaveBatch
         Dictionary<string, string> prepared = new(pathComparer);
         Dictionary<string, string?> originals = new(pathComparer);
         string[] writePaths = writes.Keys.Concat(fileWrites.Keys).ToArray();
+        string[] affectedPaths = writePaths.Concat(deletions).Distinct(pathComparer).ToArray();
         Dictionary<string, string> originalPaths = new(pathComparer);
         HashSet<string> replacedPaths = new(pathComparer);
         List<string> changedFiles = [];
@@ -78,7 +80,6 @@ internal sealed class EditorFileSaveBatch
         List<string> errors = [];
         Dictionary<string, string?> fingerprints = new(pathComparer);
         Dictionary<string, string?> expectedFiles = new(pathComparer);
-        Dictionary<string, string?> expectedMoveFiles = new(pathComparer);
         Dictionary<string, string> recycleInputs = new(pathComparer);
         string currentPath = staging;
         bool committed = false;
@@ -97,52 +98,51 @@ internal sealed class EditorFileSaveBatch
             if (recyclePath is not null)
             {
                 currentPath = recyclePath;
-                recycleInputs = captureRecycleInputs(recyclePath);
+                recycleInputs = captureRecycleInputs(recyclePath, cancellationToken);
             }
             Directory.CreateDirectory(staging);
-            foreach (KeyValuePair<string, byte[]> write in writes)
+            string[] temporaryPaths = prepareFiles(writePaths, (path, index) =>
             {
-                currentPath = write.Key;
-                report(currentPath);
-                string temporary = Path.Combine(staging, "write-" + prepared.Count);
-                File.WriteAllBytes(temporary, write.Value);
-                prepared.Add(write.Key, temporary);
-            }
-            foreach (KeyValuePair<string, string> write in fileWrites)
-            {
-                currentPath = write.Key;
-                report(currentPath);
-                string temporary = Path.Combine(staging, "write-" + prepared.Count);
-                File.Copy(write.Value, temporary);
-                prepared.Add(write.Key, temporary);
-            }
-            foreach ((string source, _) in fileMoves)
-                expectedMoveFiles[source] = ProjectDiskSnapshot.ReadFingerprint(source);
+                lock (prepared)
+                    report(path);
+                string temporary = Path.Combine(staging, "write-" + index);
+                if (writes.TryGetValue(path, out byte[]? bytes))
+                    File.WriteAllBytes(temporary, bytes);
+                else
+                    File.Copy(fileWrites[path], temporary);
+                return temporary;
+            }, cancellationToken);
+            for (int index = 0; index < writePaths.Length; index++)
+                prepared.Add(writePaths[index], temporaryPaths[index]);
+            Dictionary<string, string?> expectedMoveFiles = ProjectDiskSnapshot.ReadFingerprints(
+                fileMoves.Select(move => move.Source), cancellationToken);
             if (FilesCommitted is not null || canWrite is not null)
             {
                 foreach ((string source, _) in fileMoves)
                     fingerprints[source] = null;
                 foreach ((string source, string destination) in fileMoves)
                     fingerprints[destination] = expectedMoveFiles[source];
-                foreach ((string source, string destination) in moves)
+                (string Source, string Destination)[] movedFiles = moves.Where(move => Directory.Exists(move.Source))
+                    .SelectMany(move => Directory.EnumerateFiles(move.Source, "*", SearchOption.AllDirectories)
+                        .Select(file => (file, Path.Combine(move.Destination, Path.GetRelativePath(move.Source, file))))).ToArray();
+                Dictionary<string, string?> movedHashes = ProjectDiskSnapshot.ReadFingerprints(
+                    movedFiles.Select(file => file.Source), cancellationToken);
+                foreach ((string source, string destination) in movedFiles)
                 {
-                    if (!Directory.Exists(source))
-                        continue;
-                    foreach (string file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
-                    {
-                        fingerprints[file] = null;
-                        fingerprints[Path.Combine(destination, Path.GetRelativePath(source, file))] = ProjectDiskSnapshot.ReadFingerprint(file);
-                    }
+                    fingerprints[source] = null;
+                    fingerprints[destination] = movedHashes[source];
                 }
                 foreach (KeyValuePair<string, string> entry in recycleInputs.Where(entry => entry.Value != "directory"))
                     fingerprints[entry.Key] = null;
                 foreach (string path in deletions)
                     fingerprints[path] = null;
-                foreach (KeyValuePair<string, string> write in prepared)
-                    fingerprints[write.Key] = ProjectDiskSnapshot.ReadFingerprint(write.Value);
+                Dictionary<string, string?> preparedHashes = ProjectDiskSnapshot.ReadFingerprints(prepared.Values, cancellationToken);
+                foreach ((string path, string temporary) in prepared)
+                    fingerprints[path] = preparedHashes[temporary];
             }
             if (canWrite is not null)
-                foreach (string path in writePaths.Concat(deletions).Distinct(pathComparer))
+            {
+                string?[] hashes = EditorValidationBatch.RunFiles(affectedPaths, path =>
                 {
                     string sourcePath = path;
                     foreach ((string source, string destination) in moves)
@@ -151,8 +151,11 @@ internal sealed class EditorFileSaveBatch
                             sourcePath = Path.Combine(source, Path.GetRelativePath(destination, path));
                             break;
                         }
-                    expectedFiles[path] = ProjectDiskSnapshot.ReadFingerprint(sourcePath);
-                }
+                    return ProjectDiskSnapshot.ReadFingerprint(sourcePath);
+                }, cancellationToken);
+                for (int index = 0; index < affectedPaths.Length; index++)
+                    expectedFiles.Add(affectedPaths[index], hashes[index]);
+            }
             if (canWrite is not null && !canWrite())
                 throw new IOException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
             foreach (string directory in directorySpellings.OrderBy(path => path.Length))
@@ -252,16 +255,16 @@ internal sealed class EditorFileSaveBatch
                 replacedPaths.Add(path);
                 originalPaths[replacement] = path;
             }
-            foreach (string path in writePaths.Concat(deletions).Distinct(pathComparer))
+            string?[] backups = prepareFiles(affectedPaths, (path, index) =>
             {
-                currentPath = path;
-                cancellationToken.ThrowIfCancellationRequested();
                 verifyFile(path);
-                string? backup = File.Exists(path) ? Path.Combine(staging, "original-" + originals.Count) : null;
+                string? backup = File.Exists(path) ? Path.Combine(staging, "original-" + index) : null;
                 if (backup is not null)
                     File.Copy(path, backup);
-                originals[path] = backup;
-            }
+                return backup;
+            }, cancellationToken);
+            for (int index = 0; index < affectedPaths.Length; index++)
+                originals.Add(affectedPaths[index], backups[index]);
             foreach (KeyValuePair<string, string> write in prepared)
             {
                 currentPath = write.Key;
@@ -299,7 +302,7 @@ internal sealed class EditorFileSaveBatch
             {
                 currentPath = recyclePath;
                 progress?.Report(new EditorOperationProgress("EDIT_OPERATION_DELETING", recyclePath));
-                if (!ProjectDiskSnapshot.Equal(recycleInputs, captureRecycleInputs(recyclePath)))
+                if (!ProjectDiskSnapshot.Equal(recycleInputs, captureRecycleInputs(recyclePath, cancellationToken)))
                     throw new IOException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED") + Environment.NewLine + recyclePath);
                 cancellationToken.ThrowIfCancellationRequested();
                 if (recycleInputs.Count != 0)
@@ -310,7 +313,7 @@ internal sealed class EditorFileSaveBatch
         catch (Exception exception) when (isFileException(exception) || exception is OperationCanceledException)
         {
             cancelled = exception is OperationCanceledException;
-            errors.Insert(0, $"{currentPath}: {exception.Message}");
+            errors.Insert(0, $"{exception.Data[failedPath] as string ?? currentPath}: {exception.Message}");
             foreach (string path in changedFiles.AsEnumerable().Reverse().Distinct(pathComparer))
             {
                 try
@@ -404,7 +407,24 @@ internal sealed class EditorFileSaveBatch
         }
     }
 
-    private static Dictionary<string, string> captureRecycleInputs(string path)
+    private static T[] prepareFiles<T>(string[] paths, Func<string, int, T> prepare, CancellationToken token)
+    {
+        return EditorValidationBatch.RunFiles(Enumerable.Range(0, paths.Length).ToArray(), index =>
+        {
+            string path = paths[index];
+            try
+            {
+                return prepare(path, index);
+            }
+            catch (Exception exception) when (isFileException(exception) || exception is OperationCanceledException)
+            {
+                exception.Data[failedPath] = path;
+                throw;
+            }
+        }, token);
+    }
+
+    private static Dictionary<string, string> captureRecycleInputs(string path, CancellationToken token)
     {
         Dictionary<string, string> inputs = new(pathComparer);
         try
@@ -414,9 +434,11 @@ internal sealed class EditorFileSaveBatch
         catch (FileNotFoundException) { return inputs; }
         catch (DirectoryNotFoundException) { return inputs; }
         Stack<string> pending = new();
+        List<string> files = [];
         pending.Push(path);
         while (pending.TryPop(out string? current))
         {
+            token.ThrowIfCancellationRequested();
             FileAttributes attributes = File.GetAttributes(current);
             if ((attributes & FileAttributes.ReparsePoint) != 0)
                 inputs[current] = "link:" + new FileInfo(current).LinkTarget;
@@ -427,9 +449,10 @@ internal sealed class EditorFileSaveBatch
                     pending.Push(child);
             }
             else
-                inputs[current] = ProjectDiskSnapshot.ReadFingerprint(current)
-                    ?? throw new IOException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED") + Environment.NewLine + current);
+                files.Add(current);
         }
+        foreach ((string file, string? hash) in ProjectDiskSnapshot.ReadFingerprints(files, token))
+            inputs.Add(file, hash ?? throw new IOException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED") + Environment.NewLine + file));
         return inputs;
     }
 

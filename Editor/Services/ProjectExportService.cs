@@ -64,8 +64,13 @@ public sealed class ProjectExportService : IDisposable
         {
             if (readRecord() is not { Complete: true })
                 return false;
-            ExportSnapshot snapshot = await captureSnapshotAsync(cancellation.Token);
-            return snapshot.Outputs.All(output => output.Value != "missing");
+            return await inspectDeclaredFilesAsync(files =>
+            {
+                EditorValidationBatch.ForEachFile(files.PluginInputFiles,
+                    path => resolveDeclaredFile(path, cancellation.Token), cancellation.Token);
+                return EditorValidationBatch.RunFiles(files.OutputFiles,
+                    path => File.Exists(resolveDeclaredFile(path, cancellation.Token)), cancellation.Token).All(exists => exists);
+            }, cancellation.Token);
         }
         catch (Exception exception) when (isExportException(exception) || exception is ProjectStateCheckException)
         {
@@ -124,7 +129,7 @@ public sealed class ProjectExportService : IDisposable
             ExportRecord? previous = readRecord();
             if (previous is not null)
                 await writeRecordAsync(previous with { Complete = false }, cancellation.Token);
-            ExportSnapshot before = await captureSnapshotAsync(cancellation.Token);
+            ExportSnapshot before = await captureSnapshotAsync(cancellation.Token, includeOutputs: false);
             PluginResult hooks = await pipeline.ExecuteAsync(ProjectOperationKind.Export, writeOutput, cancellation.Token);
             if (!hooks.Success)
                 return ProjectExportResult.Failed(hooks.Error);
@@ -159,7 +164,23 @@ public sealed class ProjectExportService : IDisposable
         }
     }
 
-    private async Task<ExportSnapshot> captureSnapshotAsync(CancellationToken cancellationToken)
+    private Task<ExportSnapshot> captureSnapshotAsync(CancellationToken cancellationToken, bool includeOutputs = true)
+    {
+        return inspectDeclaredFilesAsync(files =>
+        {
+            SortedDictionary<string, string> outputs = new(StringComparer.Ordinal);
+            addHashes(files.PluginInputFiles, files.Inputs, cancellationToken);
+            if (includeOutputs)
+                addHashes(files.OutputFiles, outputs, cancellationToken);
+            else
+                EditorValidationBatch.ForEachFile(files.OutputFiles,
+                    path => resolveDeclaredFile(path, cancellationToken), cancellationToken);
+            return new ExportSnapshot(files.GeneratorIdentity, files.Participants, files.Inputs, outputs);
+        }, cancellationToken);
+    }
+
+    private async Task<TResult> inspectDeclaredFilesAsync<TResult>(Func<ExportFiles, TResult> inspect,
+        CancellationToken cancellationToken)
     {
         (JsonElement manifest, string toolIdentity) = await stateWorker.ExecuteAsync("ui-manifest", cancellationToken);
         return await Task.Run(() =>
@@ -167,49 +188,47 @@ public sealed class ProjectExportService : IDisposable
             SortedDictionary<string, string> inputs = new(StringComparer.Ordinal);
             foreach (JsonProperty property in manifest.GetProperty("inputs").EnumerateObject())
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                resolveProjectFile(property.Name);
                 inputs[property.Name] = property.Value.GetString() ?? throw new InvalidDataException(property.Name);
             }
-            string[] uiOutputs = manifest.GetProperty("outputPaths").EnumerateArray()
-                .Select(value => value.GetString() ?? throw new InvalidDataException("Invalid UI output path")).ToArray();
+            EditorValidationBatch.ForEachFile(inputs.Keys.ToArray(),
+                path => resolveDeclaredFile(path, cancellationToken), cancellationToken);
             IReadOnlyList<ProjectExportParticipant> participants = pluginRuntime?.GetExportParticipants(projectPath) ?? [];
-            SortedDictionary<string, string> outputs = new(StringComparer.Ordinal);
+            HashSet<string> pluginInputFiles = new(StringComparer.Ordinal);
+            List<string> outputFiles = [];
             HashSet<string> outputOwners = new(StringComparer.OrdinalIgnoreCase);
-            foreach (string path in uiOutputs)
+            foreach (JsonElement value in manifest.GetProperty("outputPaths").EnumerateArray())
             {
+                string path = value.GetString() ?? throw new InvalidDataException("Invalid UI output path");
                 if (!outputOwners.Add(path))
                     throw new InvalidDataException("Export outputs conflict on case-insensitive filesystems: " + path);
-                outputs.Add(path, hashProjectFile(path, cancellationToken));
+                outputFiles.Add(path);
             }
             foreach (ProjectExportParticipant participant in participants)
             {
                 foreach (string path in participant.Files.InputPaths)
-                    inputs.TryAdd(path, hashProjectFile(path, cancellationToken));
+                {
+                    if (!inputs.ContainsKey(path))
+                        pluginInputFiles.Add(path);
+                }
                 foreach (string path in participant.Files.OutputPaths)
                 {
                     if (!outputOwners.Add(path))
                         throw new InvalidDataException("Export outputs have multiple owners: " + path);
-                    outputs.Add(path, hashProjectFile(path, cancellationToken));
+                    outputFiles.Add(path);
                 }
             }
-            if (inputs.Keys.Any(outputOwners.Contains))
+            if (outputOwners.Overlaps(inputs.Keys) || outputOwners.Overlaps(pluginInputFiles))
                 throw new InvalidDataException("Export inputs and outputs must be separate files.");
             string generatorIdentity = typeof(ProjectExportService).Module.ModuleVersionId + ":" + toolIdentity;
-            return new ExportSnapshot(generatorIdentity, participants.Select(value => value.Identity).ToArray(), inputs, outputs);
+            cancellationToken.ThrowIfCancellationRequested();
+            return inspect(new ExportFiles(generatorIdentity, participants.Select(value => value.Identity).ToArray(),
+                inputs, pluginInputFiles.ToArray(), outputFiles.ToArray()));
         }, cancellationToken);
     }
 
-    private string hashProjectFile(string relativePath, CancellationToken cancellationToken)
+    private string resolveDeclaredFile(string relativePath, CancellationToken cancellationToken)
     {
-        string path = resolveProjectFile(relativePath);
-        if (Directory.Exists(path))
-            throw new InvalidDataException("Export declarations must identify files: " + relativePath);
-        return File.Exists(path) ? hashFile(path, cancellationToken) : "missing";
-    }
-
-    private string resolveProjectFile(string relativePath)
-    {
+        cancellationToken.ThrowIfCancellationRequested();
         string[] parts = relativePath.Split('/');
         if (Path.IsPathRooted(relativePath) || relativePath.Contains('\\') || relativePath.Contains(':')
             || parts.Any(part => part.Length == 0 || part is "." or ".."))
@@ -221,6 +240,8 @@ public sealed class ProjectExportService : IDisposable
             if (EditorPathSandbox.IsLink(current))
                 throw new InvalidDataException("Export paths must not contain symbolic links: " + relativePath);
         }
+        if (Directory.Exists(current))
+            throw new InvalidDataException("Export declarations must identify files: " + relativePath);
         return current;
     }
 
@@ -231,6 +252,18 @@ public sealed class ProjectExportService : IDisposable
         string hash = Convert.ToHexStringLower(SHA256.HashData(stream));
         cancellationToken.ThrowIfCancellationRequested();
         return hash;
+    }
+
+    private void addHashes(string[] paths, SortedDictionary<string, string> destination,
+        CancellationToken cancellationToken)
+    {
+        string[] hashes = EditorValidationBatch.RunFiles(paths, relativePath =>
+        {
+            string path = resolveDeclaredFile(relativePath, cancellationToken);
+            return File.Exists(path) ? hashFile(path, cancellationToken) : "missing";
+        }, cancellationToken);
+        for (int index = 0; index < paths.Length; index++)
+            destination.Add(paths[index], hashes[index]);
     }
 
     private ExportRecord? readRecord()
@@ -299,6 +332,9 @@ public sealed class ProjectExportService : IDisposable
     }
 
     private sealed record ExportRecord(int FormatVersion, bool Complete, ExportSnapshot Snapshot);
+
+    private sealed record ExportFiles(string GeneratorIdentity, string[] Participants,
+        SortedDictionary<string, string> Inputs, string[] PluginInputFiles, string[] OutputFiles);
 
     private sealed record ExportSnapshot(
         string GeneratorIdentity,

@@ -168,6 +168,8 @@ public sealed partial class FileExplorerViewModel
             return (false, LocaleService.Get("FILE_ALREADY_EXISTS").Replace("{name}", Path.GetFileName(destination)));
         if (!mapAllowed)
             return (false, $"{Path.GetFileName(source)}: {LocaleService.Get("MOVE_FILE_FAILED")}");
+        if (!directory && !Path.GetExtension(source).Equals(DataConfig.DataFileExtension, StringComparison.OrdinalIgnoreCase))
+            return (true, null);
         ProjectOperationSnapshot snapshot = await gameData.CaptureOperationSnapshotAsync();
         IReadOnlyList<(string SourcePath, string DestinationPath)> uiAssetMoves = await Task.Run(() =>
         {
@@ -244,13 +246,16 @@ public sealed partial class FileExplorerViewModel
             : Directory.Exists(source)
                 ? Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories)
                 : [];
-        foreach (string diskFile in diskFiles)
+        HashSet<string> known = result.Select(move => move.SourcePath).ToHashSet(ProjectDiskSnapshot.PathComparer);
+        string[] candidates = diskFiles.Where(path => !known.Contains(path)
+            && Path.GetExtension(path).Equals(DataConfig.DataFileExtension, StringComparison.OrdinalIgnoreCase)).ToArray();
+        Func<DataFileInfo?>[] reads = candidates.Select(captured.prepareDataFileRead).ToArray();
+        bool[] uiAssets = EditorValidationBatch.RunFiles(reads, read => read()?.Type == UiAssetSchema.UiAssetType);
+        for (int index = 0; index < candidates.Length; index++)
         {
-            if (captured.TryLoadDataFile(diskFile)?.Type != UiAssetSchema.UiAssetType
-                || result.Any(move => pathsEqual(move.SourcePath, diskFile)))
-            {
+            if (!uiAssets[index])
                 continue;
-            }
+            string diskFile = candidates[index];
             string destinationPath = sourceIsFile
                 ? destination
                 : Path.Combine(destination, Path.GetRelativePath(source, diskFile));
@@ -382,30 +387,17 @@ public sealed partial class FileExplorerViewModel
 
     private static void copyDirectory(string source, string target)
     {
-        Directory.CreateDirectory(target);
-        foreach (string file in Directory.GetFiles(source))
-            File.Copy(file, Path.Combine(target, Path.GetFileName(file)));
-        foreach (string child in Directory.GetDirectories(source))
-            copyDirectory(child, Path.Combine(target, Path.GetFileName(child)));
-    }
+        List<(string Source, string Target)> files = [];
+        collect(source, target);
+        EditorValidationBatch.ForEachFile(files, file => File.Copy(file.Source, file.Target));
 
-    private static void copyDirectory(
-        string source,
-        string target,
-        ISet<string> skippedFiles)
-    {
-        Directory.CreateDirectory(target);
-        foreach (string file in Directory.GetFiles(source))
+        void collect(string directory, string destination)
         {
-            if (!skippedFiles.Contains(Path.GetFullPath(file)))
-                File.Copy(file, Path.Combine(target, Path.GetFileName(file)));
-        }
-        foreach (string child in Directory.GetDirectories(source))
-        {
-            copyDirectory(
-                child,
-                Path.Combine(target, Path.GetFileName(child)),
-                skippedFiles);
+            Directory.CreateDirectory(destination);
+            foreach (string file in Directory.EnumerateFiles(directory))
+                files.Add((file, Path.Combine(destination, Path.GetFileName(file))));
+            foreach (string child in Directory.EnumerateDirectories(directory))
+                collect(child, Path.Combine(destination, Path.GetFileName(child)));
         }
     }
 }

@@ -1,33 +1,28 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Threading;
 
 namespace Ludork.Services;
 
 internal sealed class ProjectAssetDiskInputs
 {
-    private readonly Dictionary<string, JsonObject?> entries = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, JsonObject?> entries = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string[]> directories = new(StringComparer.Ordinal);
 
-    internal JsonObject? Read(string path)
-    {
-        if (!entries.TryGetValue(path, out JsonObject? metadata))
-        {
-            metadata = readMetadata(path);
-            entries.Add(path, metadata);
-        }
-        return metadata;
-    }
+    internal JsonObject? Read(string path) => entries.GetOrAdd(path, readMetadata);
 
-    internal IReadOnlyList<string> ReadDirectory(string path)
+    internal IReadOnlyList<string> ReadDirectory(string path, CancellationToken token = default)
     {
         if (!directories.TryGetValue(path, out string[]? children))
         {
             if (Read(path)?["directory"]?.GetValue<bool>() != true)
                 throw new IOException($"The asset directory no longer exists: {path}");
             children = Directory.GetFileSystemEntries(path).Order(StringComparer.Ordinal).ToArray();
+            EditorValidationBatch.ForEachFile(children, child => Read(child), token);
             directories.Add(path, children);
         }
         return children;
@@ -48,12 +43,16 @@ internal sealed class ProjectAssetDiskInputs
 
     internal void Validate()
     {
-        foreach ((string path, JsonObject? metadata) in entries)
-            if (!JsonNode.DeepEquals(metadata, readMetadata(path)))
+        EditorValidationBatch.ForEachFile(entries.OrderBy(entry => entry.Key, StringComparer.Ordinal).ToArray(), entry =>
+        {
+            if (!JsonNode.DeepEquals(entry.Value, readMetadata(entry.Key)))
                 throw new IOException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
-        foreach ((string path, string[] children) in directories)
-            if (!Directory.GetFileSystemEntries(path).Order(StringComparer.Ordinal).SequenceEqual(children))
+        });
+        EditorValidationBatch.ForEachFile(directories.ToArray(), entry =>
+        {
+            if (!Directory.GetFileSystemEntries(entry.Key).Order(StringComparer.Ordinal).SequenceEqual(entry.Value))
                 throw new IOException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
+        });
     }
 
     private static JsonObject? readMetadata(string path)

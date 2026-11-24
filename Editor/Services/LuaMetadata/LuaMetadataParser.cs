@@ -18,19 +18,19 @@ internal sealed class LuaMetadataParser
         this.resolveEnum = resolveEnum;
     }
 
-    public static IReadOnlyDictionary<string, LuaTypeMetadata> ReadFile(string path, string moduleName,
+    public static IReadOnlyDictionary<string, LuaTypeMetadata> ReadFile(string path, string source, string moduleName,
         Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum = null)
     {
         LuaMetadataParser parser = new(resolveEnum);
-        Table root = parser.readRoot(path);
+        Table root = parser.readRoot(path, source);
         return parser.parseMetadataFile(root, moduleName);
     }
 
-    public static LuaTypeMetadata ReadScriptMixin(string path, string moduleName, string typeName,
+    public static LuaTypeMetadata ReadScriptMixin(string path, string source, string moduleName, string typeName,
         Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum = null)
     {
         LuaMetadataParser parser = new(resolveEnum);
-        Table root = parser.readRoot(path);
+        Table root = parser.readRoot(path, source);
         parser.validateScriptMixinMetadata(root, typeName);
         IReadOnlyDictionary<string, LuaTypeMetadata> types = parser.parseMetadataFile(root, moduleName);
         if (types.Count != 1 || !types.TryGetValue(typeName, out LuaTypeMetadata? metadata))
@@ -40,10 +40,10 @@ internal sealed class LuaMetadataParser
         return metadata;
     }
 
-    private Table readRoot(string path)
+    private Table readRoot(string path, string source)
     {
         Script script = new(CoreModules.None);
-        DynValue result = script.DoString(File.ReadAllText(path), null, path);
+        DynValue result = script.DoString(source, null, path);
         validateMetadataRoot(result);
         return result.Table;
     }

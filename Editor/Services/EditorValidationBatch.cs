@@ -8,6 +8,8 @@ namespace Ludork.Services;
 
 internal static class EditorValidationBatch
 {
+    internal static int FileWorkers => Environment.ProcessorCount;
+
     [ThreadStatic]
     private static int depth;
 
@@ -21,6 +23,46 @@ internal static class EditorValidationBatch
         Func<TState> createState, Func<TState, TInput, TResult> action,
         Action<TState>? disposeState = null, CancellationToken cancellationToken = default,
         Action<int>? completed = null)
+        => run(inputs, createState, action, disposeState, cancellationToken, completed,
+            depth == 0 ? Math.Max(1, Environment.ProcessorCount - 1) : 1);
+
+    internal static TResult[] RunFiles<TInput, TResult>(IReadOnlyList<TInput> inputs,
+        Func<TInput, TResult> action, CancellationToken cancellationToken = default,
+        Action<int>? completed = null)
+        => RunFiles(inputs, static () => 0, (_, input) => action(input),
+            cancellationToken: cancellationToken, completed: completed);
+
+    internal static TResult[] RunFiles<TInput, TState, TResult>(IReadOnlyList<TInput> inputs,
+        Func<TState> createState, Func<TState, TInput, TResult> action,
+        Action<TState>? disposeState = null, CancellationToken cancellationToken = default,
+        Action<int>? completed = null)
+        => run(inputs, createState, action, disposeState, cancellationToken, completed, FileWorkers);
+
+    internal static void ForEachFile<TInput>(IReadOnlyList<TInput> inputs, Action<TInput> action,
+        CancellationToken cancellationToken = default, Action<int>? completed = null)
+        => RunFiles(inputs, input =>
+        {
+            action(input);
+            return true;
+        }, cancellationToken, completed);
+
+    internal static Task ForEachFileAsync<TInput>(IReadOnlyList<TInput> inputs,
+        Func<TInput, CancellationToken, ValueTask> action, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (inputs.Count == 0)
+            return Task.CompletedTask;
+        return Parallel.ForEachAsync(inputs, new ParallelOptions
+        {
+            MaxDegreeOfParallelism = Math.Min(inputs.Count, FileWorkers),
+            CancellationToken = cancellationToken,
+            TaskScheduler = TaskScheduler.Default,
+        }, action);
+    }
+
+    private static TResult[] run<TInput, TState, TResult>(IReadOnlyList<TInput> inputs,
+        Func<TState> createState, Func<TState, TInput, TResult> action, Action<TState>? disposeState,
+        CancellationToken cancellationToken, Action<int>? completed, int limit)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (inputs.Count == 0)
@@ -31,7 +73,7 @@ internal static class EditorValidationBatch
         int failed = inputs.Count;
         int finished = 0;
         object progressLock = new();
-        int workers = depth == 0 ? Math.Min(inputs.Count, Math.Max(1, Environment.ProcessorCount - 1)) : 1;
+        int workers = Math.Min(inputs.Count, limit);
 
         void fail(int index, Exception exception)
         {

@@ -76,7 +76,7 @@ internal sealed class ProjectResourceDeletionValidation(string projectPath) : ID
         string enums = Path.Combine(scripts, "Enums");
         if (Directory.Exists(enums))
             files = files.Concat(Directory.EnumerateFiles(enums, "*.lua", SearchOption.AllDirectories));
-        return files.Distinct(StringComparer.Ordinal).ToDictionary(path => path, ReferenceInputFiles.Read, StringComparer.Ordinal);
+        return ReferenceInputFiles.ReadStamps(files);
     }
 
     public void Dispose() => diskData?.Dispose();

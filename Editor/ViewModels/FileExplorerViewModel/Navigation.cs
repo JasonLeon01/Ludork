@@ -334,9 +334,7 @@ public sealed partial class FileExplorerViewModel
                 paths.TryAdd(child.Path, child);
             }
         }
-        string textRoot = Path.Combine(projectPath, "Data", "TextConfigs");
-        return paths.Values.Where(entry => !EditorPathSandbox.IsSameOrChildPath(textRoot, entry.Path)
-                || snapshot.TextVisibility.IsVisible(entry.Path, entry.IsDirectory, token))
+        return snapshot.TextVisibility.Filter(paths.Values, token)
             .OrderBy(entry => !entry.IsDirectory)
             .ThenBy(entry => Path.GetFileName(entry.Path), StringComparer.OrdinalIgnoreCase).ToArray();
     }

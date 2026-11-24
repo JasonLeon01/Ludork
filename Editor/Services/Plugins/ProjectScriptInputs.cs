@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 
 namespace Ludork.Services.Plugins;
@@ -11,7 +12,7 @@ internal sealed class ProjectScriptInputs
 
     public static ProjectScriptInputs Capture(string projectPath, string scriptPath, CancellationToken cancellationToken)
     {
-        ProjectScriptInputs result = new();
+        HashSet<string> paths = new(ProjectDiskSnapshot.PathComparer);
         EnumerationOptions options = new()
         {
             RecurseSubdirectories = true,
@@ -30,19 +31,18 @@ internal sealed class ProjectScriptInputs
                 if (section == "Data" && relative.StartsWith("Maps/", StringComparison.Ordinal)
                     || section == "Scripts" && relative.StartsWith("stub/", StringComparison.Ordinal))
                     continue;
-                result.capture(path);
+                paths.Add(path);
             }
         }
-        cancellationToken.ThrowIfCancellationRequested();
-        result.capture(scriptPath);
+        paths.Add(scriptPath);
+        string[] files = paths.ToArray();
+        string[] hashes = EditorValidationBatch.RunFiles(files, path => ProjectDiskSnapshot.ReadFingerprint(path)
+            ?? throw new IOException("A project evaluation input disappeared: " + path), cancellationToken);
+        ProjectScriptInputs result = new();
+        for (int index = 0; index < files.Length; index++)
+            result.fingerprints.Add(files[index], hashes[index]);
         return result;
     }
 
     public bool Matches(ProjectScriptInputs other) => ProjectDiskSnapshot.Equal(fingerprints, other.fingerprints);
-
-    private void capture(string path)
-    {
-        fingerprints[path] = ProjectDiskSnapshot.ReadFingerprint(path)
-            ?? throw new IOException("A project evaluation input disappeared: " + path);
-    }
 }

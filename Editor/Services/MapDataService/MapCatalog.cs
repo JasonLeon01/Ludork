@@ -3,8 +3,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading;
 
 namespace Ludork.Services;
 
@@ -22,7 +24,8 @@ public sealed partial class MapDataService
         try
         {
             if (JsonNode.Parse(File.ReadAllText(path)) is not JsonObject root
-                || root["version"]?.GetValue<int?>() != 1
+                || root["version"] is not JsonValue versionNode
+                || !versionNode.TryGetValue(out int version) || version != 2
                 || root["entries"] is not JsonObject entries)
             {
                 return;
@@ -54,7 +57,7 @@ public sealed partial class MapDataService
                 entries[entry.Key] = entry.Value.DeepClone();
             JsonObject root = new()
             {
-                ["version"] = 1,
+                ["version"] = 2,
                 ["entries"] = entries,
             };
             File.WriteAllText(path, root.ToJsonString(ProjectDataStore.WriteOptions) + "\n");
@@ -71,25 +74,13 @@ public sealed partial class MapDataService
         return Path.Combine(store.ProjectPath, ProjectToolConstants.EditorCacheDirectory, "EditorMapCatalog.json");
     }
 
-    internal JsonObject? readMapFile(string path, bool requireType)
+    internal JsonObject? readMapFile(string path, bool requireType, bool validateBlueprints = true)
     {
         store.reportDataRead(path);
         try
         {
-            if (JsonNode.Parse(File.ReadAllText(path)) is not JsonObject data)
-                return null;
-            string? type = ProjectDataStore.getString(data["type"]);
-            if (requireType && !string.Equals(type, "map", StringComparison.Ordinal)
-                || !requireType && type is not null && !string.Equals(type, "map", StringComparison.Ordinal))
-            {
-                return null;
-            }
-            data.Remove("type");
-            if (!tryReadMapShape(data, out _, out _, out _, requireType))
-                return null;
-            if (!store.tryValidateMapBlueprintData(path, data))
-                return null;
-            return data;
+            JsonObject? data = decodeMapFile(JsonNode.Parse(File.ReadAllText(path)) as JsonObject, requireType);
+            return data is not null && (!validateBlueprints || store.tryValidateMapBlueprintData(path, data)) ? data : null;
         }
         catch (Exception exception) when (
             exception is JsonException
@@ -100,382 +91,396 @@ public sealed partial class MapDataService
         }
     }
 
-    internal MapCatalogEntry? readMapCatalogEntry(string path, string worldKey)
+    internal static JsonObject? decodeMapFile(JsonObject? data, bool requireType)
     {
-        if (!store.tryValidateMapBlueprintFile(path))
+        if (data is null)
             return null;
+        string? type = ProjectDataStore.getString(data["type"]);
+        if (requireType && !string.Equals(type, "map", StringComparison.Ordinal)
+            || !requireType && type is not null && !string.Equals(type, "map", StringComparison.Ordinal))
+            return null;
+        data.Remove("type");
+        return tryReadMapShape(data, out _, out _, out _, requireType) ? data : null;
+    }
+
+    internal sealed record WorldChildCatalogRead(MapCatalogEntry? Entry, JsonObject? BlueprintData, string? Fingerprint, string? Error);
+
+    internal WorldChildCatalogRead readMapCatalogFile(
+        ProjectLoadFile file, string worldKey)
+    {
+        string path = file.Path;
         try
         {
             string cacheKey = Path.GetRelativePath(store.ProjectPath, path).Replace('\\', '/');
-            FileInfo file = new(path);
-            if (loadedMapCatalogCache.TryGetValue(cacheKey, out JsonObject? cached)
-                && cached["length"]?.GetValue<long?>() == file.Length
-                && cached["lastWriteUtcTicks"]?.GetValue<long?>() == file.LastWriteTimeUtc.Ticks
-                && cached["creationUtcTicks"]?.GetValue<long?>() == file.CreationTimeUtc.Ticks
-                && cached["entry"] is JsonObject cachedEntry
-                && cachedEntry["previewLightSources"] is JsonObject
-                && readMapCatalogEntry(cachedEntry) is MapCatalogEntry parsedCache
-                && parsedCache.Kind == MapCatalogEntryKind.WorldChildMap
-                && string.Equals(parsedCache.WorldKey, worldKey, StringComparison.Ordinal))
+            MapCatalogEntry? cachedEntry = null;
+            string? fingerprint = null;
+            if (store.CacheMapCatalog && loadedMapCatalogCache.TryGetValue(cacheKey, out JsonObject? cached)
+                && cached["fingerprint"] is JsonValue value && value.TryGetValue(out string? storedHash)
+                && cached["entry"] is JsonObject data
+                && data["width"] is JsonValue widthValue && widthValue.TryGetValue(out int width)
+                && data["height"] is JsonValue heightValue && heightValue.TryGetValue(out int height)
+                && isValidMapSize(width, height)
+                && data["previewLightSources"] is JsonObject
+                && data["actorTags"] is JsonArray tags && data["layerOrder"] is JsonArray { Count: > 0 } layers
+                && readMapCatalogEntry(data) is MapCatalogEntry parsed
+                && parsed.Kind == MapCatalogEntryKind.WorldChildMap
+                && parsed.ActorTags.Count == tags.Count && parsed.LayerOrder.Count == layers.Count
+                && string.Equals(parsed.WorldKey, worldKey, StringComparison.Ordinal)
+                && string.Equals(parsed.Key, worldKey + "/" + Path.GetFileNameWithoutExtension(path), StringComparison.Ordinal))
             {
-                nextMapCatalogCache[cacheKey] = (JsonObject)cached.DeepClone();
-                return parsedCache;
+                cachedEntry = parsed;
+                fingerprint = storedHash;
             }
-            string? type = null;
-            string? mapName = null;
-            int width = 0;
-            int height = 0;
-            List<string> layerOrder = [];
-            List<string> actorTags = [];
-            Stack<int> actorArrays = new();
-            byte[] buffer = new byte[65536];
-            int buffered = 0;
-            JsonReaderState state = default;
-            string? property = null;
-            bool readingLayerOrder = false;
-            bool awaitingRootActors = false;
-            bool awaitingGroupedActorArray = false;
-            bool awaitingLayers = false;
-            bool awaitingLayer = false;
-            bool awaitingLayerActors = false;
-            bool awaitingActorTag = false;
-            int? groupedActorsDepth = null;
-            int? layersDepth = null;
-            int? layerDepth = null;
-            bool layersObjectSeen = false;
-            string? pendingLayerName = null;
-            string? currentLayerName = null;
-            string? pendingGridName = null;
-            int? gridDepth = null;
-            int? gridRowDepth = null;
-            int gridRowCells = 0;
-            List<int> gridRows = [];
-            Dictionary<string, MapCatalogLayerShape> layerShapes = new(StringComparer.Ordinal);
-            bool rootStarted = false;
-            bool rootEnded = false;
-            using MapPreviewCatalogCapture previewCapture = new();
-            using FileStream stream = new FileStream(
-                path,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.Read,
-                buffer.Length,
-                FileOptions.SequentialScan);
-            while (!rootEnded)
+            byte[]? content = store.CacheMapCatalog ? file.ReadChangedContent(fingerprint) : file.ReadContent();
+            if (content is null)
+                return new(cachedEntry, cachedEntry!.PreviewLightSources, file.Fingerprint, null);
+            bool hasPreamble = content.AsSpan().StartsWith(Encoding.UTF8.Preamble);
+            MapCatalogEntry? entry = hasPreamble ? null : readMapCatalogProjection(content, path, worldKey, file.CancellationToken);
+            if (entry is not null)
+                return new(entry, entry.PreviewLightSources, file.Fingerprint, null);
+            using JsonDocument invalidMap = JsonDocument.Parse(content.AsMemory(hasPreamble ? Encoding.UTF8.Preamble.Length : 0));
+            return new(null, ProjectDataStore.projectMapBlueprintData(invalidMap.RootElement), file.Fingerprint, null);
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidDataException or IOException or UnauthorizedAccessException)
+        {
+            return new(null, null, null, exception.Message);
+        }
+    }
+
+    internal void rememberMapCatalogFile(string path, MapCatalogEntry entry, string? fingerprint)
+    {
+        if (fingerprint is null || !store.CacheMapCatalog)
+            return;
+        string cacheKey = Path.GetRelativePath(store.ProjectPath, path).Replace('\\', '/');
+        nextMapCatalogCache[cacheKey] = new JsonObject
+        {
+            ["fingerprint"] = fingerprint,
+            ["entry"] = createMapCatalogData(entry),
+        };
+    }
+
+    private static MapCatalogEntry? readMapCatalogProjection(byte[] content, string path, string worldKey, CancellationToken token)
+    {
+        string? type = null;
+        string? mapName = null;
+        int width = 0;
+        int height = 0;
+        List<string> layerOrder = [];
+        List<string> actorTags = [];
+        Stack<int> actorArrays = new();
+        string? property = null;
+        bool readingLayerOrder = false;
+        bool awaitingRootActors = false;
+        bool awaitingGroupedActorArray = false;
+        bool awaitingLayers = false;
+        bool awaitingLayer = false;
+        bool awaitingLayerActors = false;
+        bool awaitingActorTag = false;
+        int? groupedActorsDepth = null;
+        int? layersDepth = null;
+        int? layerDepth = null;
+        bool layersObjectSeen = false;
+        string? pendingLayerName = null;
+        string? currentLayerName = null;
+        string? pendingGridName = null;
+        int? gridDepth = null;
+        int? gridRowDepth = null;
+        int gridRowCells = 0;
+        List<int> gridRows = [];
+        Dictionary<string, MapCatalogLayerShape> layerShapes = new(StringComparer.Ordinal);
+        bool rootStarted = false;
+        bool rootEnded = false;
+        using MapPreviewCatalogCapture previewCapture = new();
+        Utf8JsonReader reader = new(content);
+        long nextCancellationCheck = 0;
+        while (reader.Read())
+        {
+            if (reader.BytesConsumed >= nextCancellationCheck)
             {
-                if (buffered == buffer.Length)
-                    Array.Resize(ref buffer, buffer.Length * 2);
-                int read = stream.Read(buffer, buffered, buffer.Length - buffered);
-                bool finalBlock = read == 0;
-                int available = buffered + read;
-                Utf8JsonReader reader = new Utf8JsonReader(
-                    new ReadOnlySpan<byte>(buffer, 0, available),
-                    finalBlock,
-                    state);
-                while (reader.Read())
+                token.ThrowIfCancellationRequested();
+                nextCancellationCheck = reader.BytesConsumed + 64 * 1024;
+            }
+            previewCapture.Append(ref reader, currentLayerName);
+            if (reader.TokenType == JsonTokenType.PropertyName)
+            {
+                string? nestedProperty = reader.GetString();
+                if (reader.CurrentDepth == 1
+                    && string.Equals(nestedProperty, "actors", StringComparison.Ordinal))
                 {
-                    previewCapture.Append(ref reader, currentLayerName);
-                    if (reader.TokenType == JsonTokenType.PropertyName)
+                    awaitingRootActors = true;
+                }
+                else if (reader.CurrentDepth == 1
+                    && string.Equals(nestedProperty, "layers", StringComparison.Ordinal))
+                {
+                    awaitingLayers = true;
+                }
+                else if (groupedActorsDepth is int actorGroupsDepth
+                    && reader.CurrentDepth == actorGroupsDepth + 1)
+                {
+                    awaitingGroupedActorArray = true;
+                }
+                else if (layersDepth is int mapLayersDepth
+                    && reader.CurrentDepth == mapLayersDepth + 1)
+                {
+                    awaitingLayer = true;
+                    pendingLayerName = nestedProperty;
+                }
+                else if (layerDepth is int mapLayerDepth
+                    && reader.CurrentDepth == mapLayerDepth + 1
+                    && string.Equals(nestedProperty, "actors", StringComparison.Ordinal))
+                {
+                    awaitingLayerActors = true;
+                }
+                else if (layerDepth is int gridLayerDepth
+                    && reader.CurrentDepth == gridLayerDepth + 1
+                    && nestedProperty is "tiles" or "autoTiles")
+                {
+                    pendingGridName = nestedProperty;
+                }
+                if (actorArrays.Count != 0
+                    && reader.CurrentDepth == actorArrays.Peek() + 2
+                    && string.Equals(nestedProperty, "tag", StringComparison.Ordinal))
+                {
+                    awaitingActorTag = true;
+                }
+            }
+            else
+            {
+                if (awaitingRootActors)
+                {
+                    if (reader.TokenType == JsonTokenType.StartArray)
+                        actorArrays.Push(reader.CurrentDepth);
+                    else if (reader.TokenType == JsonTokenType.StartObject)
+                        groupedActorsDepth = reader.CurrentDepth;
+                    awaitingRootActors = false;
+                }
+                if (awaitingGroupedActorArray)
+                {
+                    if (reader.TokenType == JsonTokenType.StartArray)
+                        actorArrays.Push(reader.CurrentDepth);
+                    awaitingGroupedActorArray = false;
+                }
+                if (awaitingLayers)
+                {
+                    if (reader.TokenType != JsonTokenType.StartObject)
+                        return null;
+                    layersDepth = reader.CurrentDepth;
+                    layersObjectSeen = true;
+                    awaitingLayers = false;
+                }
+                if (awaitingLayer)
+                {
+                    if (reader.TokenType != JsonTokenType.StartObject
+                        || string.IsNullOrWhiteSpace(pendingLayerName)
+                        || layerShapes.ContainsKey(pendingLayerName))
                     {
-                        string? nestedProperty = reader.GetString();
-                        if (reader.CurrentDepth == 1
-                            && string.Equals(nestedProperty, "actors", StringComparison.Ordinal))
-                        {
-                            awaitingRootActors = true;
-                        }
-                        else if (reader.CurrentDepth == 1
-                            && string.Equals(nestedProperty, "layers", StringComparison.Ordinal))
-                        {
-                            awaitingLayers = true;
-                        }
-                        else if (groupedActorsDepth is int actorGroupsDepth
-                            && reader.CurrentDepth == actorGroupsDepth + 1)
-                        {
-                            awaitingGroupedActorArray = true;
-                        }
-                        else if (layersDepth is int mapLayersDepth
-                            && reader.CurrentDepth == mapLayersDepth + 1)
-                        {
-                            awaitingLayer = true;
-                            pendingLayerName = nestedProperty;
-                        }
-                        else if (layerDepth is int mapLayerDepth
-                            && reader.CurrentDepth == mapLayerDepth + 1
-                            && string.Equals(nestedProperty, "actors", StringComparison.Ordinal))
-                        {
-                            awaitingLayerActors = true;
-                        }
-                        else if (layerDepth is int gridLayerDepth
-                            && reader.CurrentDepth == gridLayerDepth + 1
-                            && nestedProperty is "tiles" or "autoTiles")
-                        {
-                            pendingGridName = nestedProperty;
-                        }
-                        if (actorArrays.Count != 0
-                            && reader.CurrentDepth == actorArrays.Peek() + 2
-                            && string.Equals(nestedProperty, "tag", StringComparison.Ordinal))
-                        {
-                            awaitingActorTag = true;
-                        }
+                        return null;
                     }
-                    else
+                    layerDepth = reader.CurrentDepth;
+                    currentLayerName = pendingLayerName;
+                    layerShapes[currentLayerName] = new MapCatalogLayerShape();
+                    pendingLayerName = null;
+                    awaitingLayer = false;
+                }
+                if (awaitingLayerActors)
+                {
+                    if (reader.TokenType == JsonTokenType.StartArray)
+                        actorArrays.Push(reader.CurrentDepth);
+                    awaitingLayerActors = false;
+                }
+                if (awaitingActorTag)
+                {
+                    if (reader.TokenType == JsonTokenType.String
+                        && reader.GetString() is string actorTag
+                        && !string.IsNullOrWhiteSpace(actorTag))
                     {
-                        if (awaitingRootActors)
-                        {
-                            if (reader.TokenType == JsonTokenType.StartArray)
-                                actorArrays.Push(reader.CurrentDepth);
-                            else if (reader.TokenType == JsonTokenType.StartObject)
-                                groupedActorsDepth = reader.CurrentDepth;
-                            awaitingRootActors = false;
-                        }
-                        if (awaitingGroupedActorArray)
-                        {
-                            if (reader.TokenType == JsonTokenType.StartArray)
-                                actorArrays.Push(reader.CurrentDepth);
-                            awaitingGroupedActorArray = false;
-                        }
-                        if (awaitingLayers)
-                        {
-                            if (reader.TokenType != JsonTokenType.StartObject)
-                                return null;
-                            layersDepth = reader.CurrentDepth;
-                            layersObjectSeen = true;
-                            awaitingLayers = false;
-                        }
-                        if (awaitingLayer)
-                        {
-                            if (reader.TokenType != JsonTokenType.StartObject
-                                || string.IsNullOrWhiteSpace(pendingLayerName)
-                                || layerShapes.ContainsKey(pendingLayerName))
-                            {
-                                return null;
-                            }
-                            layerDepth = reader.CurrentDepth;
-                            currentLayerName = pendingLayerName;
-                            layerShapes[currentLayerName] = new MapCatalogLayerShape();
-                            pendingLayerName = null;
-                            awaitingLayer = false;
-                        }
-                        if (awaitingLayerActors)
-                        {
-                            if (reader.TokenType == JsonTokenType.StartArray)
-                                actorArrays.Push(reader.CurrentDepth);
-                            awaitingLayerActors = false;
-                        }
-                        if (awaitingActorTag)
-                        {
-                            if (reader.TokenType == JsonTokenType.String
-                                && reader.GetString() is string actorTag
-                                && !string.IsNullOrWhiteSpace(actorTag))
-                            {
-                                actorTags.Add(actorTag);
-                            }
-                            awaitingActorTag = false;
-                        }
-                        if (pendingGridName is not null)
-                        {
-                            if (reader.TokenType != JsonTokenType.StartArray || currentLayerName is null)
-                                return null;
-                            MapCatalogLayerShape shape = layerShapes[currentLayerName];
-                            if (pendingGridName == "tiles" && shape.TilesRows is not null
-                                || pendingGridName == "autoTiles" && shape.AutoTileRows is not null)
-                            {
-                                return null;
-                            }
-                            gridDepth = reader.CurrentDepth;
-                            gridRowDepth = null;
-                            gridRows = [];
-                            string gridName = pendingGridName;
-                            pendingGridName = null;
-                            shape.ActiveGrid = gridName;
-                            continue;
-                        }
-                        if (gridDepth is int activeGridDepth)
-                        {
-                            if (gridRowDepth is null
-                                && reader.TokenType == JsonTokenType.StartArray
-                                && reader.CurrentDepth == activeGridDepth + 1)
-                            {
-                                gridRowDepth = reader.CurrentDepth;
-                                gridRowCells = 0;
-                                continue;
-                            }
-                            if (gridRowDepth is int activeRowDepth
-                                && reader.TokenType == JsonTokenType.EndArray
-                                && reader.CurrentDepth == activeRowDepth)
-                            {
-                                gridRows.Add(gridRowCells);
-                                gridRowDepth = null;
-                                continue;
-                            }
-                            if (gridRowDepth is int cellRowDepth
-                                && reader.CurrentDepth == cellRowDepth + 1
-                                && reader.TokenType is JsonTokenType.Null
-                                    or JsonTokenType.String
-                                    or JsonTokenType.Number
-                                    or JsonTokenType.True
-                                    or JsonTokenType.False)
-                            {
-                                gridRowCells += 1;
-                                continue;
-                            }
-                            if (gridRowDepth is null
-                                && reader.TokenType == JsonTokenType.EndArray
-                                && reader.CurrentDepth == activeGridDepth
-                                && currentLayerName is not null)
-                            {
-                                MapCatalogLayerShape shape = layerShapes[currentLayerName];
-                                if (shape.ActiveGrid == "tiles")
-                                    shape.TilesRows = gridRows;
-                                else if (shape.ActiveGrid == "autoTiles")
-                                    shape.AutoTileRows = gridRows;
-                                else
-                                    return null;
-                                shape.ActiveGrid = null;
-                                gridDepth = null;
-                                gridRows = [];
-                                continue;
-                            }
-                            return null;
-                        }
+                        actorTags.Add(actorTag);
                     }
-                    if (!rootStarted)
+                    awaitingActorTag = false;
+                }
+                if (pendingGridName is not null)
+                {
+                    if (reader.TokenType != JsonTokenType.StartArray || currentLayerName is null)
+                        return null;
+                    MapCatalogLayerShape shape = layerShapes[currentLayerName];
+                    if (pendingGridName == "tiles" && shape.TilesRows is not null
+                        || pendingGridName == "autoTiles" && shape.AutoTileRows is not null)
                     {
-                        if (reader.TokenType != JsonTokenType.StartObject || reader.CurrentDepth != 0)
-                            return null;
-                        rootStarted = true;
+                        return null;
+                    }
+                    gridDepth = reader.CurrentDepth;
+                    gridRowDepth = null;
+                    gridRows = [];
+                    string gridName = pendingGridName;
+                    pendingGridName = null;
+                    shape.ActiveGrid = gridName;
+                    continue;
+                }
+                if (gridDepth is int activeGridDepth)
+                {
+                    if (gridRowDepth is null
+                        && reader.TokenType == JsonTokenType.StartArray
+                        && reader.CurrentDepth == activeGridDepth + 1)
+                    {
+                        gridRowDepth = reader.CurrentDepth;
+                        gridRowCells = 0;
                         continue;
                     }
-                    if (reader.TokenType == JsonTokenType.EndObject && reader.CurrentDepth == 0)
+                    if (gridRowDepth is int activeRowDepth
+                        && reader.TokenType == JsonTokenType.EndArray
+                        && reader.CurrentDepth == activeRowDepth)
                     {
-                        rootEnded = true;
+                        gridRows.Add(gridRowCells);
+                        gridRowDepth = null;
                         continue;
                     }
-                    if (reader.TokenType == JsonTokenType.EndArray
-                        && actorArrays.Count != 0
-                        && actorArrays.Peek() == reader.CurrentDepth)
+                    if (gridRowDepth is int cellRowDepth
+                        && reader.CurrentDepth == cellRowDepth + 1
+                        && reader.TokenType is JsonTokenType.Null
+                            or JsonTokenType.String
+                            or JsonTokenType.Number
+                            or JsonTokenType.True
+                            or JsonTokenType.False)
                     {
-                        actorArrays.Pop();
-                    }
-                    if (reader.TokenType == JsonTokenType.EndObject
-                        && layerDepth == reader.CurrentDepth)
-                    {
-                        if (currentLayerName is null
-                            || layerShapes[currentLayerName].TilesRows is null
-                            || layerShapes[currentLayerName].AutoTileRows is null)
-                        {
-                            return null;
-                        }
-                        layerDepth = null;
-                        currentLayerName = null;
-                    }
-                    if (reader.TokenType == JsonTokenType.EndObject
-                        && layersDepth == reader.CurrentDepth)
-                        layersDepth = null;
-                    if (reader.TokenType == JsonTokenType.EndObject
-                        && groupedActorsDepth == reader.CurrentDepth)
-                        groupedActorsDepth = null;
-                    if (reader.TokenType == JsonTokenType.PropertyName && reader.CurrentDepth == 1)
-                    {
-                        property = reader.GetString();
+                        gridRowCells += 1;
                         continue;
                     }
-                    if (readingLayerOrder)
+                    if (gridRowDepth is null
+                        && reader.TokenType == JsonTokenType.EndArray
+                        && reader.CurrentDepth == activeGridDepth
+                        && currentLayerName is not null)
                     {
-                        if (reader.TokenType == JsonTokenType.EndArray && reader.CurrentDepth == 1)
-                        {
-                            readingLayerOrder = false;
-                            property = null;
-                        }
-                        else if (reader.TokenType == JsonTokenType.String && reader.CurrentDepth == 2)
-                        {
-                            string? layerName = reader.GetString();
-                            if (string.IsNullOrWhiteSpace(layerName))
-                                return null;
-                            layerOrder.Add(layerName);
-                        }
+                        MapCatalogLayerShape shape = layerShapes[currentLayerName];
+                        if (shape.ActiveGrid == "tiles")
+                            shape.TilesRows = gridRows;
+                        else if (shape.ActiveGrid == "autoTiles")
+                            shape.AutoTileRows = gridRows;
                         else
                             return null;
+                        shape.ActiveGrid = null;
+                        gridDepth = null;
+                        gridRows = [];
                         continue;
                     }
-                    if (reader.CurrentDepth != 1 || property is null)
-                        continue;
-                    if (property == "layerOrder" && reader.TokenType == JsonTokenType.StartArray)
-                    {
-                        readingLayerOrder = true;
-                        continue;
-                    }
-                    if (property == "type" && reader.TokenType == JsonTokenType.String)
-                        type = reader.GetString();
-                    else if (property == "mapName" && reader.TokenType == JsonTokenType.String)
-                        mapName = reader.GetString();
-                    else if (property == "width"
-                        && reader.TokenType == JsonTokenType.Number
-                        && reader.TryGetInt32(out int parsedWidth))
-                    {
-                        width = parsedWidth;
-                    }
-                    else if (property == "height"
-                        && reader.TokenType == JsonTokenType.Number
-                        && reader.TryGetInt32(out int parsedHeight))
-                    {
-                        height = parsedHeight;
-                    }
+                    return null;
+                }
+            }
+            if (!rootStarted)
+            {
+                if (reader.TokenType != JsonTokenType.StartObject || reader.CurrentDepth != 0)
+                    return null;
+                rootStarted = true;
+                continue;
+            }
+            if (reader.TokenType == JsonTokenType.EndObject && reader.CurrentDepth == 0)
+            {
+                rootEnded = true;
+                continue;
+            }
+            if (reader.TokenType == JsonTokenType.EndArray
+                && actorArrays.Count != 0
+                && actorArrays.Peek() == reader.CurrentDepth)
+            {
+                actorArrays.Pop();
+            }
+            if (reader.TokenType == JsonTokenType.EndObject
+                && layerDepth == reader.CurrentDepth)
+            {
+                if (currentLayerName is null
+                    || layerShapes[currentLayerName].TilesRows is null
+                    || layerShapes[currentLayerName].AutoTileRows is null)
+                {
+                    return null;
+                }
+                layerDepth = null;
+                currentLayerName = null;
+            }
+            if (reader.TokenType == JsonTokenType.EndObject
+                && layersDepth == reader.CurrentDepth)
+                layersDepth = null;
+            if (reader.TokenType == JsonTokenType.EndObject
+                && groupedActorsDepth == reader.CurrentDepth)
+                groupedActorsDepth = null;
+            if (reader.TokenType == JsonTokenType.PropertyName && reader.CurrentDepth == 1)
+            {
+                property = reader.GetString();
+                continue;
+            }
+            if (readingLayerOrder)
+            {
+                if (reader.TokenType == JsonTokenType.EndArray && reader.CurrentDepth == 1)
+                {
+                    readingLayerOrder = false;
                     property = null;
                 }
-                int consumed = checked((int)reader.BytesConsumed);
-                buffered = available - consumed;
-                if (buffered != 0)
-                    Buffer.BlockCopy(buffer, consumed, buffer, 0, buffered);
-                state = reader.CurrentState;
-                if (finalBlock && !rootEnded)
+                else if (reader.TokenType == JsonTokenType.String && reader.CurrentDepth == 2)
+                {
+                    string? layerName = reader.GetString();
+                    if (string.IsNullOrWhiteSpace(layerName))
+                        return null;
+                    layerOrder.Add(layerName);
+                }
+                else
                     return null;
+                continue;
             }
-            if (!string.Equals(type, "map", StringComparison.Ordinal)
-                || !isValidMapSize(width, height)
-                || layerOrder.Count == 0
-                || layerOrder.Any(string.IsNullOrWhiteSpace)
-                || layerOrder.Distinct(StringComparer.Ordinal).Count() != layerOrder.Count
-                || !layersObjectSeen
-                || layerShapes.Count != layerOrder.Count
-                || layerShapes.Keys.Except(layerOrder, StringComparer.Ordinal).Any()
-                || layerOrder.Any(layerName =>
-                    !layerShapes.TryGetValue(layerName, out MapCatalogLayerShape? shape)
-                    || !isValidCatalogGrid(shape.TilesRows, width, height)
-                    || !isValidCatalogGrid(shape.AutoTileRows, width, height)))
+            if (reader.CurrentDepth != 1 || property is null)
+                continue;
+            if (property == "layerOrder" && reader.TokenType == JsonTokenType.StartArray)
             {
-                return null;
+                readingLayerOrder = true;
+                continue;
             }
-            string stem = Path.GetFileNameWithoutExtension(path);
-            string key = worldKey + "/" + stem;
-            MapCatalogEntry result = new(
-                key,
-                string.IsNullOrWhiteSpace(mapName) ? stem : mapName,
-                MapCatalogEntryKind.WorldChildMap,
-                worldKey,
-                width,
-                height,
-                layerOrder,
-                actorTags)
+            if (property == "type" && reader.TokenType == JsonTokenType.String)
+                type = reader.GetString();
+            else if (property == "mapName" && reader.TokenType == JsonTokenType.String)
+                mapName = reader.GetString();
+            else if (property == "width"
+                && reader.TokenType == JsonTokenType.Number
+                && reader.TryGetInt32(out int parsedWidth))
             {
-                PreviewLightSources = previewCapture.Data,
-            };
-            nextMapCatalogCache[cacheKey] = new JsonObject
+                width = parsedWidth;
+            }
+            else if (property == "height"
+                && reader.TokenType == JsonTokenType.Number
+                && reader.TryGetInt32(out int parsedHeight))
             {
-                ["length"] = file.Length,
-                ["lastWriteUtcTicks"] = file.LastWriteTimeUtc.Ticks,
-                ["creationUtcTicks"] = file.CreationTimeUtc.Ticks,
-                ["entry"] = createMapCatalogData(result),
-            };
-            return result;
+                height = parsedHeight;
+            }
+            property = null;
         }
-        catch (Exception exception) when (
-            exception is JsonException
-            or IOException
-            or UnauthorizedAccessException)
+        if (!rootEnded)
+            return null;
+        if (!string.Equals(type, "map", StringComparison.Ordinal)
+            || !isValidMapSize(width, height)
+            || layerOrder.Count == 0
+            || layerOrder.Any(string.IsNullOrWhiteSpace)
+            || layerOrder.Distinct(StringComparer.Ordinal).Count() != layerOrder.Count
+            || !layersObjectSeen
+            || layerShapes.Count != layerOrder.Count
+            || layerShapes.Keys.Except(layerOrder, StringComparer.Ordinal).Any()
+            || layerOrder.Any(layerName =>
+                !layerShapes.TryGetValue(layerName, out MapCatalogLayerShape? shape)
+                || !isValidCatalogGrid(shape.TilesRows, width, height)
+                || !isValidCatalogGrid(shape.AutoTileRows, width, height)))
         {
             return null;
         }
+        string stem = Path.GetFileNameWithoutExtension(path);
+        string key = worldKey + "/" + stem;
+        MapCatalogEntry result = new(
+            key,
+            string.IsNullOrWhiteSpace(mapName) ? stem : mapName,
+            MapCatalogEntryKind.WorldChildMap,
+            worldKey,
+            width,
+            height,
+            layerOrder,
+            actorTags)
+        {
+            PreviewLightSources = previewCapture.Data,
+        };
+        return result;
     }
 
     internal static bool isValidCatalogGrid(IReadOnlyList<int>? rows, int width, int height)

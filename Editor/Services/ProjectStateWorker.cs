@@ -14,6 +14,7 @@ namespace Ludork.Services;
 public sealed class ProjectStateWorker : IDisposable
 {
     private const int ProtocolVersion = 1;
+    private static readonly FileFingerprintCache toolFiles = new(StringComparer.Ordinal);
     private readonly string projectPath;
     private readonly SemaphoreSlim requestLock = new(1, 1);
     private readonly CancellationTokenSource lifetime = new();
@@ -157,22 +158,24 @@ public sealed class ProjectStateWorker : IDisposable
 
     private static Task<string> hashToolAsync(string path, CancellationToken cancellationToken)
     {
-        return Task.Run(async () =>
+        return Task.Run(() =>
         {
             string root = Path.GetDirectoryName(path)!;
             string[] files = Directory.GetFiles(root, "*", SearchOption.AllDirectories)
                 .OrderBy(file => Path.GetRelativePath(root, file).Replace(Path.DirectorySeparatorChar, '/'), StringComparer.Ordinal)
                 .ToArray();
+            byte[][] hashes = EditorValidationBatch.RunFiles<string, byte[], byte[]>(files, static () => new byte[65536],
+                (buffer, file) => toolFiles.Read(file, buffer, cancellationToken, FileShare.Read | FileShare.Delete),
+                cancellationToken: cancellationToken);
             using IncrementalHash digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-            foreach (string file in files)
+            for (int index = 0; index < files.Length; index++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                string relative = Path.GetRelativePath(root, file).Replace(Path.DirectorySeparatorChar, '/');
+                string relative = Path.GetRelativePath(root, files[index]).Replace(Path.DirectorySeparatorChar, '/');
                 digest.AppendData(Encoding.UTF8.GetBytes(relative + "\0"));
-                await using FileStream stream = new(file, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete,
-                    65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
-                digest.AppendData(await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false));
+                digest.AppendData(hashes[index]);
             }
+            toolFiles.RetainPaths(files);
             return Convert.ToHexStringLower(digest.GetHashAndReset());
         }, cancellationToken);
     }

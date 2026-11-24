@@ -8,7 +8,7 @@ namespace Ludork.Services;
 
 public sealed partial class MapDataService
 {
-    internal readonly SemaphoreSlim worldChildReads = new(2);
+    private readonly SemaphoreSlim worldChildReads = new(EditorValidationBatch.FileWorkers, EditorValidationBatch.FileWorkers);
 
     internal bool CanLoadWorldChildPreview => worldPreviewCache.CanLoad;
 
@@ -50,7 +50,7 @@ public sealed partial class MapDataService
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 WorldChildMapReadResult.FileVersion? before = WorldChildMapReadResult.FileVersion.Read(path);
-                JsonObject? snapshot = before is null ? null : readMapFile(path, true);
+                JsonObject? snapshot = before is null ? null : readMapFile(path, true, validateBlueprints: false);
                 WorldChildMapReadResult.FileVersion? after = WorldChildMapReadResult.FileVersion.Read(path);
                 cancellationToken.ThrowIfCancellationRequested();
                 return new WorldChildMapReadResult(key, snapshot, version, path, after, before != after);

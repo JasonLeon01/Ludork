@@ -18,7 +18,7 @@ internal sealed class ReferenceIndexSnapshotBuilder
     internal Result Build(ReferenceBuildInput input, CancellationToken token, IProgress<EditorOperationProgress>? progress = null)
     {
         ReferenceInputFiles files = ReferenceInputFiles.Capture(input.ProjectPath,
-            input.Documents.Where(document => document.Data is null).Select(document => document.Path), includeStubs: true);
+            input.Documents.Where(document => document.Data is null).Select(document => document.Path), includeStubs: true, cancellationToken: token);
         ReferenceBuildDocument[] nextCatalogInputs = input.Documents
             .Where(document => document.Section is "General" or "Animations" or "Particles")
             .OrderBy(document => document.Section, StringComparer.Ordinal)
@@ -43,7 +43,7 @@ internal sealed class ReferenceIndexSnapshotBuilder
             token.ThrowIfCancellationRequested();
             ReferenceBuildDocument document = input.Documents[index];
             (string Section, string Key) key = (document.Section, document.Key);
-            ReferenceInputFiles.Stamp stamp = document.Data is null ? ReferenceInputFiles.Read(document.Path) : default;
+            ReferenceInputFiles.Stamp stamp = document.Data is null ? files.GetStamp(document.Path) : default;
             if (!rebuild && cache.TryGetValue(key, out CachedDocument? previous)
                 && ReferenceEquals(previous.Input.Data, document.Data) && previous.Input.Path == document.Path
                 && sameCatalog(previous.Input.Catalog, document.Catalog) && previous.Stamp == stamp)
@@ -90,7 +90,7 @@ internal sealed class ReferenceIndexSnapshotBuilder
             }
         }
         token.ThrowIfCancellationRequested();
-        if (!files.IsCurrent())
+        if (!files.IsCurrent(token))
             throw new IOException("Reference inputs changed during indexing.");
         ReferenceIndexSnapshot snapshot = new(input.ProjectPath, input.Version, nodes.Values, references, members, declared);
         cache = next;

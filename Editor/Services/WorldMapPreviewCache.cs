@@ -87,15 +87,20 @@ internal sealed class WorldMapPreviewCache : IDisposable
         requestMaintenance();
     }
 
+    internal bool CanTake(string key, string path) =>
+        entries.TryGetValue(key, out Entry? entry) && matchesFile(entry, path);
+
+    private static bool matchesFile(Entry entry, string path) =>
+        string.Equals(entry.Path, path, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)
+        && WorldChildMapReadResult.FileVersion.Read(entry.Path) == entry.File;
+
     internal bool TryTake(string key, string path, out JsonObject? data, out long bytes)
     {
         data = null;
         bytes = 0;
         if (!entries.TryGetValue(key, out Entry? entry))
             return false;
-        bool current = string.Equals(entry.Path, path, OperatingSystem.IsWindows()
-                ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)
-            && WorldChildMapReadResult.FileVersion.Read(entry.Path) == entry.File;
+        bool current = matchesFile(entry, path);
         Invalidate(key);
         if (!current)
             return false;

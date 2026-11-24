@@ -16,11 +16,11 @@ public sealed partial class ProjectDataStore
 
     internal void AcceptTrashedResources(IReadOnlyList<string> paths, bool notify)
     {
-        foreach (string path in paths)
+        EditorValidationBatch.ForEachFile(paths, path =>
         {
             if (File.Exists(path) || Directory.Exists(path))
                 throw new InvalidOperationException($"The resource has not been moved to Trash: {path}");
-        }
+        });
         Dictionary<(string Section, string Key), JsonObject?> changes = [];
         foreach (string path in paths)
         {

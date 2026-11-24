@@ -103,7 +103,7 @@ public sealed class WorldMapChildSource : IDisposable
             {
                 snapshot = loaded is null ? null : gameData.Maps.InstallWorldChildMapSnapshot(loaded, out retry);
             }
-            catch (Exception exception) when (exception is System.IO.IOException or UnauthorizedAccessException)
+            catch (Exception exception) when (exception is System.IO.IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
             {
                 snapshot = null;
             }

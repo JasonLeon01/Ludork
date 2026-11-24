@@ -22,42 +22,54 @@ internal sealed class LuaStubTypeHierarchy
     public LuaStubTypeHierarchy(string directory, CancellationToken cancellationToken = default)
     {
         this.directory = directory;
-        foreach (string path in getPaths())
+        string[] paths = getPaths();
+        ((DateTime Modified, long Length) Stamp, Dictionary<string, List<string>> Types)[] files =
+            EditorValidationBatch.RunFiles(paths, path => readDeclarations(path, cancellationToken), cancellationToken);
+        for (int index = 0; index < files.Length; index++)
+        {
+            stamps[paths[index]] = files[index].Stamp;
+            foreach ((string name, List<string> parents) in files[index].Types)
+                bases[name] = bases.TryGetValue(name, out string[]? existing)
+                    ? existing.Concat(parents).Distinct(StringComparer.Ordinal).ToArray() : parents.ToArray();
+        }
+    }
+
+    private static ((DateTime Modified, long Length) Stamp, Dictionary<string, List<string>> Types) readDeclarations(
+        string path, CancellationToken cancellationToken)
+    {
+        FileInfo info = new(path);
+        (DateTime Modified, long Length) stamp = (info.LastWriteTimeUtc, info.Length);
+        Dictionary<string, List<string>> declarations = new(StringComparer.Ordinal);
+        foreach (string line in File.ReadLines(path))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            FileInfo info = new(path);
-            stamps[path] = (info.LastWriteTimeUtc, info.Length);
-            foreach (string line in File.ReadLines(path))
+            Match annotation = ClassAnnotation.Match(line.TrimStart());
+            if (!annotation.Success)
+                continue;
+            string name = annotation.Groups[1].Value;
+            declarations.TryAdd(name, []);
+            string remainder = annotation.Groups[2].Value.Trim();
+            if (remainder.StartsWith('<'))
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                Match annotation = ClassAnnotation.Match(line.TrimStart());
-                if (!annotation.Success)
+                int end = closingGeneric(remainder);
+                if (end < 0)
                     continue;
-                string name = annotation.Groups[1].Value;
-                bases.TryAdd(name, []);
-                string remainder = annotation.Groups[2].Value.Trim();
-                if (remainder.StartsWith('<'))
-                {
-                    int end = closingGeneric(remainder);
-                    if (end < 0)
-                        continue;
-                    remainder = remainder[(end + 1)..].TrimStart();
-                }
-                if (!remainder.StartsWith(':'))
-                    continue;
-                List<string> parents = bases.GetValueOrDefault(name)?.ToList() ?? [];
-                foreach (string declaration in splitBases(remainder[1..]))
-                {
-                    string parent = declaration.Trim();
-                    int generic = parent.IndexOf('<');
-                    if (generic >= 0)
-                        parent = parent[..generic].TrimEnd();
-                    if (TypeName.IsMatch(parent) && !parents.Contains(parent, StringComparer.Ordinal))
-                        parents.Add(parent);
-                }
-                bases[name] = parents.ToArray();
+                remainder = remainder[(end + 1)..].TrimStart();
+            }
+            if (!remainder.StartsWith(':'))
+                continue;
+            List<string> parents = declarations[name];
+            foreach (string declaration in splitBases(remainder[1..]))
+            {
+                string parent = declaration.Trim();
+                int generic = parent.IndexOf('<');
+                if (generic >= 0)
+                    parent = parent[..generic].TrimEnd();
+                if (TypeName.IsMatch(parent) && !parents.Contains(parent, StringComparer.Ordinal))
+                    parents.Add(parent);
             }
         }
+        return (stamp, declarations);
     }
 
     public IEnumerable<string> TypeNames => bases.Keys;
@@ -72,16 +84,12 @@ internal sealed class LuaStubTypeHierarchy
         string[] paths = getPaths();
         if (paths.Length != stamps.Count)
             return false;
-        foreach (string path in paths)
+        return EditorValidationBatch.RunFiles(paths, path =>
         {
             FileInfo info = new(path);
-            if (!stamps.TryGetValue(path, out (DateTime Modified, long Length) stamp)
-                || stamp != (info.LastWriteTimeUtc, info.Length))
-            {
-                return false;
-            }
-        }
-        return true;
+            return stamps.TryGetValue(path, out (DateTime Modified, long Length) stamp)
+                && stamp == (info.LastWriteTimeUtc, info.Length);
+        }).All(current => current);
     }
 
     private string[] getPaths()

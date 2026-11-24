@@ -17,25 +17,10 @@ public sealed partial class ReferenceIndexService
     {
         cancellationToken.ThrowIfCancellationRequested();
         string path = $"Data/Maps/{entry.Key}.json";
-        try
-        {
-            JsonObject? map = gameData.GetReferenceSection("Maps").TryGetValue(entry.Key, out JsonObject? loaded)
-                ? loaded : gameData.Maps.ReadMapSnapshotWithoutCaching(entry.Key);
-            if (map is null)
-            {
-                if (entry.Kind == MapCatalogEntryKind.WorldChildMap)
-                    throw new InvalidDataException($"The indexed world child map could not be read: {entry.Key}.");
-                return null;
-            }
-            return new ReferenceBuildDocument("Maps", entry.Key, path, map, entry);
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            return new ReferenceBuildDocument("Maps", entry.Key, path, null, entry)
-            {
-                ReadError = ExceptionDispatchInfo.Capture(exception),
-            };
-        }
+        if (gameData.GetReferenceSection("Maps").TryGetValue(entry.Key, out JsonObject? loaded))
+            return new ReferenceBuildDocument("Maps", entry.Key, path, loaded, entry);
+        return entry.Kind == MapCatalogEntryKind.WorldChildMap
+            ? new ReferenceBuildDocument("Maps", entry.Key, path, null, entry) : null;
     }
 
     private DocumentReferenceResult[] scanDocuments(IReadOnlyList<ReferenceBuildDocument> documents)
@@ -45,6 +30,21 @@ public sealed partial class ReferenceIndexService
         Dictionary<string, JsonObject> blueprints = gameData.GetReferenceSection("Blueprints")
             .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
         ProjectEnumCatalog projectEnums = gameData.GetProjectEnumCatalog();
+        Dictionary<string, MapDataService.MapSnapshotRead> maps = gameData.Maps.ReadMapSnapshotsWithoutCaching(
+            documents.Where(document => document.Data is null).Select(document => document.Key), cancellationToken);
+        if (maps.Count != 0)
+            documents = documents.Select(document =>
+            {
+                if (document.Data is not null)
+                    return document;
+                MapDataService.MapSnapshotRead read = maps[document.Key];
+                return document with
+                {
+                    Data = read.Data,
+                    ReadError = read.Error ?? (read.Data is null ? ExceptionDispatchInfo.Capture(
+                        new InvalidDataException($"The indexed world child map could not be read: {document.Key}.")) : null),
+                };
+            }).ToArray();
         return ReferenceDocumentBatchScanner.Scan(gameData.ProjectPath, documents, blueprints, projectEnums,
             cancellationToken, completed => progress?.Invoke(documents[completed - 1].Path));
     }

@@ -56,6 +56,9 @@ public sealed partial class ProjectAssetPaths
         {
             ProjectAssetDiskInputs inputs = new();
             Dictionary<string, ExternalFileChange> changes = new(fileSystemComparer);
+            string[] paths = groups.SelectMany(group => group.SelectMany(entry => new[] { entry.Saved.Path, entry.Path }))
+                .Distinct(StringComparer.Ordinal).ToArray();
+            EditorValidationBatch.ForEachFile(paths, path => readExternalMetadata(path, inputs), token);
             foreach (ExternalPathState[] group in groups)
             {
                 Dictionary<string, EditorDocumentState> saved = group.ToDictionary(entry => entry.Saved.Path,
@@ -81,7 +84,7 @@ public sealed partial class ProjectAssetPaths
     private void captureExternalDirectoryChanges(string path, IReadOnlyDictionary<string, EditorDocumentState> saved,
         IDictionary<string, ExternalFileChange> changes, ProjectAssetDiskInputs inputs, CancellationToken token)
     {
-        foreach (string child in inputs.ReadDirectory(path))
+        foreach (string child in inputs.ReadDirectory(path, token))
         {
             token.ThrowIfCancellationRequested();
             JsonObject metadata = readExternalMetadata(child, inputs)

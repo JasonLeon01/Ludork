@@ -40,13 +40,14 @@ public sealed partial class MapOrderService
         trees.Clear();
         storedTexts.Clear();
         savedTexts.Clear();
-        foreach (string scope in getActiveScopes())
+        (string Scope, string Path)[] files = getActiveScopes().Select(scope => (Scope: scope, Path: GetPath(scope)))
+            .Where(input => File.Exists(input.Path)).ToArray();
+        IReadOnlyList<MapOrderNode>?[] prepared = store.readLoadFiles(files, input => input.Path,
+            (_, file) => parse(file.ReadContent()));
+        for (int index = 0; index < files.Length; index++)
         {
-            string path = GetPath(scope);
-            if (!File.Exists(path))
-                continue;
-            store.reportDataRead(path);
-            IReadOnlyList<MapOrderNode>? tree = parse(File.ReadAllBytes(path));
+            (string scope, string path) = files[index];
+            IReadOnlyList<MapOrderNode>? tree = prepared[index];
             if (tree is null)
             {
                 store.addInvalidLoadPath(path);

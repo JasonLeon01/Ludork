@@ -54,8 +54,7 @@ public sealed partial class FileExplorerViewModel
     private async Task<(bool Handled, string? Error)> tryCopyManagedPathAsync(string source, string destination,
         IProgress<EditorOperationProgress>? progress)
     {
-        if (EditorPathSandbox.IsSameOrChildPath(Path.Combine(projectPath, "Assets"), source)
-            || !gameData.IsManagedPath(source))
+        if (!isManagedCopySource(source))
             return (false, null);
         try
         {
@@ -67,6 +66,9 @@ public sealed partial class FileExplorerViewModel
             return (true, exception.Message);
         }
     }
+
+    private bool isManagedCopySource(string source) =>
+        !EditorPathSandbox.IsSameOrChildPath(Path.Combine(projectPath, "Assets"), source) && gameData.IsManagedPath(source);
 
     private bool isVisibleDirectory(string path)
     {

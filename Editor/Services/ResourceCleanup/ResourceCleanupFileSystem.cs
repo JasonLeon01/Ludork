@@ -121,15 +121,34 @@ internal static class ResourceCleanupFileSystem
         IProgress<ResourceCleanupProgress>? progress,
         CancellationToken token)
     {
-        foreach (string path in Directory.EnumerateFileSystemEntries(directory).OrderBy(path => path, StringComparer.Ordinal))
+        string[] entries = Directory.GetFileSystemEntries(directory).Order(StringComparer.Ordinal).ToArray();
+        (string Relative, bool Directory, ResourceCleanupIssue? Issue)[] results =
+            EditorValidationBatch.RunFiles<string, (string, bool, ResourceCleanupIssue?)>(entries, path =>
         {
-            token.ThrowIfCancellationRequested();
             string relative = Path.GetRelativePath(projectPath, path).Replace('\\', '/');
             try
             {
                 ResolveSafePath(projectPath, relative);
-                if (Directory.Exists(path))
-                    enumerateDirectory(projectPath, path, files, issues, progress, token);
+                return (relative, Directory.Exists(path), null);
+            }
+            catch (Exception exception) when (IsReadFailure(exception))
+            {
+                return (relative, false, new ResourceCleanupIssue(relative, exception.Message));
+            }
+        }, token);
+        for (int index = 0; index < entries.Length; index++)
+        {
+            token.ThrowIfCancellationRequested();
+            (string relative, bool isDirectory, ResourceCleanupIssue? issue) = results[index];
+            if (issue is not null)
+            {
+                issues.Add(issue);
+                continue;
+            }
+            try
+            {
+                if (isDirectory)
+                    enumerateDirectory(projectPath, ResolveSafePath(projectPath, relative), files, issues, progress, token);
                 else
                     files.Add(relative);
                 if (files.Count % 32 == 0)

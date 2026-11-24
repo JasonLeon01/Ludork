@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -220,13 +221,31 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
             return [];
         int limit = Math.Clamp(maximumResults, 1, MaximumSearchResults);
         List<BlueprintAssistantSearchMatch> result = [];
-        foreach (string path in enumerateReadableFiles())
+        foreach (string[] batch in enumerateReadableFileBatches())
         {
-            if (result.Count >= limit)
-                break;
+            int remaining = limit - result.Count;
+            foreach ((List<BlueprintAssistantSearchMatch> matches, ExceptionDispatchInfo? error)
+                in EditorValidationBatch.RunFiles(batch, path => searchFile(path, term, remaining)))
+            {
+                result.AddRange(matches.Take(limit - result.Count));
+                if (result.Count == limit)
+                    return result;
+                error?.Throw();
+            }
+        }
+        return result;
+    }
+
+    private (List<BlueprintAssistantSearchMatch>, ExceptionDispatchInfo?) searchFile(string path, string term, int limit)
+    {
+        List<BlueprintAssistantSearchMatch> matches = [];
+        try
+        {
+            if (!isReadablePath(path))
+                return (matches, null);
             FileInfo info = new(path);
             if (info.Length > MaximumReadBytes)
-                continue;
+                return (matches, null);
             using StreamReader reader = File.OpenText(path);
             int lineNumber = 0;
             while (reader.ReadLine() is string line)
@@ -234,15 +253,19 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
                 lineNumber++;
                 if (!line.Contains(term, StringComparison.OrdinalIgnoreCase))
                     continue;
-                result.Add(new BlueprintAssistantSearchMatch(
+                matches.Add(new BlueprintAssistantSearchMatch(
                     normalizeRelativePath(path),
                     lineNumber,
                     truncate(line.Trim(), 500)));
-                if (result.Count >= limit)
+                if (matches.Count == limit)
                     break;
             }
         }
-        return result;
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return (matches, ExceptionDispatchInfo.Capture(exception));
+        }
+        return (matches, null);
     }
 
     public string ReadProjectFile(
@@ -653,7 +676,7 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
         return truncate(value.ToJsonString(), 800);
     }
 
-    private IEnumerable<string> enumerateReadableFiles()
+    private IEnumerable<string[]> enumerateReadableFileBatches()
     {
         foreach (string rootName in AllowedRootNames.OrderBy(name => name, StringComparer.Ordinal))
         {
@@ -674,12 +697,10 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
                         pending.Push(childDirectory);
                     }
                 }
-                foreach (string path in Directory.EnumerateFiles(directory)
-                             .OrderBy(path => path, StringComparer.Ordinal))
-                {
-                    if (isReadablePath(path))
-                        yield return path;
-                }
+                foreach (string[] batch in Directory.EnumerateFiles(directory)
+                    .Where(path => AllowedExtensions.Contains(Path.GetExtension(path)))
+                    .Order(StringComparer.Ordinal).Chunk(EditorValidationBatch.FileWorkers))
+                    yield return batch;
             }
         }
     }

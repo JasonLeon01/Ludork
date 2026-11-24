@@ -73,6 +73,7 @@ public sealed class ProjectSaveService
     public GameVariableService GameVariables => gameVariables;
     public ProjectDataStore GameData => gameData;
     public Func<Task<bool>>? ExternalChangeCheck { get; set; }
+    internal Func<Task<bool>>? SessionExternalChangeCheck { get; set; }
     internal ProjectExternalChangeService? ExternalChanges { get; set; }
 
     public void RegisterParticipant(IProjectSaveParticipant participant)
@@ -95,14 +96,18 @@ public sealed class ProjectSaveService
         gameData.BreakHistoryGesture();
     }
 
-    public async Task<ProjectSaveAttempt> TrySaveAsync(
+    public Task<ProjectSaveAttempt> TrySaveAsync(
         bool allowInvalidBlueprints = false,
         bool beforeNativeBuild = false,
         IProgress<EditorOperationProgress>? progress = null)
+        => TrySaveAsync(allowInvalidBlueprints, beforeNativeBuild, progress, externalChangesChecked: false);
+
+    internal async Task<ProjectSaveAttempt> TrySaveAsync(bool allowInvalidBlueprints, bool beforeNativeBuild,
+        IProgress<EditorOperationProgress>? progress, bool externalChangesChecked)
     {
         progress?.Report(new EditorOperationProgress("EDIT_OPERATION_PREPARING"));
         FlushPendingChanges();
-        if (ExternalChanges is not null && !await Task.Run(ExternalChanges.IsCurrent))
+        if (!externalChangesChecked && ExternalChanges is not null && !await Task.Run(ExternalChanges.IsCurrent))
             return new ProjectSaveAttempt(false, false, [], new SaveResult(false, LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED")));
         IReadOnlyList<string> inputErrors = PendingInputErrors;
         if (inputErrors.Count != 0)
@@ -126,9 +131,9 @@ public sealed class ProjectSaveService
                 entry.Key.Replace('/', Path.DirectorySeparatorChar) + (entry.Kind == MapCatalogEntryKind.WorldMap ? "/_world.json" : ".json"))))
             .Concat(new[] { gameVariables.RuntimePath, gameVariables.MetadataPath }).Distinct(StringComparer.Ordinal).ToArray();
         ReferenceInputFiles files = await Task.Run(() => ReferenceInputFiles.Capture(snapshot.ProjectPath, inputPaths));
-        Dictionary<string, ReferenceInputFiles.Stamp> dataFiles = await Task.Run(() => inputPaths
+        Dictionary<string, ReferenceInputFiles.Stamp> dataFiles = inputPaths
             .Where(path => !path.EndsWith(".lua", StringComparison.Ordinal))
-            .ToDictionary(path => path, ReferenceInputFiles.Read, StringComparer.Ordinal));
+            .ToDictionary(path => path, files.GetStamp, StringComparer.Ordinal);
         using ProjectDataStore captured = await Task.Run(snapshot.CreateStore);
         ProjectSaveAttempt attempt = await Task.Run(() =>
         {
@@ -145,7 +150,7 @@ public sealed class ProjectSaveService
             return new ProjectSaveAttempt(false, false, [], new SaveResult(false, LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED")));
         bool filesCurrent = await Task.Run(files.IsCurrent);
         if (!filesCurrent || gameData.Documents.Revision != snapshot.Revision
-            || ExternalChanges is not null && !await Task.Run(ExternalChanges.IsCurrent))
+            || saveVariables is not null && ExternalChanges is not null && !await Task.Run(ExternalChanges.IsCurrent))
             return new ProjectSaveAttempt(false, false, [], new SaveResult(false, LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED")));
         GameVariableSaveResult variableResult = await Task.Run(() =>
         {
@@ -157,7 +162,7 @@ public sealed class ProjectSaveService
         if (!variableResult.Success)
             return attempt with { Success = false, GameVariableResult = variableResult };
         SaveResult dataResult = await Task.Run(() => captured.SaveAllModified(true, progress,
-            () => dataFiles.All(pair => ReferenceInputFiles.Read(pair.Key) == pair.Value)
+            () => ReferenceInputFiles.ReadStamps(dataFiles.Keys).All(pair => dataFiles[pair.Key] == pair.Value)
                 && (ExternalChanges?.IsCurrent() ?? true)));
         attempt = attempt with { Success = dataResult.Success, DataResult = dataResult, GameVariableResult = variableResult };
         if (attempt.Success)

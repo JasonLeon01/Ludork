@@ -76,9 +76,11 @@ public sealed partial class ReferenceIndexService
             .Where(key => key is not null && gameData.Maps.MapData.ContainsKey(key))
             .Select(key => key!));
         List<ReferenceRewrite> result = [];
-        foreach (string mapKey in mapKeys.OrderBy(item => item, StringComparer.Ordinal))
+        string[] ordered = mapKeys.Order(StringComparer.Ordinal).ToArray();
+        Dictionary<string, MapDataService.MapSnapshotRead> snapshots = gameData.Maps.ReadMapSnapshotsWithoutCaching(ordered, cancellationToken);
+        foreach (string mapKey in ordered)
         {
-            JsonObject? original = gameData.Maps.ReadMapSnapshotWithoutCaching(mapKey);
+            JsonObject? original = snapshots[mapKey].Get();
             if (original is null)
                 throw new InvalidDataException($"The indexed map could not be read: {mapKey}.");
             JsonObject candidate = (JsonObject)original.DeepClone();

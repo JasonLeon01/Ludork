@@ -149,20 +149,32 @@ public sealed class LuaEnumService
             return new LuaEnumDefinition(moduleName, null, [], moduleName + ": Enum module does not exist.");
         if (capturedModules is null && readModules?.TryGetValue(moduleName, out cached) == true)
             return cached;
-        LuaEnumDefinition result;
-        try
-        {
-            result = readCache is null ? ReadModule(moduleName) : readCache.ReadEnumModule(moduleName);
-        }
-        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or InterpreterException or ArgumentException or RegexMatchTimeoutException)
-        {
-            result = new LuaEnumDefinition(moduleName, null, [], moduleName + ": " + exception.Message);
-        }
+        LuaEnumDefinition result = loadModule(moduleName);
         if (capturedModules is not null)
             capturedModules[moduleName] = result;
         else if (readModules is not null)
             readModules[moduleName] = result;
         return result;
+    }
+
+    internal void CaptureModules(IEnumerable<string> modules)
+    {
+        string[] files = modules.Where(module => catalog is null || !ProjectEnumCatalog.IsManagedModule(module)).ToArray();
+        LuaEnumDefinition[] definitions = EditorValidationBatch.RunFiles(files, loadModule, captureCancellationToken);
+        for (int index = 0; index < files.Length; index++)
+            capturedModules![files[index]] = definitions[index];
+    }
+
+    private LuaEnumDefinition loadModule(string moduleName)
+    {
+        try
+        {
+            return readCache is null ? ReadModule(moduleName) : readCache.ReadEnumModule(moduleName);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or InterpreterException or ArgumentException or RegexMatchTimeoutException)
+        {
+            return new LuaEnumDefinition(moduleName, null, [], moduleName + ": " + exception.Message);
+        }
     }
 
     private ProjectEnumCatalog? getCatalog()

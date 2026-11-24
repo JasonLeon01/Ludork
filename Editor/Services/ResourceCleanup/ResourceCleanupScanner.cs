@@ -28,20 +28,8 @@ internal sealed class ResourceCleanupScanner
         List<ResourceCleanupIssue> issues = [];
         IReadOnlyList<string> files = ResourceCleanupFileSystem.EnumerateInputs(root, issues, progress, token);
         Dictionary<string, ResourceCleanupFileFingerprint> fingerprints = new(StringComparer.Ordinal);
-        for (int index = 0; index < files.Count; index++)
-        {
-            token.ThrowIfCancellationRequested();
-            string path = files[index];
-            progress?.Report(new ResourceCleanupProgress("Fingerprint", index, files.Count, path));
-            try
-            {
-                fingerprints[path] = ResourceCleanupFileSystem.Fingerprint(root, path, token);
-            }
-            catch (Exception exception) when (ResourceCleanupFileSystem.IsReadFailure(exception))
-            {
-                issues.Add(new ResourceCleanupIssue(path, exception.Message));
-            }
-        }
+        scanFiles(files, path => ResourceCleanupFileSystem.Fingerprint(root, path, token),
+            (path, fingerprint) => fingerprints.Add(path, fingerprint), issues, "Fingerprint", progress, token);
         Dictionary<string, HashSet<string>> edges = files.ToDictionary(
             path => path, _ => new HashSet<string>(StringComparer.Ordinal), StringComparer.Ordinal);
         HashSet<string> candidates = new(StringComparer.Ordinal);
@@ -109,13 +97,12 @@ internal sealed class ResourceCleanupScanner
             throw new InvalidDataException(issues[0].Message);
         if (!current.SequenceEqual(snapshot.Fingerprints.Keys.OrderBy(path => path, StringComparer.Ordinal), StringComparer.Ordinal))
             throw new InvalidDataException("Project files were added or deleted; scan again.");
-        for (int index = 0; index < current.Count; index++)
+        Action<string> report = createProgressReporter("Validation", current.Count, progress);
+        EditorValidationBatch.ForEachFile(current, path =>
         {
-            token.ThrowIfCancellationRequested();
-            string path = current[index];
-            progress?.Report(new ResourceCleanupProgress("Validation", index, current.Count, path));
+            report(path);
             validateFingerprint(snapshot, path, token);
-        }
+        }, token);
     }
 
     public string ValidateCandidate(ResourceCleanupSnapshot snapshot, string relativePath, CancellationToken token)
@@ -144,21 +131,13 @@ internal sealed class ResourceCleanupScanner
     {
         string[] documents = files.Where(path => path.StartsWith("Data/", StringComparison.Ordinal)
             && path.EndsWith(".json", StringComparison.OrdinalIgnoreCase)).ToArray();
-        for (int index = 0; index < documents.Length; index++)
+        scanFiles(documents, path =>
         {
-            token.ThrowIfCancellationRequested();
-            string path = documents[index];
-            progress?.Report(new ResourceCleanupProgress("References", index, documents.Length, path));
-            try
-            {
-                JsonNode? data = JsonNode.Parse(File.ReadAllText(ResourceCleanupFileSystem.ResolveSafePath(root, path)));
-                readJsonReferences(data, edges[path], token);
-            }
-            catch (Exception exception) when (ResourceCleanupFileSystem.IsReadFailure(exception))
-            {
-                issues.Add(new ResourceCleanupIssue(path, exception.Message));
-            }
-        }
+            HashSet<string> targets = new(StringComparer.Ordinal);
+            JsonNode? data = JsonNode.Parse(File.ReadAllText(ResourceCleanupFileSystem.ResolveSafePath(root, path)));
+            readJsonReferences(data, targets, token);
+            return targets;
+        }, (path, targets) => edges[path] = targets, issues, "References", progress, token);
     }
 
     private static void readJsonReferences(JsonNode? node, ISet<string> targets, CancellationToken token)
@@ -206,24 +185,33 @@ internal sealed class ResourceCleanupScanner
             using IDisposable metadataRead = metadata.BeginRead();
             using BlueprintClassResolver resolver = new(data, metadata);
             using ReferenceIndexService index = new(data, metadata, resolver, token, reportProgress);
-            foreach (KeyValuePair<string, JsonObject> blueprint in SnapshotJson.ToDictionary(data.Blueprints.BlueprintsData))
+            IReadOnlyDictionary<string, JsonObject> blueprints = SnapshotJson.ToDictionary(data.Blueprints.BlueprintsData);
+            ProjectEnumCatalog enums = data.GetProjectEnumCatalog();
+            LuaValidationReadCache reads = new(root, enums, token);
+            string[] keys = blueprints.Keys.ToArray();
+            string?[] mixinErrors = EditorValidationBatch.RunFiles(keys,
+                () => new BlueprintValidationWorker(root, blueprints, enums, reads, strictReads: true),
+                (worker, key) => worker.Resolver.ResolveBlueprint(blueprints[key], key).ScriptMixinError,
+                worker => worker.Dispose(), token);
+            for (int offset = 0; offset < keys.Length; offset++)
             {
-                token.ThrowIfCancellationRequested();
-                ResolvedBlueprintClass resolved = resolver.ResolveBlueprint(blueprint.Value, blueprint.Key);
-                if (resolved.ScriptMixinError is string error)
-                    issues.Add(new ResourceCleanupIssue($"Data/Blueprints/{blueprint.Key}.json", error));
+                if (mixinErrors[offset] is string error)
+                    issues.Add(new ResourceCleanupIssue($"Data/Blueprints/{keys[offset]}.json", error));
             }
             IReadOnlyList<ReferenceNode> nodes = index.GetAllNodes();
+            string[] absolutePaths = nodes.Select(node => index.GetNodePath(node.Id)).ToArray();
+            string[] uniquePaths = absolutePaths.Where(path => path.Length != 0).Distinct(StringComparer.Ordinal).ToArray();
+            EditorValidationBatch.ForEachFile(uniquePaths, path =>
+                ResourceCleanupFileSystem.ResolveSafePath(root, Path.GetRelativePath(root, path).Replace('\\', '/'), allowMissing: true), token);
             Dictionary<string, string> nodePaths = new(StringComparer.Ordinal);
             for (int offset = 0; offset < nodes.Count; offset++)
             {
                 token.ThrowIfCancellationRequested();
                 ReferenceNode node = nodes[offset];
-                string absolute = index.GetNodePath(node.Id);
+                string absolute = absolutePaths[offset];
                 if (absolute.Length == 0)
                     continue;
                 string path = Path.GetRelativePath(root, absolute).Replace('\\', '/');
-                ResourceCleanupFileSystem.ResolveSafePath(root, path, allowMissing: true);
                 if (!edges.ContainsKey(path))
                     continue;
                 nodePaths[node.Id] = path;
@@ -255,20 +243,12 @@ internal sealed class ResourceCleanupScanner
         CancellationToken token)
     {
         HashSet<string> protectedPaths = new(StringComparer.Ordinal);
-        foreach (string path in keepPaths)
+        scanFiles(keepPaths.ToArray(), path =>
         {
-            token.ThrowIfCancellationRequested();
-            try
-            {
-                string normalized = ResourceCleanupFileSystem.NormalizeKeepPath(path);
-                ResourceCleanupFileSystem.ResolveSafePath(root, normalized, allowMissing: true);
-                protectedPaths.Add(normalized);
-            }
-            catch (Exception exception) when (ResourceCleanupFileSystem.IsReadFailure(exception))
-            {
-                issues.Add(new ResourceCleanupIssue(path, exception.Message));
-            }
-        }
+            string normalized = ResourceCleanupFileSystem.NormalizeKeepPath(path);
+            ResourceCleanupFileSystem.ResolveSafePath(root, normalized, allowMissing: true);
+            return normalized;
+        }, (_, path) => protectedPaths.Add(path), issues, "References", null, token);
         foreach (string file in files)
         {
             token.ThrowIfCancellationRequested();
@@ -297,20 +277,49 @@ internal sealed class ResourceCleanupScanner
         CancellationToken token)
     {
         string[] scripts = files.Where(ResourceCleanupLuaScanner.IsHandwrittenRuntime).ToArray();
-        for (int index = 0; index < scripts.Length; index++)
+        scanFiles(scripts, path =>
         {
-            token.ThrowIfCancellationRequested();
-            string path = scripts[index];
-            progress?.Report(new ResourceCleanupProgress("Lua", index, scripts.Length, path));
+            string source = File.ReadAllText(ResourceCleanupFileSystem.ResolveSafePath(root, path));
+            return ResourceCleanupLuaScanner.ReadReferences(source, token);
+        }, (_, references) => roots.UnionWith(references), issues, "Lua", progress, token);
+    }
+
+    private static void scanFiles<T>(IReadOnlyList<string> paths, Func<string, T> read, Action<string, T> apply,
+        ICollection<ResourceCleanupIssue> issues, string stage, IProgress<ResourceCleanupProgress>? progress,
+        CancellationToken token) where T : class
+    {
+        Action<string> report = createProgressReporter(stage, paths.Count, progress);
+        (T? Value, ResourceCleanupIssue? Issue)[] results = EditorValidationBatch.RunFiles<string, (T?, ResourceCleanupIssue?)>(paths, path =>
+        {
+            report(path);
             try
             {
-                string source = File.ReadAllText(ResourceCleanupFileSystem.ResolveSafePath(root, path));
-                roots.UnionWith(ResourceCleanupLuaScanner.ReadReferences(source, token));
+                return (read(path), null);
             }
             catch (Exception exception) when (ResourceCleanupFileSystem.IsReadFailure(exception))
             {
-                issues.Add(new ResourceCleanupIssue(path, exception.Message));
+                return (null, new ResourceCleanupIssue(path, exception.Message));
             }
+        }, token);
+        for (int index = 0; index < paths.Count; index++)
+        {
+            if (results[index].Issue is ResourceCleanupIssue issue)
+                issues.Add(issue);
+            else
+                apply(paths[index], results[index].Value!);
         }
+    }
+
+    private static Action<string> createProgressReporter(string stage, int total, IProgress<ResourceCleanupProgress>? progress)
+    {
+        if (progress is null)
+            return static _ => { };
+        object progressLock = new();
+        int completed = 0;
+        return path =>
+        {
+            lock (progressLock)
+                progress.Report(new ResourceCleanupProgress(stage, completed++, total, path));
+        };
     }
 }

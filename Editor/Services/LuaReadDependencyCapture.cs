@@ -11,13 +11,19 @@ internal sealed class LuaReadDependencyCapture
 
     internal void Record(string path, LuaMetadataFileStamp stamp)
     {
-        if (files.TryGetValue(path, out LuaMetadataFileStamp previous))
-            consistent &= previous == stamp;
-        else
-            files.Add(path, stamp);
+        lock (files)
+        {
+            if (files.TryGetValue(path, out LuaMetadataFileStamp previous))
+                consistent &= previous == stamp;
+            else
+                files.Add(path, stamp);
+        }
     }
 
     internal LuaMetadataDependencySnapshot Capture()
-        => new(new ReadOnlyDictionary<string, LuaMetadataFileStamp>(
-            new Dictionary<string, LuaMetadataFileStamp>(files, StringComparer.OrdinalIgnoreCase)), consistent, false);
+    {
+        lock (files)
+            return new(new ReadOnlyDictionary<string, LuaMetadataFileStamp>(
+                new Dictionary<string, LuaMetadataFileStamp>(files, StringComparer.OrdinalIgnoreCase)), consistent, false);
+    }
 }

@@ -14,7 +14,7 @@ internal sealed class ProjectAssetPathInputs
     internal void Validate()
     {
         HashSet<string> tracked = entries.Select(entry => entry.Path).ToHashSet(StringComparer.Ordinal);
-        foreach (EditorDocumentState entry in entries)
+        EditorValidationBatch.ForEachFile(entries, entry =>
         {
             if (entry.InternalData?["directory"]?.GetValue<bool>() == true)
             {
@@ -31,6 +31,6 @@ internal sealed class ProjectAssetPathInputs
                     || file.LastWriteTimeUtc.Ticks != entry.InternalData?["modified"]?.GetValue<long>())
                     throw new IOException($"The asset changed outside the editor: {entry.Path}");
             }
-        }
+        });
     }
 }

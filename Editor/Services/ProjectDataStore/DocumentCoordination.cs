@@ -60,14 +60,14 @@ public sealed partial class ProjectDataStore
                 {
                     [oldKey + "/_world.json"] = newKey + "/_world.json",
                 };
-                foreach (string childKey in Worlds.getWorldChildren(oldKey).ToArray())
+                Maps.LoadMaps(Worlds.getWorldChildren(oldKey), (childKey, _) =>
                 {
                     EditorDocument child = GetDocument("Maps", childKey)
                         ?? throw new InvalidDataException($"The world child could not be loaded: {childKey}");
                     string targetKey = newKey + childKey[oldKey.Length..];
                     replacements[childKey + ".json"] = targetKey + ".json";
                     changes[child] = (targetKey, child.Data!);
-                }
+                });
                 rewrites = ReferenceIndex.PrepareMapReferenceRewrites(replacements);
             }
             else

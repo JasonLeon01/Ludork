@@ -16,34 +16,63 @@ public sealed partial class WorldDataService
         if (!Directory.Exists(mapsRoot))
             return;
         store.Maps.loadMapCatalogCache();
-        foreach (string path in Directory.EnumerateFiles(mapsRoot, "*.json", SearchOption.TopDirectoryOnly)
-                     .OrderBy(value => value, StringComparer.Ordinal))
+        string[] paths = Directory.EnumerateFiles(mapsRoot, "*.json", SearchOption.TopDirectoryOnly)
+            .Where(path => !MapOrderService.IsOrderFile(path)).Order(StringComparer.Ordinal).ToArray();
+        (JsonObject? Map, long Bytes)[] standalone = store.readLoadFiles(paths, path => path, (path, file) =>
         {
-            if (MapOrderService.IsOrderFile(path))
-                continue;
             if (string.Equals(Path.GetFileName(path), "_world.json", StringComparison.OrdinalIgnoreCase))
+                return (null, 0L);
+            try
             {
-                store.addInvalidLoadPath(path);
-                continue;
+                byte[] content = file.ReadContent();
+                return (MapDataService.decodeMapFile(ProjectLoadFile.ParseObject(content), false), content.LongLength);
             }
-            JsonObject? map = store.Maps.readMapFile(path, false);
-            if (map is null)
+            catch (Exception exception) when (exception is JsonException or IOException or UnauthorizedAccessException)
             {
-                store.addInvalidLoadPath(path);
-                continue;
+                return (null, 0L);
             }
-            string key = Path.GetFileNameWithoutExtension(path);
-            store.Maps.LoadStandaloneMap(key, map, new FileInfo(path).Length);
-        }
-        foreach (string directory in Directory.EnumerateDirectories(mapsRoot, "*", SearchOption.TopDirectoryOnly)
-                     .OrderBy(value => value, StringComparer.Ordinal))
+        });
+        Dictionary<string, string> blueprintErrors = store.getLoadedMapBlueprintErrors(paths.Select((path, index) =>
+            (Path.GetFileNameWithoutExtension(path), standalone[index].Map)));
+        for (int index = 0; index < paths.Length; index++)
         {
-            loadWorldDirectory(directory);
+            string path = paths[index];
+            string key = Path.GetFileNameWithoutExtension(path);
+            if (blueprintErrors.TryGetValue(key, out string? error))
+                store.rejectDataFile(path, error);
+            else if (standalone[index].Map is JsonObject map)
+                store.Maps.LoadStandaloneMap(key, map, standalone[index].Bytes);
+            else
+                store.addInvalidLoadPath(path);
+        }
+        WorldDirectory[] worlds = Directory.EnumerateDirectories(mapsRoot, "*", SearchOption.TopDirectoryOnly)
+            .Order(StringComparer.Ordinal).Select(inspectWorldDirectory).ToArray();
+        WorldDirectory[] valid = worlds.Where(world => world.InvalidPaths.Count == 0).ToArray();
+        JsonObject?[] manifests = store.readLoadFiles(valid, world => world.ManifestPath, (_, file) => readWorldMapFile(file));
+        (string Key, string Path)[] files = valid.SelectMany(world => world.Children.Select(path => (world.Key, path))).ToArray();
+        MapDataService.WorldChildCatalogRead[] children = store.readLoadFiles(files,
+            input => input.Path, (input, file) => store.Maps.readMapCatalogFile(file, input.Key));
+        Dictionary<string, string> worldBlueprintErrors = store.getLoadedMapBlueprintErrors(files.Select((file, index) =>
+            (file.Key + "/" + Path.GetFileNameWithoutExtension(file.Path), children[index].BlueprintData)));
+        int manifestIndex = 0;
+        int childIndex = 0;
+        foreach (WorldDirectory world in worlds)
+        {
+            if (world.InvalidPaths.Count != 0)
+            {
+                foreach (string path in world.InvalidPaths)
+                    store.addInvalidLoadPath(path);
+                continue;
+            }
+            publishWorld(world, manifests[manifestIndex++], children.AsSpan(childIndex, world.Children.Length), worldBlueprintErrors);
+            childIndex += world.Children.Length;
         }
         store.Maps.saveMapCatalogCache();
     }
 
-    internal void loadWorldDirectory(string directory)
+    private sealed record WorldDirectory(string Key, string ManifestPath, string[] Children, IReadOnlyList<string> InvalidPaths);
+
+    private WorldDirectory inspectWorldDirectory(string directory)
     {
         store.reportDataRead(directory);
         string worldKey = Path.GetFileName(directory);
@@ -72,46 +101,42 @@ public sealed partial class WorldDataService
                 Path.GetFileName(manifestPath),
                 "_world.json",
                 StringComparison.Ordinal);
-        if (nestedDirectories.Length != 0 || !manifestValid)
-        {
-            foreach (string nested in nestedDirectories)
-                store.addInvalidLoadPath(nested);
-            if (!manifestValid)
-            {
-                foreach (string invalidManifest in manifestPaths)
-                    store.addInvalidLoadPath(invalidManifest);
-                if (manifestPaths.Length == 0)
-                    store.addInvalidLoadPath(directory);
-            }
-            return;
-        }
-        if (!File.Exists(manifestPath)
-            || store.Maps.containsMapKey(worldKey)
-            || store.Maps.tryGetMapCatalogEntry(worldKey, out _))
-        {
-            store.addInvalidLoadPath(File.Exists(manifestPath) ? manifestPath : directory);
-            return;
-        }
+        List<string> invalid = new(nestedDirectories);
+        if (!manifestValid)
+            invalid.AddRange(manifestPaths.Length == 0 ? [directory] : manifestPaths);
+        else if (invalid.Count == 0 && (!File.Exists(manifestPath) || store.Maps.containsMapKey(worldKey)
+            || store.Maps.tryGetMapCatalogEntry(worldKey, out _)))
+            invalid.Add(File.Exists(manifestPath) ? manifestPath : directory);
+        return new(worldKey, manifestPath, directJsonFiles.Where(path => path != manifestPath).ToArray(), invalid);
+    }
+
+    private void publishWorld(WorldDirectory world, JsonObject? manifest, ReadOnlySpan<MapDataService.WorldChildCatalogRead> prepared,
+        IReadOnlyDictionary<string, string> blueprintErrors)
+    {
+        string worldKey = world.Key;
+        string manifestPath = world.ManifestPath;
         Dictionary<string, MapCatalogEntry> children = new(StringComparer.Ordinal);
         bool childrenValid = true;
-        foreach (string path in directJsonFiles
-                     .Where(path => !string.Equals(
-                         Path.GetFileName(path),
-                         "_world.json",
-                         StringComparison.OrdinalIgnoreCase))
-                     .OrderBy(value => value, StringComparer.Ordinal))
+        for (int index = 0; index < prepared.Length; index++)
         {
-            store.reportDataRead(path);
-            MapCatalogEntry? child = store.Maps.readMapCatalogEntry(path, worldKey);
-            if (child is null)
+            string path = world.Children[index];
+            (MapCatalogEntry? child, _, string? fingerprint, string? error) = prepared[index];
+            string key = worldKey + "/" + Path.GetFileNameWithoutExtension(path);
+            error ??= blueprintErrors.GetValueOrDefault(key);
+            if (child is not null && error is null)
             {
-                store.addInvalidLoadPath(path);
-                childrenValid = false;
-                continue;
+                children[child.Key] = child;
+                store.Maps.rememberMapCatalogFile(path, child, fingerprint);
             }
-            children[child.Key] = child;
+            else
+            {
+                if (error is not null)
+                    store.rejectDataFile(path, error);
+                else
+                    store.addInvalidLoadPath(path);
+                childrenValid = false;
+            }
         }
-        JsonObject? manifest = readWorldMapFile(manifestPath);
         if (manifest is null || !childrenValid)
         {
             store.addInvalidLoadPath(manifestPath);
@@ -137,11 +162,11 @@ public sealed partial class WorldDataService
             store.Maps.setMapCatalogEntry(child);
     }
 
-    internal static JsonObject? readWorldMapFile(string path)
+    private static JsonObject? readWorldMapFile(ProjectLoadFile file)
     {
         try
         {
-            return JsonNode.Parse(File.ReadAllText(path)) as JsonObject;
+            return ProjectLoadFile.ParseObject(file.ReadContent());
         }
         catch (Exception exception) when (
             exception is JsonException

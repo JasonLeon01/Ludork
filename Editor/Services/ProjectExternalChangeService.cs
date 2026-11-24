@@ -54,8 +54,8 @@ public sealed class ProjectExternalChangeService : IDisposable
                     revision = baselineRevision;
                 }
                 ProjectAssetExternalSnapshot assetSnapshot = await gameData.AssetPaths.CaptureExternalChangesAsync(token);
-                ProjectDiskSnapshot current = await Task.Run(() => ProjectDiskSnapshot.Capture(gameData.ProjectPath, token,
-                    progress: progress), token);
+                ProjectDiskSnapshot current = await Task.Run(() => ProjectDiskSnapshot.Capture(gameData.ProjectPath,
+                    gameData.FingerprintCache, token, progress, previous: previous), token);
                 token.ThrowIfCancellationRequested();
                 lock (sync)
                     if (revision != baselineRevision)
@@ -121,8 +121,11 @@ public sealed class ProjectExternalChangeService : IDisposable
                     keep.Add(document.Path);
                     keep.Add(document.SavedPath);
                 }
-                ProjectDiskSnapshot confirmed = await Task.Run(() => ProjectDiskSnapshot.Capture(gameData.ProjectPath, token,
-                    false, progress, "EXTERNAL_RECHECKING"), token);
+                HashSet<string> relatedPaths = relatedDocuments.SelectMany(document => new[] { document.SavedPath, document.Path })
+                    .ToHashSet(ProjectDiskSnapshot.PathComparer);
+                relatedPaths.ExceptWith(changes.Select(change => change.Path));
+                ProjectDiskSnapshot confirmed = await Task.Run(() => ProjectDiskSnapshot.Capture(gameData.ProjectPath,
+                    gameData.FingerprintCache, token, progress, "EXTERNAL_RECHECKING", contentPaths: relatedPaths), token);
                 bool confirmedMatches = await Task.Run(() => current.Matches(confirmed) && assetSnapshot.Inputs.IsCurrent(), token);
                 token.ThrowIfCancellationRequested();
                 lock (sync)
@@ -131,14 +134,13 @@ public sealed class ProjectExternalChangeService : IDisposable
                 if (gameData.Documents.Revision != documentRevision)
                     continue;
                 Dictionary<string, ExternalFileChange> related = changes.ToDictionary(change => change.Path, ProjectDiskSnapshot.PathComparer);
-                foreach (EditorDocument document in relatedDocuments)
-                    foreach (string path in new[] { document.SavedPath, document.Path })
-                        related.TryAdd(path, new ExternalFileChange(path, previous.GetValueOrDefault(path),
-                            current.Fingerprints.GetValueOrDefault(path), current.Data.GetValueOrDefault(path)));
+                foreach (string path in relatedPaths)
+                    related.Add(path, new ExternalFileChange(path, previous.GetValueOrDefault(path),
+                        confirmed.Fingerprints.GetValueOrDefault(path), confirmed.Data.GetValueOrDefault(path)));
                 await gameData.ApplyDiskChangesAsync(related.Values.ToArray(), keep, progress, token, async () =>
                 {
-                    ProjectDiskSnapshot latest = await Task.Run(() => ProjectDiskSnapshot.Capture(gameData.ProjectPath, token,
-                        false, progress, "EXTERNAL_RECHECKING"), token);
+                    ProjectDiskSnapshot latest = await Task.Run(() => ProjectDiskSnapshot.Capture(gameData.ProjectPath,
+                        gameData.FingerprintCache, token, progress, "EXTERNAL_RECHECKING"), token);
                     bool matches = await Task.Run(() => current.Matches(latest) && assetSnapshot.Inputs.IsCurrent(), token);
                     lock (sync)
                         return revision == baselineRevision && matches;
@@ -168,7 +170,7 @@ public sealed class ProjectExternalChangeService : IDisposable
         Dictionary<string, string> expected;
         lock (sync)
             expected = new(baseline, ProjectDiskSnapshot.PathComparer);
-        ProjectDiskSnapshot current = ProjectDiskSnapshot.Capture(gameData.ProjectPath, lifetime.Token, false);
+        ProjectDiskSnapshot current = ProjectDiskSnapshot.Capture(gameData.ProjectPath, gameData.FingerprintCache, lifetime.Token);
         return ProjectDiskSnapshot.Equal(expected, current.Fingerprints);
     }
 
@@ -179,14 +181,10 @@ public sealed class ProjectExternalChangeService : IDisposable
         lock (sync)
             foreach (string path in baseline.Keys.Where(path => roots.Any(root => ProjectDiskSnapshot.IsWithin(path, root))).ToArray())
                 fingerprints[path] = null;
-        foreach (string path in roots)
-        {
-            if (File.Exists(path))
-                fingerprints[path] = ProjectDiskSnapshot.ReadFingerprint(path);
-            else if (Directory.Exists(path))
-                foreach (string file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
-                    fingerprints[file] = ProjectDiskSnapshot.ReadFingerprint(file);
-        }
+        IEnumerable<string> files = roots.SelectMany(path => File.Exists(path) ? new[] { path }
+            : Directory.Exists(path) ? Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories) : []);
+        foreach ((string path, string? hash) in ProjectDiskSnapshot.ReadFingerprints(files, lifetime.Token))
+            fingerprints[path] = hash;
         acceptWrites(fingerprints);
     }
 

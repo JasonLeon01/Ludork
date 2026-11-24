@@ -32,18 +32,16 @@ internal static class PluginCompiler
             LanguageVersion.CSharp13,
             DocumentationMode.None,
             SourceCodeKind.Regular);
-        List<SyntaxTree> syntaxTrees = [];
-        foreach (string sourcePath in package.SourceFiles)
+        SyntaxTree[] syntaxTrees = EditorValidationBatch.RunFiles(package.SourceFiles, sourcePath =>
         {
-            cancellationToken.ThrowIfCancellationRequested();
             string source = File.ReadAllText(sourcePath, Encoding.UTF8);
-            syntaxTrees.Add(CSharpSyntaxTree.ParseText(
+            return CSharpSyntaxTree.ParseText(
                 source,
                 parseOptions,
                 sourcePath,
                 Encoding.UTF8,
-                cancellationToken));
-        }
+                cancellationToken);
+        }, cancellationToken);
 
         string assemblyName = createAssemblyName(package.Manifest.Id, registryIndex);
         CSharpCompilationOptions compilationOptions = new(
@@ -131,10 +129,8 @@ internal static class PluginCompiler
             paths.Add(typeof(Enumerable).Assembly.Location);
             paths.Add(typeof(System.Threading.Tasks.Task).Assembly.Location);
         }
-        return paths
-            .OrderBy(path => path, StringComparer.Ordinal)
-            .Select(path => MetadataReference.CreateFromFile(path))
-            .ToArray();
+        return EditorValidationBatch.RunFiles(paths.Order(StringComparer.Ordinal).ToArray(),
+            path => MetadataReference.CreateFromFile(path));
     }
 
     private static string formatDiagnostics(IEnumerable<Diagnostic> diagnostics)

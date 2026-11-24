@@ -1,6 +1,7 @@
 using Ludork.Services;
 using Ludork.Models;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -17,7 +18,7 @@ public sealed partial class FileExplorerViewModel
         private readonly string root;
         private readonly HashSet<string> keys;
         private readonly HashSet<string> ancestors = new(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, bool> visibility = new(PathComparer);
+        private readonly ConcurrentDictionary<string, bool> visibility = new(PathComparer);
 
         public TextConfigVisibility(string projectPath, HashSet<string> keys)
         {
@@ -36,7 +37,34 @@ public sealed partial class FileExplorerViewModel
             }
         }
 
-        public bool IsVisible(string path, bool directory, CancellationToken token)
+        public DirectoryEntry[] Filter(IEnumerable<DirectoryEntry> source, CancellationToken token,
+            Action<string, string>? reportError = null)
+        {
+            DirectoryEntry[] entries = source.ToArray();
+            DirectoryEntry[] candidates = entries.Where(entry => EditorPathSandbox.IsSameOrChildPath(root, entry.Path)).ToArray();
+            (bool Visible, string? Error)[] results = EditorValidationBatch.RunFiles<DirectoryEntry, (bool, string?)>(candidates, entry =>
+            {
+                try
+                {
+                    return (IsVisible(entry.Path, entry.IsDirectory, token), null);
+                }
+                catch (Exception exception) when (reportError is not null && exception is (IOException or UnauthorizedAccessException))
+                {
+                    return (false, exception.Message);
+                }
+            }, token);
+            HashSet<string> hidden = new(PathComparer);
+            for (int index = 0; index < candidates.Length; index++)
+            {
+                if (!results[index].Visible)
+                    hidden.Add(candidates[index].Path);
+                if (results[index].Error is string message)
+                    reportError!(candidates[index].Path, message);
+            }
+            return hidden.Count == 0 ? entries : entries.Where(entry => !hidden.Contains(entry.Path)).ToArray();
+        }
+
+        private bool IsVisible(string path, bool directory, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
             if (visibility.TryGetValue(path, out bool visible))

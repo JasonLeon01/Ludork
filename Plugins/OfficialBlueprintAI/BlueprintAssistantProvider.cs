@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -217,15 +218,15 @@ internal sealed class BlueprintAssistantProvider : IBlueprintAssistantProvider
         string promptDirectory = Path.Combine(
             context.ProviderContext.PluginDirectory,
             "prompts");
-        string systemPrompt = await File.ReadAllTextAsync(
-            Path.Combine(promptDirectory, "System.md"),
-            cancellationToken);
-        string formatRetryPrompt = await File.ReadAllTextAsync(
-            Path.Combine(promptDirectory, "FormatRetry.md"),
-            cancellationToken);
-        string researchLimitPrompt = await File.ReadAllTextAsync(
-            Path.Combine(promptDirectory, "ResearchLimit.md"),
-            cancellationToken);
+        string[] files = ["System.md", "FormatRetry.md", "ResearchLimit.md"];
+        string[] prompts = new string[files.Length];
+        await Parallel.ForEachAsync(Enumerable.Range(0, files.Length), cancellationToken, async (index, token) =>
+        {
+            prompts[index] = await File.ReadAllTextAsync(Path.Combine(promptDirectory, files[index]), token);
+        });
+        string systemPrompt = prompts[0];
+        string formatRetryPrompt = prompts[1];
+        string researchLimitPrompt = prompts[2];
         string projectName = Path.GetFileName(
             context.ProjectPath.TrimEnd(
                 Path.DirectorySeparatorChar,

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 
 namespace Ludork.Services;
 
@@ -23,7 +24,7 @@ internal sealed class ReferenceInputFiles
     }
 
     internal static ReferenceInputFiles Capture(string projectPath, IEnumerable<string> mapPaths,
-        bool includeData = false, bool includeStubs = false)
+        bool includeData = false, bool includeStubs = false, CancellationToken cancellationToken = default)
     {
         string[] paths = mapPaths.Distinct(StringComparer.Ordinal).OrderBy(path => path, StringComparer.Ordinal).ToArray();
         string scripts = Path.Combine(projectPath, "Scripts");
@@ -39,14 +40,17 @@ internal sealed class ReferenceInputFiles
         IEnumerable<string> data = includeData && Directory.Exists(dataRoot)
             ? Directory.EnumerateFiles(dataRoot, "*.json", SearchOption.AllDirectories)
                 .Where(path => !DataConfig.isAnimationCache(path)) : [];
-        Dictionary<string, Stamp> stamps = metadata.Concat(enums).Concat(stubs).Concat(paths).Concat(data).Distinct(StringComparer.Ordinal)
-            .ToDictionary(path => path, Read, StringComparer.Ordinal);
+        Dictionary<string, Stamp> stamps = ReadStamps(metadata.Concat(enums).Concat(stubs).Concat(paths).Concat(data), cancellationToken);
         return new ReferenceInputFiles(projectPath, paths, stamps, includeData, includeStubs);
     }
 
-    internal bool IsCurrent()
+    internal Stamp GetStamp(string path) => stamps[path];
+
+    internal bool IsCurrent() => IsCurrent(default);
+
+    internal bool IsCurrent(CancellationToken cancellationToken)
     {
-        ReferenceInputFiles current = Capture(projectPath, mapPaths, includeData, includeStubs);
+        ReferenceInputFiles current = Capture(projectPath, mapPaths, includeData, includeStubs, cancellationToken);
         return HasSameInputs(current);
     }
 
@@ -67,6 +71,16 @@ internal sealed class ReferenceInputFiles
                     stamps.Remove(capturedPath);
             }
         }
+    }
+
+    internal static Dictionary<string, Stamp> ReadStamps(IEnumerable<string> paths, CancellationToken cancellationToken = default)
+    {
+        string[] files = paths.Distinct(StringComparer.Ordinal).ToArray();
+        Stamp[] values = EditorValidationBatch.RunFiles(files, Read, cancellationToken);
+        Dictionary<string, Stamp> result = new(files.Length, StringComparer.Ordinal);
+        for (int index = 0; index < files.Length; index++)
+            result.Add(files[index], values[index]);
+        return result;
     }
 
     internal static Stamp Read(string path)

@@ -105,9 +105,12 @@ public sealed partial class ProjectDataStore : IDisposable
         Subtitles = new SubtitleDataService(this, sections["Subtitles"]);
         if (load)
         {
-            if (cacheMapCatalog)
-                InitialDiskSnapshot = ProjectDiskSnapshot.Capture(ProjectPath, loadCancellationToken, false);
+            List<string>? paths = cacheMapCatalog ? ProjectDiskSnapshot.EnumeratePaths(ProjectPath, loadCancellationToken) : null;
+            loadSnapshotPaths = paths?.ToHashSet(ProjectDiskSnapshot.PathComparer);
             loadAll();
+            if (paths is not null)
+                InitialDiskSnapshot.CaptureRemaining(ProjectPath, paths, FingerprintCache, loadCancellationToken);
+            loadSnapshotPaths = null;
         }
         this.loadCancellationToken = default;
         this.loadProgress = null;
@@ -122,7 +125,9 @@ public sealed partial class ProjectDataStore : IDisposable
     internal void reportDataRead(string path)
     {
         loadCancellationToken.ThrowIfCancellationRequested();
-        loadProgress?.Invoke(path);
+        if (loadProgress is not null)
+            lock (loadProgress)
+                loadProgress(path);
     }
 
     public event EventHandler? ModifiedChanged;

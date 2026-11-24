@@ -16,15 +16,35 @@ public sealed partial class ProjectDataStore
     {
         Dictionary<(string Section, string Key), JsonObject?> changes = [];
         Dictionary<string, string[]> keysBySection = new(StringComparer.Ordinal);
+        List<(string Path, string? Section, string Key)> operations = [];
         foreach (string path in deletedPaths)
-            prepareExternalDelete(path, changes, keysBySection);
+            operations.Add((path, null, string.Empty));
         foreach ((string oldPath, string newPath) in movedPaths)
         {
-            prepareExternalDelete(oldPath, changes, keysBySection);
-            prepareExternalAdd(newPath, changes);
+            operations.Add((oldPath, null, string.Empty));
+            collectFiles(newPath);
         }
         foreach (string path in addedPaths)
-            prepareExternalAdd(path, changes);
+            collectFiles(path);
+        JsonObject?[] data = EditorValidationBatch.RunFiles(operations.Where(op => op.Section is not null).ToArray(),
+            op => readExternalDataFile(op.Path, sections[op.Section!]));
+        int index = 0;
+        foreach ((string path, string? section, string key) in operations)
+        {
+            if (section is null)
+            {
+                prepareExternalDelete(path, changes, keysBySection);
+                continue;
+            }
+            clearRejectedDataFile(path);
+            if (data[index++] is JsonObject loaded)
+                changes[(section, key)] = loaded;
+            else if (section is "Blueprints" or "Maps")
+            {
+                changes[(section, key)] = null;
+                rejectDataFile(path, "The data file could not be parsed or has an unexpected type");
+            }
+        }
         validateExternalBlueprintChanges(changes);
         foreach ((string section, string key) in changes.Keys)
         {
@@ -32,6 +52,17 @@ public sealed partial class ProjectDataStore
                 throw new InvalidOperationException($"The file has unsaved editor changes: {document.Path}");
         }
         return changes;
+
+        void collectFiles(string source)
+        {
+            IEnumerable<string> files = Directory.Exists(source)
+                ? Directory.EnumerateFiles(source, "*.json", SearchOption.AllDirectories) : [source];
+            foreach (string path in files)
+                if (File.Exists(path) && !DataConfig.isAnimationCache(path)
+                    && tryGetDataLocation(path, out string section, out string relativePath)
+                    && hasDataFileExtension(section, path))
+                    operations.Add((path, section, Path.ChangeExtension(relativePath, null)!.Replace('\\', '/')));
+        }
     }
 
     internal void prepareExternalDelete(string path, IDictionary<(string Section, string Key), JsonObject?> changes,
@@ -62,30 +93,6 @@ public sealed partial class ProjectDataStore
             .Where(key => keyMatchesPrefix(key, prefix)).Distinct(StringComparer.Ordinal).ToArray();
         foreach (string key in keys)
             changes[(section, key)] = null;
-    }
-
-    internal void prepareExternalAdd(string path, IDictionary<(string Section, string Key), JsonObject?> changes)
-    {
-        if (Directory.Exists(path))
-        {
-            foreach (string filePath in Directory.EnumerateFiles(path, "*.json", SearchOption.AllDirectories)
-                         .Where(filePath => !DataConfig.isAnimationCache(filePath)))
-                prepareExternalAdd(filePath, changes);
-            return;
-        }
-        if (!File.Exists(path) || DataConfig.isAnimationCache(path)
-            || !tryGetDataLocation(path, out string section, out string relativePath)
-            || !hasDataFileExtension(section, path))
-            return;
-        string key = Path.ChangeExtension(relativePath, null)!.Replace('\\', '/');
-        clearRejectedDataFile(path);
-        if (readExternalDataFile(path, sections[section]) is JsonObject data)
-            changes[(section, key)] = data;
-        else if (section is "Blueprints" or "Maps")
-        {
-            changes[(section, key)] = null;
-            rejectDataFile(path, "The data file could not be parsed or has an unexpected type");
-        }
     }
 
     internal void applyExternalChanges(IReadOnlyDictionary<(string Section, string Key), JsonObject?> changes,

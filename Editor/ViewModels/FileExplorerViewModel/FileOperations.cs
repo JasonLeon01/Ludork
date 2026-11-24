@@ -26,6 +26,7 @@ public sealed partial class FileExplorerViewModel
         List<string> errors = [];
         List<string> externalAdded = [];
         List<string> managedAdded = [];
+        FileCopyBatch copies = new(externalAdded, errors, progress);
         List<(string OldPath, string NewPath)> moved = [];
         List<(string OldPath, string NewPath)> managedMoved = [];
         foreach (string source in clipboardPaths.Where(path => pathExists(path) && isEditablePath(path)).ToArray())
@@ -33,6 +34,14 @@ public sealed partial class FileExplorerViewModel
             string destination = Path.Combine(target, Path.GetFileName(source));
             if (!clipboardCut && pathExists(destination))
                 destination = getDuplicatePath(source, target);
+            bool independentFile = !clipboardCut && !isVisibleDirectory(source) && !isManagedCopySource(source);
+            if (!copies.IsEmpty && (!independentFile || copies.ContainsDestination(destination)))
+            {
+                await copies.FlushAsync();
+                destination = Path.Combine(target, Path.GetFileName(source));
+                if (!clipboardCut && pathExists(destination))
+                    destination = getDuplicatePath(source, target);
+            }
             (bool managed, string? managedError) = clipboardCut
                 ? await tryMoveManagedPathAsync(source, destination, progress) : (false, null);
             if (managed)
@@ -43,7 +52,7 @@ public sealed partial class FileExplorerViewModel
                     managedMoved.Add((source, destination));
                 continue;
             }
-            (bool copied, string? copyError) = !clipboardCut
+            (bool copied, string? copyError) = !clipboardCut && !independentFile
                 ? await tryCopyManagedPathAsync(source, destination, progress) : (false, null);
             if (copied)
             {
@@ -57,7 +66,15 @@ public sealed partial class FileExplorerViewModel
             if (!allowed)
             {
                 if (!string.IsNullOrWhiteSpace(error))
+                {
+                    await copies.FlushAsync();
                     errors.Add(error);
+                }
+                continue;
+            }
+            if (independentFile)
+            {
+                copies.Add(source, destination);
                 continue;
             }
             try
@@ -84,6 +101,7 @@ public sealed partial class FileExplorerViewModel
                 errors.Add($"{Path.GetFileName(source)}: {exception.Message}");
             }
         }
+        await copies.FlushAsync();
         try
         {
             Exception? notificationError = await applyFileChangesAsync(externalAdded, moved, [], progress);
@@ -126,16 +144,24 @@ public sealed partial class FileExplorerViewModel
         List<string> errors = [];
         List<string> externalAdded = [];
         List<string> managedAdded = [];
+        FileCopyBatch copies = new(externalAdded, errors, progress);
         foreach (string source in normalizeTopLevelPaths(paths)
             .Where(path => isEditablePath(path) && pathExists(path) && !isVisibleDirectory(path)))
         {
             if (EditorPathSandbox.IsSameOrChildPath(gameData.Worlds.MapPathPolicy.MapsRoot, source))
             {
+                await copies.FlushAsync();
                 errors.Add($"{Path.GetFileName(source)}: {LocaleService.Get("DUPLICATE_FAILED")}");
                 continue;
             }
             string destination = getDuplicatePath(source);
-            (bool copied, string? copyError) = await tryCopyManagedPathAsync(source, destination, progress);
+            bool managed = isManagedCopySource(source);
+            if (!copies.IsEmpty && (managed || copies.ContainsDestination(destination)))
+            {
+                await copies.FlushAsync();
+                destination = getDuplicatePath(source);
+            }
+            (bool copied, string? copyError) = managed ? await tryCopyManagedPathAsync(source, destination, progress) : (false, null);
             if (copied)
             {
                 if (copyError is not null)
@@ -147,15 +173,15 @@ public sealed partial class FileExplorerViewModel
             try
             {
                 gameData.AssetPaths.AssertCanWrite([source, destination]);
-                progress?.Report(new EditorOperationProgress("COPY", source));
-                await Task.Run(() => File.Copy(source, destination));
-                externalAdded.Add(destination);
+                copies.Add(source, destination);
             }
             catch (Exception exception)
             {
+                await copies.FlushAsync();
                 errors.Add($"{Path.GetFileName(source)}: {exception.Message}");
             }
         }
+        await copies.FlushAsync();
         Exception? notificationError = await applyFileChangesAsync(externalAdded, [], [], progress);
         if (notificationError is not null)
             errors.Add(notificationError.Message);
@@ -169,6 +195,51 @@ public sealed partial class FileExplorerViewModel
         return new FileOperationResult(
             externalAdded.Count != 0 || managedAdded.Count != 0,
             errors);
+    }
+
+    private sealed class FileCopyBatch(List<string> added, List<string> errors, IProgress<EditorOperationProgress>? progress)
+    {
+        private readonly List<(string Source, string Destination)> files = [];
+        private readonly HashSet<string> destinations = new(StringComparer.OrdinalIgnoreCase);
+
+        internal bool IsEmpty => files.Count == 0;
+        internal bool ContainsDestination(string path) => destinations.Contains(destinationKey(path));
+
+        internal void Add(string source, string destination)
+        {
+            files.Add((source, destination));
+            destinations.Add(destinationKey(destination));
+        }
+
+        private static string destinationKey(string path) => OperatingSystem.IsMacOS() ? path.Normalize() : path;
+
+        internal async Task FlushAsync()
+        {
+            if (IsEmpty)
+                return;
+            string?[] failures = await Task.Run(() => EditorValidationBatch.RunFiles(files, copy =>
+            {
+                try
+                {
+                    if (progress is not null)
+                        lock (files)
+                            progress.Report(new EditorOperationProgress("COPY", copy.Source));
+                    File.Copy(copy.Source, copy.Destination);
+                    return (string?)null;
+                }
+                catch (Exception exception)
+                {
+                    return $"{Path.GetFileName(copy.Source)}: {exception.Message}";
+                }
+            }));
+            for (int index = 0; index < files.Count; index++)
+                if (failures[index] is string message)
+                    errors.Add(message);
+                else
+                    added.Add(files[index].Destination);
+            files.Clear();
+            destinations.Clear();
+        }
     }
 
     public async Task<FileOperationResult> DeleteAsync(IEnumerable<string> paths, IProgress<EditorOperationProgress>? progress = null)

@@ -37,7 +37,6 @@ public sealed partial class FileExplorerViewModel
             pending.Push(directory);
         else if (!documents.Any(document => document.Exists && document.Paths.Any(path => EditorPathSandbox.IsSameOrChildPath(directory, path))))
             throw new DirectoryNotFoundException(directory);
-        string textRoot = Path.Combine(projectPath, "Data", "TextConfigs");
         while (pending.TryPop(out string? current))
         {
             token.ThrowIfCancellationRequested();
@@ -59,9 +58,7 @@ public sealed partial class FileExplorerViewModel
                             pending.Push(file.Path);
                             continue;
                         }
-                        if (!Path.GetFileName(file.Path).Contains(query, StringComparison.OrdinalIgnoreCase)
-                            || EditorPathSandbox.IsSameOrChildPath(textRoot, file.Path)
-                            && !textVisibility.IsVisible(file.Path, false, token))
+                        if (!Path.GetFileName(file.Path).Contains(query, StringComparison.OrdinalIgnoreCase))
                             continue;
                         long length = file.Length;
                         paths[file.Path] = new DirectoryEntry(file.Path, false, $"{file.LastWriteTimeUtc.Ticks}:{length}");
@@ -90,8 +87,7 @@ public sealed partial class FileExplorerViewModel
                     continue;
                 try
                 {
-                    if (!isVisibleSearchDocumentPath(directory, path, directoryVisibility, token)
-                        || EditorPathSandbox.IsSameOrChildPath(textRoot, path) && !textVisibility.IsVisible(path, false, token))
+                    if (!isVisibleSearchDocumentPath(directory, path, directoryVisibility, token))
                         continue;
                     paths.TryAdd(path, new DirectoryEntry(path, false, string.Empty));
                 }
@@ -101,7 +97,8 @@ public sealed partial class FileExplorerViewModel
                 }
             }
         }
-        DirectoryEntry[] entries = paths.Values
+        DirectoryEntry[] entries = textVisibility.Filter(paths.Values, token,
+                (path, message) => errors.Add($"{Path.GetRelativePath(directory, path)}: {message}"))
             .OrderBy(entry => Path.GetFileName(entry.Path), StringComparer.OrdinalIgnoreCase)
             .ThenBy(entry => Path.GetRelativePath(directory, entry.Path), StringComparer.OrdinalIgnoreCase)
             .ThenBy(entry => entry.Path, PathComparer)

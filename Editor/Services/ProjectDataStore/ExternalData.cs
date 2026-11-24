@@ -20,58 +20,29 @@ public sealed partial class ProjectDataStore
         }
         Worlds.ClearPendingDirectoryMoves();
         Maps.ResetCacheMetadata();
-        foreach (KeyValuePair<string, EditorDocumentCollection> pair in sections)
+        List<(string Section, string Root, string Path)> files = [];
+        foreach ((string section, EditorDocumentCollection collection) in sections)
         {
-            pair.Value.Clear();
-            if (!pair.Value.Persist || pair.Key is "Maps" or "WorldMaps")
+            collection.Clear();
+            if (!collection.Persist || section is "Maps" or "WorldMaps")
                 continue;
-            string root = getSectionRoot(pair.Key);
-            if (!Directory.Exists(root))
-                continue;
-            foreach (string path in Directory.EnumerateFiles(root, "*.json", SearchOption.AllDirectories)
-                         .Where(path => !DataConfig.isAnimationCache(path))
-                         .OrderBy(path => path, StringComparer.Ordinal))
-            {
-                reportDataRead(path);
-                if (pair.Key == "UI" && !hasDataFileExtension(pair.Key, path))
-                {
-                    addInvalidLoadPath(path);
-                    continue;
-                }
-                try
-                {
-                    if (JsonNode.Parse(File.ReadAllText(path)) is not JsonObject data)
-                    {
-                        if (pair.Key is "TextConfigs" or "UI" or "Subtitles" or "Blueprints" or "Materials")
-                            rejectDataFile(path, "Data must be a JSON object");
-                        continue;
-                    }
-                    string? type = data["type"] is JsonValue typeValue
-                        && typeValue.TryGetValue<string>(out string? parsedType)
-                            ? parsedType
-                            : null;
-                    if (!pair.Value.AcceptsType(type))
-                    {
-                        if (pair.Key is "TextConfigs" or "UI" or "Subtitles" or "Blueprints" or "Materials")
-                            rejectDataFile(path, "Unexpected data file type");
-                        continue;
-                    }
-                    if (!pair.Value.PreserveType)
-                        data.Remove("type");
-                    string relativePath = Path.GetRelativePath(root, path);
-                    string key = Path.ChangeExtension(relativePath, null)!.Replace('\\', '/');
-                    if (pair.Key == "Particles" && ParticleAssetSchema.Validate(data, key).Count != 0)
-                    {
-                        addInvalidLoadPath(path);
-                        continue;
-                    }
-                    pair.Value[key] = data;
-                }
-                catch (JsonException exception)
-                {
-                    rejectDataFile(path, exception.Message);
-                }
-            }
+            string root = getSectionRoot(section);
+            if (Directory.Exists(root))
+                files.AddRange(Directory.EnumerateFiles(root, "*.json", SearchOption.AllDirectories)
+                    .Where(path => !DataConfig.isAnimationCache(path))
+                    .Order(StringComparer.Ordinal).Select(path => (section, root, path)));
+        }
+        (string Key, JsonObject? Data, string? Error)[] results = readLoadFiles(files,
+            input => input.Path, (input, file) => prepareSectionFile(input.Section, input.Root, file));
+        for (int index = 0; index < files.Count; index++)
+        {
+            (string key, JsonObject? data, string? error) = results[index];
+            if (data is not null)
+                sections[files[index].Section][key] = data;
+            else if (error == string.Empty)
+                addInvalidLoadPath(files[index].Path);
+            else if (error is not null)
+                rejectDataFile(files[index].Path, error);
         }
         rejectInvalidBlueprints();
         Worlds.loadMapsAndWorldMaps();
@@ -81,6 +52,34 @@ public sealed partial class ProjectDataStore
         isModified = projectEnumGenerationPending;
         InitializeDocuments();
         UndoRedoStateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private (string Key, JsonObject? Data, string? Error) prepareSectionFile(
+        string section, string root, ProjectLoadFile file)
+    {
+        string key = Path.ChangeExtension(Path.GetRelativePath(root, file.Path), null)!.Replace('\\', '/');
+        if (section == "UI" && !hasDataFileExtension(section, file.Path))
+            return (key, null, string.Empty);
+        bool reportTypeError = section is "TextConfigs" or "UI" or "Subtitles" or "Blueprints" or "Materials";
+        try
+        {
+            if (ProjectLoadFile.ParseObject(file.ReadContent()) is not JsonObject data)
+                return (key, null, reportTypeError ? "Data must be a JSON object" : null);
+            EditorDocumentCollection collection = sections[section];
+            string? type = data["type"] is JsonValue value && value.TryGetValue(out string? parsedType)
+                ? parsedType : null;
+            if (!collection.AcceptsType(type))
+                return (key, null, reportTypeError ? "Unexpected data file type" : null);
+            if (!collection.PreserveType)
+                data.Remove("type");
+            if (section == "Particles" && ParticleAssetSchema.Validate(data, key).Count != 0)
+                return (key, null, string.Empty);
+            return (key, data, null);
+        }
+        catch (JsonException exception)
+        {
+            return (key, null, exception.Message);
+        }
     }
 
     internal string? getDataKey(string absolutePath)

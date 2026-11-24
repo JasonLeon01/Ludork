@@ -15,7 +15,7 @@ public sealed class EditorThumbnailService : IDisposable
     private readonly object sync = new();
     private readonly Dictionary<CacheKey, CacheEntry> entries = [];
     private readonly Dictionary<string, long> sourceRevisions = new(StringComparer.OrdinalIgnoreCase);
-    private readonly SemaphoreSlim workers = new(2, 2);
+    private readonly SemaphoreSlim workers = new(EditorValidationBatch.FileWorkers, EditorValidationBatch.FileWorkers);
     private readonly CancellationTokenSource lifetime = new();
     private long sequence;
     private bool disposed;
@@ -89,7 +89,16 @@ public sealed class EditorThumbnailService : IDisposable
                 token = lifetime.Token;
             }
             using CancellationTokenSource request = CancellationTokenSource.CreateLinkedTokenSource(token, cancellationToken);
-            CacheKey? key = await Task.Run(() => readKey(path, pixelWidth, variant), request.Token).ConfigureAwait(false);
+            await workers.WaitAsync(request.Token).ConfigureAwait(false);
+            CacheKey? key;
+            try
+            {
+                key = await Task.Run(() => readKey(path, pixelWidth, variant), request.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                workers.Release();
+            }
             request.Token.ThrowIfCancellationRequested();
             if (key is null)
                 return null;

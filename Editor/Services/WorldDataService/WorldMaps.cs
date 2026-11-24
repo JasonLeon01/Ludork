@@ -42,13 +42,7 @@ public sealed partial class WorldDataService
 
     public IReadOnlyDictionary<string, JsonObject> GetWorldChildMaps(string worldKey)
     {
-        Dictionary<string, JsonObject> result = new(StringComparer.Ordinal);
-        foreach (string key in getWorldChildren(worldKey))
-        {
-            if (store.Maps.getMap(key) is JsonObject map)
-                result[key] = (JsonObject)map.DeepClone();
-        }
-        return result;
+        return store.Maps.LoadMapSnapshots(getWorldChildren(worldKey));
     }
 
     public bool TryGetWorldForMap(string mapKey, out string worldKey)

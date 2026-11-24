@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Ludork.Plugin.Abstractions;
@@ -32,21 +31,12 @@ internal sealed class LocaleExportHook : IProjectExportHook
             foreach (string language in workbook.Languages.Keys)
                 outputPaths.Add(LocaleProjectPaths.OutputRelativeDirectory + "/" + LocaleExporter.GetFileName(language));
         }
-        HashSet<string> expectedPaths = new HashSet<string>(outputPaths, StringComparer.OrdinalIgnoreCase);
+        HashSet<string> expectedNames = outputPaths.Select(path => Path.GetFileName(path)).ToHashSet(StringComparer.OrdinalIgnoreCase);
         string outputDirectory = LocaleProjectPaths.GetOutputDirectory(projectPath);
         if (Directory.Exists(outputDirectory))
         {
-            foreach (string path in Directory.EnumerateFiles(outputDirectory, "*.lua"))
-            {
-                string fileName = Path.GetFileName(path);
-                string relativePath = LocaleProjectPaths.OutputRelativeDirectory + "/" + fileName;
-                if (string.Equals(fileName, "Core.lua", StringComparison.OrdinalIgnoreCase)
-                    || expectedPaths.Contains(relativePath))
-                    continue;
-                using StreamReader reader = new StreamReader(path, new UTF8Encoding(false, true), true);
-                if (string.Equals(reader.ReadLine(), LocaleExporter.GeneratedMarker, StringComparison.Ordinal))
-                    outputPaths.Add(relativePath);
-            }
+            foreach (string path in LocaleExporter.FindObsoleteFiles(outputDirectory, expectedNames, CancellationToken.None))
+                outputPaths.Add(LocaleProjectPaths.OutputRelativeDirectory + "/" + Path.GetFileName(path));
         }
         return new ProjectExportFiles(new[] { LocaleProjectPaths.WorkbookRelativePath }, outputPaths.ToArray());
     }

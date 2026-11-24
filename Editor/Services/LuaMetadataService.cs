@@ -91,25 +91,11 @@ public sealed class LuaMetadataService
         cancellationToken.ThrowIfCancellationRequested();
         using IDisposable enumRead = Enums.BeginSnapshotRead(cancellationToken);
         using IDisposable metadataRead = BeginReferenceRead();
-        List<LuaTypeMetadata> metadataTypes = [];
-        foreach (LuaTypeMetadata metadata in files.ReadAllTypes())
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            metadataTypes.Add(metadata);
-        }
-        string mixinsRoot = ScriptMixinPaths.GetMixinsRoot(ProjectPath);
-        if (Directory.Exists(mixinsRoot))
-        {
-            foreach (string path in Directory.EnumerateFiles(mixinsRoot, "*_meta.lua", SearchOption.AllDirectories))
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                string scriptPath = Path.GetRelativePath(mixinsRoot, path)[..^"_meta.lua".Length] + ".lua";
-                if (files.LoadScriptMixinMetadata(scriptPath) is LuaTypeMetadata metadata)
-                    metadataTypes.Add(metadata);
-            }
-        }
-        Dictionary<string, LuaMetadataType> types = new(StringComparer.Ordinal);
         HashSet<string> enumModules = new(Enums.EnumerateModules(), StringComparer.Ordinal);
+        Enums.CaptureModules(enumModules);
+        List<LuaTypeMetadata> metadataTypes = files.ReadAllTypes(cancellationToken)
+            .Concat(files.ReadAllScriptMixins(cancellationToken)).ToList();
+        Dictionary<string, LuaMetadataType> types = new(StringComparer.Ordinal);
         foreach (LuaTypeMetadata metadata in metadataTypes)
         {
             cancellationToken.ThrowIfCancellationRequested();

@@ -30,7 +30,7 @@ internal sealed class ExternalChangesCoordinator : IDisposable
         this.session = session;
         activeWindow = owner;
         saveCheck = checkAsync;
-        session.ProjectSave.ExternalChangeCheck = saveCheck;
+        session.ProjectSave.SessionExternalChangeCheck = session.ProjectSave.ExternalChangeCheck = saveCheck;
         session.EditOperations.Changed += onEditOperationChanged;
         activationSubscription = Window.IsActiveProperty.Changed.AddClassHandler<Window>((window, _) =>
         {
@@ -113,6 +113,8 @@ internal sealed class ExternalChangesCoordinator : IDisposable
         session.EditOperations.Changed -= onEditOperationChanged;
         if (session.ProjectSave.ExternalChangeCheck == saveCheck)
             session.ProjectSave.ExternalChangeCheck = null;
+        if (session.ProjectSave.SessionExternalChangeCheck == saveCheck)
+            session.ProjectSave.SessionExternalChangeCheck = null;
         cancellation.Cancel();
         cancellation.Dispose();
     }

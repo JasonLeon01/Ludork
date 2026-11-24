@@ -154,28 +154,37 @@ public sealed partial class ProjectAssetPaths
     }
 
     public IReadOnlyList<ProjectAssetPathEntry> EnumerateEntries(string directory)
+        => enumerateEntries(directory, rejectLinks: false);
+
+    private IReadOnlyList<ProjectAssetPathEntry> enumerateEntries(string directory, bool rejectLinks)
     {
         string logicalDirectory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
         Dictionary<string, ProjectAssetPathEntry> result = new(StringComparer.Ordinal);
         string physical = ResolveReadPath(logicalDirectory);
         if (DirectoryExists(logicalDirectory))
         {
-            foreach (FileSystemInfo entry in new DirectoryInfo(physical).EnumerateFileSystemInfos())
+            ProjectAssetPathEntry?[] disk = EditorValidationBatch.RunFiles(new DirectoryInfo(physical).GetFileSystemInfos(), entry =>
             {
                 if (EditorPathSandbox.IsLink(entry))
-                    continue;
+                {
+                    if (rejectLinks)
+                        throw new IOException($"The asset directory contains a symbolic link: {entry.FullName}");
+                    return null;
+                }
                 string logical = ResolveLogicalPath(entry.FullName);
-                if (Path.GetDirectoryName(logical) != logicalDirectory)
-                    continue;
-                result[logical] = createEntry(logical, entry);
-            }
+                return Path.GetDirectoryName(logical) == logicalDirectory ? createEntry(logical, entry) : null;
+            });
+            foreach (ProjectAssetPathEntry entry in disk.OfType<ProjectAssetPathEntry>())
+                result[entry.Path] = entry;
         }
-        foreach (PathSnapshot document in currentPaths.Where(document => Path.GetDirectoryName(document.Path) == logicalDirectory))
+        PathSnapshot[] children = currentPaths.Where(document => Path.GetDirectoryName(document.Path) == logicalDirectory).ToArray();
+        ProjectAssetPathEntry?[] pending = EditorValidationBatch.RunFiles(children, document =>
         {
             FileSystemInfo entry = document.Directory ? new DirectoryInfo(document.SavedPath) : new FileInfo(document.SavedPath);
-            if (entry.Exists)
-                result[document.Path] = createEntry(document.Path, entry);
-        }
+            return entry.Exists ? createEntry(document.Path, entry) : null;
+        });
+        foreach (ProjectAssetPathEntry entry in pending.OfType<ProjectAssetPathEntry>())
+            result[entry.Path] = entry;
         return result.Values.OrderBy(entry => !entry.IsDirectory)
             .ThenBy(entry => entry.Path, StringComparer.Ordinal).ToArray();
     }

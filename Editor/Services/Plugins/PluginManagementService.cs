@@ -306,56 +306,27 @@ public sealed class PluginManagementService
         await gate.WaitAsync(cancellationToken);
         try
         {
-            List<PluginManagementItem> items = [];
+            IReadOnlyList<PluginRegistryEntry> registered = state.Document.Plugins;
+            PluginManagementItem[] registeredItems = new PluginManagementItem[registered.Count];
             HashSet<string> consumedRuntime = new(StringComparer.Ordinal);
-            foreach (PluginRegistryEntry entry in state.Document.Plugins)
+            List<int> pending = [];
+            for (int index = 0; index < registered.Count; index++)
             {
-                PluginRuntimeInfo? runtime = runtimePlugins.FirstOrDefault(
-                    value => string.Equals(value.Id, entry.Id, StringComparison.Ordinal)
-                        && directoriesEqual(value.Directory, entry.Directory));
-                if (runtime is not null)
+                PluginRegistryEntry entry = registered[index];
+                PluginRuntimeInfo? runtime = runtimePlugins.FirstOrDefault(value =>
+                    string.Equals(value.Id, entry.Id, StringComparison.Ordinal) && directoriesEqual(value.Directory, entry.Directory));
+                if (runtime is null)
                 {
-                    consumedRuntime.Add(runtime.Id);
-                    items.Add(toManagementItem(runtime, true));
+                    pending.Add(index);
                     continue;
                 }
-
-                string sourcePath = Path.Combine(environment.PluginsDirectory, entry.Directory);
-                try
-                {
-                    PluginPackage package = await Task.Run(() => PluginPackageInspector.Inspect(sourcePath), cancellationToken);
-                    if (!string.Equals(package.Manifest.Id, entry.Id, StringComparison.Ordinal))
-                    {
-                        throw new InvalidDataException(
-                            $"Registry ID '{entry.Id}' does not match manifest ID '{package.Manifest.Id}'.");
-                    }
-                    items.Add(new PluginManagementItem(
-                        entry.Id,
-                        package.Manifest.Name,
-                        package.Manifest.Version,
-                        entry.Directory,
-                        sourcePath,
-                        PluginRuntimeStatus.PendingRestart,
-                        string.Empty,
-                        true));
-                }
-                catch (Exception exception) when (
-                    exception is IOException
-                    or UnauthorizedAccessException
-                    or InvalidDataException
-                    or JsonException)
-                {
-                    items.Add(new PluginManagementItem(
-                        entry.Id,
-                        entry.Id,
-                        string.Empty,
-                        entry.Directory,
-                        sourcePath,
-                        PluginRuntimeStatus.ManifestInvalid,
-                        exception.Message,
-                        true));
-                }
+                consumedRuntime.Add(runtime.Id);
+                registeredItems[index] = toManagementItem(runtime, true);
             }
+            if (pending.Count != 0)
+                await Task.Run(() => EditorValidationBatch.ForEachFile(pending,
+                    index => registeredItems[index] = inspectRegisteredItem(registered[index]), cancellationToken), cancellationToken);
+            List<PluginManagementItem> items = [.. registeredItems];
 
             foreach (PluginRuntimeInfo runtime in runtimePlugins)
             {
@@ -396,6 +367,45 @@ public sealed class PluginManagementService
         finally
         {
             gate.Release();
+        }
+    }
+
+    private PluginManagementItem inspectRegisteredItem(PluginRegistryEntry entry)
+    {
+        string sourcePath = Path.Combine(environment.PluginsDirectory, entry.Directory);
+        try
+        {
+            PluginPackage package = PluginPackageInspector.Inspect(sourcePath);
+            if (!string.Equals(package.Manifest.Id, entry.Id, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException(
+                    $"Registry ID '{entry.Id}' does not match manifest ID '{package.Manifest.Id}'.");
+            }
+            return new PluginManagementItem(
+                entry.Id,
+                package.Manifest.Name,
+                package.Manifest.Version,
+                entry.Directory,
+                sourcePath,
+                PluginRuntimeStatus.PendingRestart,
+                string.Empty,
+                true);
+        }
+        catch (Exception exception) when (
+            exception is IOException
+            or UnauthorizedAccessException
+            or InvalidDataException
+            or JsonException)
+        {
+            return new PluginManagementItem(
+                entry.Id,
+                entry.Id,
+                string.Empty,
+                entry.Directory,
+                sourcePath,
+                PluginRuntimeStatus.ManifestInvalid,
+                exception.Message,
+                true);
         }
     }
 
@@ -579,6 +589,7 @@ public sealed class PluginManagementService
     {
         PluginPackageInspector.EnsureDirectoryTreeIsSafe(sourceRoot);
         Directory.CreateDirectory(targetRoot);
+        List<(string Source, string Target)> files = [];
         Queue<(string Source, string Target)> pending = new();
         pending.Enqueue((sourceRoot, targetRoot));
         while (pending.Count != 0)
@@ -598,10 +609,16 @@ public sealed class PluginManagementService
                 }
                 else
                 {
-                    File.Copy(sourcePath, targetPath, false);
+                    files.Add((sourcePath, targetPath));
                 }
             }
         }
+        EditorValidationBatch.ForEachFile(files, file =>
+        {
+            if (!EditorPathSandbox.TryResolve(sourceRoot, file.Source, out string source))
+                throw new InvalidDataException($"Plugin path is linked or inaccessible: {file.Source}");
+            File.Copy(source, file.Target, false);
+        }, cancellationToken);
     }
 
     private static PluginImportPreview failedPreview(string sourcePath, string error)

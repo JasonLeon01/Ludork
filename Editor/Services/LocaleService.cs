@@ -26,12 +26,10 @@ public static class LocaleService
         }
         else
         {
-            foreach (string path in Directory.EnumerateFiles(localeDirectory))
-            {
-                if (Path.HasExtension(path))
-                    continue;
-                localeData[Path.GetFileName(path)] = LocaleBinarySerializer.Read(path);
-            }
+            string[] paths = Directory.GetFiles(localeDirectory).Where(path => !Path.HasExtension(path)).ToArray();
+            Dictionary<string, string>[] languages = EditorValidationBatch.RunFiles(paths, LocaleBinarySerializer.Read);
+            for (int index = 0; index < paths.Length; index++)
+                localeData[Path.GetFileName(paths[index])] = languages[index];
         }
         CurrentLanguage = localeData.ContainsKey(requestedLanguage) ? requestedLanguage : "en_GB";
     }
@@ -39,8 +37,13 @@ public static class LocaleService
     public static void Compile()
     {
         string localeDirectory = resolveLocaleDirectory(true);
-        foreach (KeyValuePair<string, Dictionary<string, string>> pair in readJson(Path.Combine(localeDirectory, "locale.json")))
-            LocaleBinarySerializer.Write(Path.Combine(localeDirectory, pair.Key), pair.Value);
+        Dictionary<string, Dictionary<string, string>> languages = readJson(Path.Combine(localeDirectory, "locale.json"));
+        EditorValidationBatch.ForEachFile(languages.GroupBy(pair => Path.GetFullPath(Path.Combine(localeDirectory, pair.Key)),
+            StringComparer.OrdinalIgnoreCase).ToArray(), group =>
+        {
+            foreach (KeyValuePair<string, Dictionary<string, string>> pair in group)
+                LocaleBinarySerializer.Write(Path.Combine(localeDirectory, pair.Key), pair.Value);
+        });
     }
 
     public static string Get(string key)

@@ -202,8 +202,7 @@ internal sealed class ResourceCleanupHostBridge : IResourceCleanupHost
     {
         string[] result = paths.Where(path => !string.IsNullOrWhiteSpace(path))
             .Select(ResourceCleanupFileSystem.NormalizeKeepPath).Distinct(StringComparer.Ordinal).ToArray();
-        foreach (string path in result)
-            ResourceCleanupFileSystem.ResolveSafePath(ProjectPath, path, allowMissing: true);
+        EditorValidationBatch.ForEachFile(result, path => ResourceCleanupFileSystem.ResolveSafePath(ProjectPath, path, allowMissing: true));
         return result;
     }
 

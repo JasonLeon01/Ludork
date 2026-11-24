@@ -453,14 +453,8 @@ public sealed class PreviewRuntimeService : IDisposable, IAsyncDisposable
             paths.AddRange(Directory.EnumerateFiles(binaryRoot));
         string createRecoveryStamp()
         {
-            StringBuilder stamp = new();
-            foreach (string path in paths.OrderBy(path => path, Utf8NameComparer.Instance))
-            {
-                FileInfo file = new(path);
-                stamp.Append(path).Append('\0').Append(file.Exists ? file.Length : -1)
-                    .Append(':').Append(file.LastWriteTimeUtc.Ticks).Append(':').Append(file.LinkTarget).Append('\0');
-            }
-            return stamp.ToString();
+            string[] sortedPaths = paths.Order(Utf8NameComparer.Instance).ToArray();
+            return string.Concat(EditorValidationBatch.RunFiles(sortedPaths, path => fileStamp(path, new FileInfo(path))));
         }
         string nextStamp = createRecoveryStamp();
         if (recoveryAttemptStamp == nextStamp)
@@ -610,16 +604,17 @@ public sealed class PreviewRuntimeService : IDisposable, IAsyncDisposable
 
     private static string createSourceStamp(string directory, IReadOnlyList<string> files, string registryPath)
     {
-        StringBuilder stamp = new();
-        foreach (string name in files.Append(RegistryFileName).OrderBy(name => name, Utf8NameComparer.Instance))
+        string[] names = files.Append(RegistryFileName).Order(Utf8NameComparer.Instance).ToArray();
+        return string.Concat(EditorValidationBatch.RunFiles(names, name =>
         {
             FileInfo file = new(name == RegistryFileName ? registryPath : Path.Combine(directory, name));
             require(file.Exists, "UI preview file is missing: " + name);
-            stamp.Append(name).Append('\0').Append(file.Length).Append(':')
-                .Append(file.LastWriteTimeUtc.Ticks).Append(':').Append(file.LinkTarget).Append('\0');
-        }
-        return stamp.ToString();
+            return fileStamp(name, file);
+        }));
     }
+
+    private static string fileStamp(string name, FileInfo file)
+        => $"{name}\0{(file.Exists ? file.Length : -1)}:{file.LastWriteTimeUtc.Ticks}:{file.LinkTarget}\0";
 
     private static string readRelativeLink(FileInfo file, string directory, IReadOnlyList<string> files)
     {
@@ -643,27 +638,21 @@ public sealed class PreviewRuntimeService : IDisposable, IAsyncDisposable
     private static string runtimeDigest(string directory, IReadOnlyList<string> files, string registryPath)
     {
         requireNotLink(registryPath);
-        using IncrementalHash digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        foreach (string name in files.Append(RegistryFileName).OrderBy(name => name, Utf8NameComparer.Instance))
+        string[] names = files.Append(RegistryFileName).Order(Utf8NameComparer.Instance).ToArray();
+        string[] entries = EditorValidationBatch.RunFiles(names, name =>
         {
             FileInfo file = new(name == RegistryFileName ? registryPath : Path.Combine(directory, name));
             require((file.Attributes & FileAttributes.Directory) == 0,
                 "UI preview runtime must contain only files.");
-            digest.AppendData(Encoding.UTF8.GetBytes(name + "\0"));
-            string? target = file.LinkTarget;
-            if (target is not null)
-            {
-                digest.AppendData(Encoding.UTF8.GetBytes("L\0" + readRelativeLink(file, directory, files) + "\0"));
-            }
-            else
-            {
-                require(!EditorPathSandbox.IsLink(file),
-                    "Unsupported UI preview runtime file link.");
-                using FileStream stream = openSharedRead(file.FullName);
-                string fileHash = Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
-                digest.AppendData(Encoding.ASCII.GetBytes("F\0" + fileHash + "\0"));
-            }
-        }
+            if (file.LinkTarget is not null)
+                return name + "\0L\0" + readRelativeLink(file, directory, files) + "\0";
+            require(!EditorPathSandbox.IsLink(file), "Unsupported UI preview runtime file link.");
+            using FileStream stream = openSharedRead(file.FullName);
+            return name + "\0F\0" + Convert.ToHexStringLower(SHA256.HashData(stream)) + "\0";
+        });
+        using IncrementalHash digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        foreach (string entry in entries)
+            digest.AppendData(Encoding.UTF8.GetBytes(entry));
         return Convert.ToHexString(digest.GetHashAndReset()).ToLowerInvariant();
     }
 

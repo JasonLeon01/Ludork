@@ -103,7 +103,7 @@ public sealed partial class ProjectDataStore
     {
         ProjectEnumCatalog enums = GetProjectEnumCatalog();
         LuaValidationReadCache reads = new(ProjectPath, enums, loadCancellationToken);
-        return EditorValidationBatch.Run(inputs,
+        return EditorValidationBatch.RunFiles(inputs,
             () => new BlueprintValidationWorker(ProjectPath, blueprints, enums, reads, true),
             (worker, input) =>
             {
@@ -213,24 +213,33 @@ public sealed partial class ProjectDataStore
         }
     }
 
-    internal bool tryValidateMapBlueprintFile(string path)
+    internal Dictionary<string, string> getLoadedMapBlueprintErrors(
+        IEnumerable<(string Key, JsonObject? Data)> maps)
     {
-        try
-        {
-            return tryValidateMapBlueprintData(path, readMapBlueprintData(path));
-        }
-        catch (Exception exception) when (exception is InvalidDataException or IOException or UnauthorizedAccessException or JsonException)
-        {
-            rejectDataFile(path, exception.Message);
-            return false;
-        }
+        BlueprintMapValidationInput[] inputs = maps.Where(map => map.Data is not null)
+            .Select(map => new BlueprintMapValidationInput(map.Key, map.Data, string.Empty)).ToArray();
+        if (inputs.Length == 0)
+            return new(StringComparer.Ordinal);
+        Dictionary<string, JsonObject> blueprints = sections["Blueprints"].ToDictionary(
+            entry => entry.Key, entry => entry.Value, StringComparer.Ordinal);
+        Exception?[] errors = validateBlueprintMaps(blueprints, inputs);
+        Dictionary<string, string> result = new(StringComparer.Ordinal);
+        for (int index = 0; index < inputs.Length; index++)
+            if (errors[index] is Exception exception)
+                result[inputs[index].Key] = exception.Message;
+        HasBlueprintSchemaLoadErrors |= result.Count != 0;
+        return result;
     }
 
     private static JsonObject readMapBlueprintData(string path)
     {
         using FileStream stream = File.OpenRead(path);
         using JsonDocument document = JsonDocument.Parse(stream);
-        JsonElement root = document.RootElement;
+        return projectMapBlueprintData(document.RootElement);
+    }
+
+    internal static JsonObject projectMapBlueprintData(JsonElement root)
+    {
         if (root.ValueKind != JsonValueKind.Object)
             throw new InvalidDataException("Map data must be an object");
         JsonObject data = [];
@@ -297,22 +306,22 @@ public sealed partial class ProjectDataStore
     {
         if (!changes.Keys.Any(location => location.Section is "Blueprints" or "Maps"))
             return;
+        List<(string Path, string Section, string Key)> rejected = [];
         foreach (string path in InvalidLoadPaths)
         {
             string absolutePath = Path.Combine(ProjectPath, path);
-            if (!File.Exists(absolutePath)
-                || !tryGetDataLocation(absolutePath, out string section, out string relative)
-                || section is not ("Blueprints" or "Maps"))
-            {
+            if (!tryGetDataLocation(absolutePath, out string section, out string relative) || section is not ("Blueprints" or "Maps"))
                 continue;
-            }
             string key = normalizeJsonKey(relative);
-            if (!changes.ContainsKey((section, key))
-                && readExternalDataFile(absolutePath, sections[section]) is JsonObject data)
-            {
-                changes[(section, key)] = data;
-            }
+            if (!changes.ContainsKey((section, key)))
+                rejected.Add((absolutePath, section, key));
         }
+        JsonObject?[] recovered = EditorValidationBatch.RunFiles(rejected,
+            input => File.Exists(input.Path) ? readExternalDataFile(input.Path, sections[input.Section]) : null,
+            loadCancellationToken);
+        for (int index = 0; index < rejected.Count; index++)
+            if (recovered[index] is JsonObject data)
+                changes.TryAdd((rejected[index].Section, rejected[index].Key), data);
         Dictionary<string, JsonObject> blueprints = sections["Blueprints"].ToDictionary(
             entry => entry.Key, entry => entry.Value, StringComparer.Ordinal);
         foreach (KeyValuePair<(string Section, string Key), JsonObject?> change in changes)
@@ -386,7 +395,7 @@ public sealed partial class ProjectDataStore
                     errors.Select(entry => $"Data/Blueprints/{entry.Key}.json: {entry.Value}")));
             BlueprintMapValidationInput[] existing = getBlueprintMapKeys().Where(key => !removedMapKeys.Contains(key))
                 .Select(key => captureBlueprintMap(key)).ToArray();
-            BlueprintMapValidationInput[] prepared = EditorValidationBatch.Run(existing,
+            BlueprintMapValidationInput[] prepared = EditorValidationBatch.RunFiles(existing,
                 input => input with { Data = input.Data ?? readMapBlueprintData(input.Path) }, loadCancellationToken);
             foreach (BlueprintMapValidationInput input in prepared)
                 maps.TryAdd(input.Key, input);

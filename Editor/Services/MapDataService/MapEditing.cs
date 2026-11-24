@@ -9,7 +9,9 @@ namespace Ludork.Services;
 
 public sealed partial class MapDataService
 {
-    internal JsonObject? getMap(string key)
+    internal JsonObject? getMap(string key) => getMap(key, null);
+
+    private JsonObject? getMap(string key, IReadOnlyDictionary<string, MapSnapshotRead>? prepared)
     {
         key = normaliseMapKey(key);
         if (mapDocuments.TryGetValue(key, out JsonObject? value))
@@ -22,7 +24,16 @@ public sealed partial class MapDataService
         string path = getReadableMapDataPath(key);
         bool cached = worldPreviewCache.TryTake(key, path, out JsonObject? loaded, out long bytes);
         if (!cached)
-            loaded = readMapFile(path, true);
+        {
+            if (prepared is not null && prepared.TryGetValue(path, out MapSnapshotRead? read))
+            {
+                loaded = read.Get();
+                if (loaded is not null && !store.tryValidateMapBlueprintData(path, loaded))
+                    loaded = null;
+            }
+            else
+                loaded = readMapFile(path, true);
+        }
         if (loaded is null || !mapMatchesCatalogEntry(loaded, entry)
             || cached && !store.tryValidateMapBlueprintData(path, loaded))
         {
@@ -266,16 +277,18 @@ public sealed partial class MapDataService
     public IReadOnlyList<string> GetMapsReferencingTileset(string key)
     {
         key = ProjectDataStore.normalizeDataKey(key);
-        return MapCatalog
-            .Where(entry => entry.Kind != MapCatalogEntryKind.WorldMap)
-            .Where(entry => ReadMapSnapshotWithoutCaching(entry.Key)?["layers"] is JsonObject layers
-                && layers.Any(layer => string.Equals(
-                    ProjectDataStore.getString(layer.Value?["layerTileset"]),
-                    key,
-                    StringComparison.Ordinal)))
-            .Select(entry => entry.Key)
-            .OrderBy(mapKey => mapKey, StringComparer.Ordinal)
-            .ToArray();
+        string[] maps = MapCatalog.Where(entry => entry.Kind != MapCatalogEntryKind.WorldMap)
+            .Select(entry => entry.Key).ToArray();
+        List<string> result = [];
+        foreach (string[] keys in maps.Chunk(EditorValidationBatch.FileWorkers))
+        {
+            Dictionary<string, MapSnapshotRead> snapshots = ReadMapSnapshotsWithoutCaching(keys, default);
+            foreach (string mapKey in keys)
+                if (snapshots[mapKey].Get()?["layers"] is JsonObject layers && layers.Any(layer =>
+                    string.Equals(ProjectDataStore.getString(layer.Value?["layerTileset"]), key, StringComparison.Ordinal)))
+                    result.Add(mapKey);
+        }
+        return result.Order(StringComparer.Ordinal).ToArray();
     }
 
     public IReadOnlyList<string> getLayerNames(string mapKey)
