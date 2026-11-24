@@ -119,6 +119,22 @@ Preparation includes all individual materials, while base/layer combinations com
 
 Parameter types are `bool`, `float`, `vec2`, `vec3`, `vec4`, `color` and `texture`. Vectors are numeric arrays; colours are four normalised channels in `[0, 1]`. The optional `displayName` changes the label shown in the editor; the stable `id` used by parameter nodes and instance overrides does not change. Invalid types, unknown parameter IDs and values outside declared ranges fail. The graph is a typed, acyclic data-flow graph; it has no gameplay execution pins or custom GLSL node.
 
+### Planning graphics caches
+
+After setting the application name, call `Engine.planGraphicsCaches()` to check material outputs and the default shader programs together. It returns a Lua-only `Engine.GraphicsCachePlan`. Repeated calls in the same Lua runtime share an active plan. Poll `getStatus()` on successive frames.
+
+| Status | Action |
+|---|---|
+| `"planning"` | Wait for the input and cache checks to finish. |
+| `"planned"` | Read `needsMaterialExport()` and `needsShaderCompilation()` to choose the progress labels. Call `startMaterials()` even on a cache hit. |
+| `"materials"` | Material publication is in progress. |
+| `"materialsReady"` | Call `startShaders()`. Cache hits still need to restore the prepared shader programs. |
+| `"shaders"` | Shader restoration or compilation is in progress. |
+| `"ready"` | Call `getResult()` to finish. |
+| `"failed"` or `"cancelled"` | `getResult()` raises the stored failure or the cancellation state error. |
+
+`getProgress()` returns the current execution stage's fraction from 0 to 1. Start each stage only from its waiting state. Read the two work flags after planning succeeds. The plan holds the graphics preparation lock while waiting in `"planned"` and `"materialsReady"`. Other preparations must wait. If you abandon the plan or leave the scene early, call `cancel()` to stop its worker and release the lock. For custom stage combinations, use the [shader preparation API](#shader-preparation-in-mrb).
+
 ### Material cache preparation
 
 `Engine.prepareMaterialCache()` starts background preparation and returns an `Engine.MaterialCacheRequest`. These APIs are Lua-only and create no Blueprint nodes. Call it after setting the application name and finish preparation before constructing material-dependent graphics. It generates GLSL and runtime metadata; it does not precompile GPU programs.
@@ -134,7 +150,7 @@ Poll from successive frames so the initialisation screen can update, then call `
 
 ### Shader preparation in MRB
 
-`Engine.prepareShaderCache(additionalPrograms = {})` returns an `Engine.ShaderCacheRequest`. It is Lua-only and creates no Blueprint node. Call it after the application name and material cache are ready, before loading game shaders or constructing graphics that require them. The default `SceneInit` already performs this step. The request uses the same `getStatus`, `getProgress`, `getResult` and `cancel` contract as [material preparation](#material-cache-preparation).
+`Engine.prepareShaderCache(additionalPrograms = {})` returns an `Engine.ShaderCacheRequest`. It is Lua-only and creates no Blueprint node. Call it after the application name and material cache are ready, before loading game shaders or constructing graphics that require them. The default `SceneInit` prepares its programs through the [graphics cache plan](#planning-graphics-caches). The request uses the same `getStatus`, `getProgress`, `getResult` and `cancel` contract as [material preparation](#material-cache-preparation).
 
 `additionalPrograms` is an array of path arrays. Each inner array declares one program, with stages identified by `.vert`, `.geom` and `.frag`; paths use `/Game/Assets/...` and retain source suffixes for encrypted assets. The default preparation covers engine programs, material passes, ordinary standalone assets and matching-name vertex/fragment pairs. Register a different pairing, a complete geometry program, or a stage that must also be loaded independently from its matching-name pair in `additionalPrograms`. Explicit declarations take precedence: their paths are excluded from automatic pairing and single-stage inference, so declare every full or independent program you intend to load. Duplicate program declarations are deduplicated. While a request is pending, another call with the same program list reuses it; reordering paths or repeating identical program declarations does not change that list. A different list is rejected rather than merged into the running request. Unsupported geometry stages fail on the target backend.
 

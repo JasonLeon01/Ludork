@@ -15,7 +15,7 @@ inventory:mount(uiManager, logicalSize)
 
 Each View exposes `assetKey`, `designSize: sf.Vector2f`, the native `instance: Engine.AssetInstance`, its typed `root`, `controls` holding the native system controls, and `assets` holding the typed child Views. Use `inventory.assets.ItemRow.controls.Label` to access a child's named control. Names remain exact asset-local keys, so use brackets for names that are not Lua identifiers.
 
-Each nested node has its own View and native instance, even when several nodes reference the same asset. Pass the existing child View to its Controller.
+Repeated references within one top-level View reuse the loaded asset definition and source texture. Each nested node still has its own View, native controls, texture rectangle and animation state. Pass that child View to its Controller. A `WrapBox` uses the same resources when its count grows later. Creating a new top-level View or rebuilding a preview snapshot starts a fresh set of resources.
 
 ## Bind business behaviour
 
