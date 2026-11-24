@@ -128,6 +128,12 @@ function WorldGameMapRendering.PrepareViewportAt(self, position)
     assert(self._camera ~= nil, "World viewport preparation requires a camera")
     self._worldTransitionPublishThisTick = true
     self:_syncStreamingCamera()
+    local previousDeferred = self._worldActivationDeferred
+    local _ <close> = setmetatable({}, {
+        __close = function ()
+            self._worldActivationDeferred = previousDeferred
+        end
+    })
     self._worldActivationDeferred = true
     self:_refreshStreamingStates()
     local visibleRect = self:_getVisibleCellRect()
@@ -138,11 +144,7 @@ function WorldGameMapRendering.PrepareViewportAt(self, position)
             initialActiveRegions[#initialActiveRegions + 1] = region
         end
     end
-    for _, region in ipairs(initialActiveRegions) do
-        local regionPosition = sf.Vector2i.new(region.x, region.y)
-        ---@cast regionPosition sf.Vector2i
-        self:ensureRegionLoadedAt(regionPosition)
-    end
+    self:_ensureRegionsLoaded(initialActiveRegions, visibleRect)
     for _, region in ipairs(initialActiveRegions) do
         self:_drainRegionActors(region)
     end
@@ -151,7 +153,7 @@ function WorldGameMapRendering.PrepareViewportAt(self, position)
             self:_prepareWorldRegionRect(region, region.backgroundBuilder, activeRect)
         end
     end
-    self._worldActivationDeferred = false
+    self._worldActivationDeferred = previousDeferred
     for _, region in ipairs(initialActiveRegions) do
         if self._worldStreamingState:getRegionState(region.index) == WorldRegionState.Active then
             self:_syncRegionActorActivation(region)

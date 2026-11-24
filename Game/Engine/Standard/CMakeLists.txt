@@ -24,6 +24,7 @@ else()
         src/Core/Compression.cpp
         src/Core/DataFile.cpp
         src/Core/EncryptedPayload.cpp
+        src/Core/FileWorkers.cpp
         src/Core/Math.cpp
         src/Core/ReadOnlyFileProvider.cpp
         src/Core/Sha256.cpp

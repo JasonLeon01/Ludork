@@ -655,12 +655,8 @@ function WorldRegionBuildState.Create(
         end,
         resolvePendingResources = function ()
             assert(not cancelled, "Cannot resolve resources for a cancelled world region builder")
-            for path, request in pairs(resources.requests) do
-                if request:getStatus() == TextureLoadRequest.PENDING then
-                    TextureManager.load(path)
-                else
-                    request:getTexture()
-                end
+            for _, request in pairs(resources.requests) do
+                request:resolve()
             end
             state.waitingForResources = false
         end,

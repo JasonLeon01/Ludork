@@ -30,7 +30,9 @@ bool precedes(const std::shared_ptr<DecodeTicket>& left,
 }  // namespace
 
 void TextureManagerImpl::ensureWorkersLocked() {
-    while (workers_.size() < WorkerCount) {
+    const auto desired =
+        std::min(workerLimit_, activeDecodes_ + queued_.size() + 1);
+    while (workers_.size() < desired) {
         workers_.emplace_back([this] {
             workerLoop();
         });
@@ -44,7 +46,8 @@ void TextureManagerImpl::workerLoop() {
             std::unique_lock lock(mutex_);
             ludork::standard::BackgroundTask::wait(changed_, lock, [this] {
                 return stopping_ ||
-                       (!queued_.empty() && readyBytes_ < ReadyByteLimit);
+                       (!queued_.empty() && activeDecodes_ < workerLimit_ &&
+                        readyBytes_ < ReadyByteLimit);
             });
             if (stopping_) {
                 return;
@@ -131,7 +134,8 @@ std::shared_ptr<sf::Texture> TextureManagerImpl::resolve(
             }
             entry = state.entry;
             DecodeTicket& ticket = *entry->ticket;
-            if (ticket.stage == LoadStage::Queued) {
+            if (ticket.stage == LoadStage::Queued &&
+                activeDecodes_ < workerLimit_) {
                 removeQueuedLocked(entry->ticket);
                 ticket.stage = LoadStage::Decoding;
                 ++activeDecodes_;
@@ -142,8 +146,10 @@ std::shared_ptr<sf::Texture> TextureManagerImpl::resolve(
             } else {
                 const LoadStage waitingFor = ticket.stage;
                 ludork::standard::BackgroundTask::wait(
-                    changed_, lock, [&state, &ticket, waitingFor] {
-                        return state.cancelled || ticket.stage != waitingFor;
+                    changed_, lock, [this, &state, &ticket, waitingFor] {
+                        return state.cancelled || ticket.stage != waitingFor ||
+                               (waitingFor == LoadStage::Queued &&
+                                activeDecodes_ < workerLimit_);
                     });
             }
         }

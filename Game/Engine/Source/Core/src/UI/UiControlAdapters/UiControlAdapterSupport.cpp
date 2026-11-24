@@ -1,5 +1,6 @@
 #include <UI/TextGradientConfig.hpp>
 #include <CoreShared/TextConfigLimits.hpp>
+#include "TextureLoadScope.hpp"
 #include "UiControlAdapterSupportImpl.hpp"
 #include "UiControlAdapterSupport.hpp"
 #include <Runtime/AssetInputStream.hpp>
@@ -179,16 +180,8 @@ std::shared_ptr<sf::Texture> placeholderTexture() {
 }
 
 std::shared_ptr<sf::Texture> loadTexture(const std::string& assetKey) {
-    if (assetKey.empty()) {
-        return placeholderTexture();
-    }
-    std::unique_ptr<ludork::runtime::AssetInputStream> stream =
-        ludork::runtime::assetStore().open(assetKey);
-    std::shared_ptr<sf::Texture> texture = std::make_shared<sf::Texture>();
-    if (!texture->loadFromStream(*stream)) {
-        throw std::runtime_error("Failed to load UI texture: " + assetKey);
-    }
-    return texture;
+    return assetKey.empty() ? placeholderTexture()
+                            : TextureLoadScope::load(assetKey);
 }
 
 std::shared_ptr<sf::Texture> loadOptionalTexture(const std::string& assetKey) {

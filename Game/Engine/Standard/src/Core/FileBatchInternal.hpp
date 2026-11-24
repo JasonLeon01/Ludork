@@ -6,6 +6,7 @@
 #include <condition_variable>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -16,6 +17,17 @@
 #include <vector>
 
 namespace ludork::standard {
+
+struct ManifestEntry {
+    std::size_t index = 0;
+    std::string category;
+    std::filesystem::path path;
+    std::string relativePath;
+    std::uintmax_t fileSize = 0;
+    bool dataFile = false;
+    bool parseData = false;
+    bool encryptedData = false;
+};
 
 class FileBatchJob {
 public:
@@ -33,8 +45,9 @@ public:
           dataClear(std::move(batchDataClear)) {}
 
     std::mutex mutex;
-    std::condition_variable resultSpace;
+    std::condition_variable resultReady;
     std::vector<FileBatchSpec> specs;
+    std::deque<ManifestEntry> unread;
     std::map<std::size_t, FileBatchItem> results;
     std::optional<FileBatchError> error;
     std::atomic_bool cancellationRequested = false;
@@ -62,24 +75,13 @@ public:
     bool cleared = false;
 };
 
-struct ManifestEntry {
-    std::size_t index = 0;
-    std::string category;
-    std::filesystem::path path;
-    std::string relativePath;
-    std::uintmax_t fileSize = 0;
-    bool dataFile = false;
-    bool parseData = false;
-    bool encryptedData = false;
-};
-
 enum class WorkKind {
     Scan,
     Read,
 };
 
 struct ScanResult {
-    std::vector<ManifestEntry> entries;
+    std::deque<ManifestEntry> entries;
     std::optional<FileBatchError> error;
     bool cancelled = false;
 };

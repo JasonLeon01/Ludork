@@ -43,6 +43,13 @@ struct ShaderCache::Impl {
         const CachedFile* binaryFile = nullptr;
         std::optional<std::string> text;
     };
+    struct ProgramPreparation {
+        Program program;
+        std::vector<StagePreparation> stages;
+        std::string key;
+        std::string translation;
+        bool needsTranslation = false;
+    };
     struct PrewarmTarget {
         std::shared_ptr<sf::rhi::Texture> texture;
         std::shared_ptr<sf::rhi::RenderTarget> target;
@@ -82,7 +89,9 @@ struct ShaderCache::Impl {
     void prepare(const std::filesystem::path& userDataRoot,
                  const std::vector<Program>& inputs, bool encryptSources,
                  bool encryptMetadata, const std::atomic<bool>& stop,
-                 const std::function<void(double)>& progress);
+                 const std::function<void(double)>& progress,
+                 const MaterialProjection* projectedMaterials,
+                 const std::function<void(bool)>& onPlannedWithLocks);
     void savePipelineCache();
 };
 

@@ -1,6 +1,7 @@
 #include "MaterialCacheRequestImpl.hpp"
 
 #include <EncryptedPayload.hpp>
+#include <FileWorkers.hpp>
 #include <LudorkGenerated/EncryptedPayloadConstants.hpp>
 #include <Runtime/CacheFiles.hpp>
 #include <Runtime/Data.hpp>
@@ -66,8 +67,8 @@ bool validStage(const RuntimeData& stage) {
 
 }  // namespace
 
-void MaterialCacheRequest::Impl::preserveShaderArtifacts(
-    const std::filesystem::path& staging,
+void MaterialCacheRequest::Impl::captureShaderArtifacts(
+    MaterialProjection& projection,
     const std::map<std::string, std::string>& sources, bool encryptedRecord,
     const std::atomic<bool>& stop) const {
     RuntimeData record = readShaderRecord(
@@ -86,8 +87,45 @@ void MaterialCacheRequest::Impl::preserveShaderArtifacts(
     if (!programs || !outputs) {
         return;
     }
-    std::map<std::string, std::optional<std::string>> originalHashes;
-    std::set<std::string> retained;
+    std::vector<std::pair<std::string, std::string>> sourceChecks(
+        sources.begin(), sources.end());
+    std::vector<unsigned char> matches(sourceChecks.size());
+    ludork::standard::parallelFiles(sourceChecks.size(), [&](std::size_t i) {
+        checkCancelled(stop);
+        const auto& [source, expected] = sourceChecks[i];
+        const auto relative = source.substr(materialShaders.size());
+        for (const bool cipher : {false, true}) {
+            const auto originalName = relative + (cipher ? "c" : "");
+            const auto path =
+                cacheRoot / ludork::standard::pathFromUtf8(originalName);
+            ludork::runtime::CacheFiles::requireOrdinary(path);
+            if (!std::filesystem::is_regular_file(path)) {
+                continue;
+            }
+            auto bytes = ludork::runtime::CacheFiles::read(path);
+            if (cipher) {
+                try {
+                    bytes = ludork::standard::decodeEncryptedPayload(
+                        {reinterpret_cast<const std::uint8_t*>(bytes.data()),
+                         bytes.size()},
+                        shaderFormat, source);
+                } catch (const std::exception&) {
+                    continue;
+                }
+            }
+            if (ludork::standard::sha256(bytes) == expected) {
+                matches[i] = 1;
+                return;
+            }
+        }
+    });
+    std::set<std::string> reusableSources;
+    for (std::size_t i = 0; i < sourceChecks.size(); ++i) {
+        if (matches[i]) {
+            reusableSources.insert(sourceChecks[i].first);
+        }
+    }
+    std::map<std::string, std::string> candidates;
     for (const auto& [programKey, program] : *programs) {
         static_cast<void>(programKey);
         const auto* stages =
@@ -111,39 +149,7 @@ void MaterialCacheRequest::Impl::preserveShaderArtifacts(
                 continue;
             }
             const std::string relative = source.substr(materialShaders.size());
-            bool sourceMatches = false;
-            for (const bool cipher : {false, true}) {
-                checkCancelled(stop);
-                const std::string originalName = relative + (cipher ? "c" : "");
-                const auto [original, inserted] =
-                    originalHashes.try_emplace(originalName);
-                if (inserted) {
-                    const auto path =
-                        cacheRoot /
-                        ludork::standard::pathFromUtf8(originalName);
-                    ludork::runtime::CacheFiles::requireOrdinary(path);
-                    if (std::filesystem::is_regular_file(path)) {
-                        std::string bytes =
-                            ludork::runtime::CacheFiles::read(path);
-                        try {
-                            if (cipher) {
-                                bytes =
-                                    ludork::standard::decodeEncryptedPayload(
-                                        {reinterpret_cast<const std::uint8_t*>(
-                                             bytes.data()),
-                                         bytes.size()},
-                                        shaderFormat, source);
-                            }
-                            original->second = ludork::standard::sha256(bytes);
-                        } catch (const std::exception&) {}
-                    }
-                }
-                if (original->second && *original->second == expected->second) {
-                    sourceMatches = true;
-                    break;
-                }
-            }
-            if (!sourceMatches) {
+            if (!reusableSources.contains(source)) {
                 continue;
             }
             for (const auto& fields : {std::pair("target", "targetHash"),
@@ -152,7 +158,7 @@ void MaterialCacheRequest::Impl::preserveShaderArtifacts(
                 const std::string logical = cacheText(stage, fields.first);
                 const std::string hash = cacheText(stage, fields.second);
                 if (!logical.starts_with(materialShaders) ||
-                    retained.contains(logical)) {
+                    candidates.contains(logical)) {
                     continue;
                 }
                 const std::string artifact =
@@ -167,22 +173,35 @@ void MaterialCacheRequest::Impl::preserveShaderArtifacts(
                     *owner->second.getIf<std::string>() != hash) {
                     continue;
                 }
-                const auto path =
-                    cacheRoot / ludork::standard::pathFromUtf8(artifact);
-                ludork::runtime::CacheFiles::requireOrdinary(path);
-                if (!std::filesystem::is_regular_file(path) ||
-                    ludork::standard::sha256(
-                        ludork::runtime::CacheFiles::read(path)) != hash) {
-                    continue;
-                }
-                const auto destination =
-                    staging / ludork::standard::pathFromUtf8(artifact);
-                std::filesystem::create_directories(destination.parent_path());
-                std::filesystem::copy_file(path, destination);
-                std::filesystem::last_write_time(
-                    destination, std::filesystem::last_write_time(path));
-                retained.insert(logical);
+                candidates.emplace(logical, hash);
             }
+        }
+    }
+    const std::vector<std::pair<std::string, std::string>> checks(
+        candidates.begin(), candidates.end());
+    std::vector<std::optional<MaterialProjection::Artifact>> artifacts(
+        checks.size());
+    ludork::standard::parallelFiles(checks.size(), [&](std::size_t i) {
+        checkCancelled(stop);
+        const auto& [logical, hash] = checks[i];
+        const auto path =
+            cacheRoot / ludork::standard::pathFromUtf8(
+                            logical.substr(materialShaders.size()));
+        ludork::runtime::CacheFiles::requireOrdinary(path);
+        if (!std::filesystem::is_regular_file(path)) {
+            return;
+        }
+        auto bytes = ludork::runtime::CacheFiles::read(path);
+        if (ludork::standard::sha256(bytes) == hash) {
+            artifacts[i].emplace(MaterialProjection::Artifact{
+                std::move(bytes), hash,
+                std::filesystem::last_write_time(path)});
+        }
+    });
+    for (std::size_t i = 0; i < checks.size(); ++i) {
+        if (artifacts[i]) {
+            projection.artifacts.emplace(checks[i].first,
+                                         std::move(*artifacts[i]));
         }
     }
 }

@@ -16,10 +16,26 @@
 #include <Runtime/Data.hpp>
 
 #include <algorithm>
-#include <functional>
 #include <stdexcept>
 #include <unordered_set>
 #include <utility>
+
+namespace ludork::engine::ui_asset_runtime_impl {
+
+const RuntimeData& BuildContext::Resources::loadAsset(
+    const std::string& assetKey) {
+    if (const auto found = assets.find(assetKey); found != assets.end()) {
+        return found->second;
+    }
+    if (snapshot) {
+        throw std::out_of_range("UI asset snapshot dependency not found: " +
+                                assetKey);
+    }
+    return assets.emplace(assetKey, loadData(assetPath(assetKey)))
+        .first->second;
+}
+
+}  // namespace ludork::engine::ui_asset_runtime_impl
 
 namespace {
 
@@ -117,7 +133,6 @@ UiCanvasSlotData parseCanvasSlot(const RuntimeData& value,
     return result;
 }
 
-using ludork::engine::ui_asset_runtime_impl::assetPath;
 using ludork::engine::ui_asset_runtime_impl::validateLogicalAssetKey;
 
 std::string assetReferenceChain(
@@ -322,9 +337,10 @@ std::shared_ptr<UiRuntimeNode> buildNode(
         }
         const std::string childAssetKey = nestedAssetKey(result->controlId);
         static_cast<void>(validateLogicalAssetKey(childAssetKey));
-        const RuntimeData childAsset = [&context, &childAssetKey]() {
+        const RuntimeData& childAsset =
+            [&context, &childAssetKey]() -> const RuntimeData& {
             try {
-                return context.loader(childAssetKey);
+                return context.resources->loadAsset(childAssetKey);
             } catch (const std::exception& exception) {
                 throw std::out_of_range(
                     "Unable to load nested UI asset " +
@@ -356,6 +372,8 @@ std::shared_ptr<UiRuntimeNode> buildNode(
                     " for " + result->controlId);
             }
         }
+        const ui_control_adapter_detail::TextureLoadScope textureScope(
+            context.resources->textures);
         result->control = registry.create(
             result->controlId,
             registry.parseProperties(result->controlId, properties,
@@ -385,11 +403,8 @@ std::shared_ptr<UiRuntimeNode> buildNode(
             templateNode.erase("slot");
             auto factory = [templateNode = RuntimeData(std::move(templateNode)),
                             templateSource, assetKey = impl.assetKey,
-                            loader = context.loader,
-                            designMode = context.designMode,
-                            assetStack = context.assetStack]() {
-                ludork::engine::ui_asset_runtime_impl::BuildContext
-                    templateContext{loader, designMode, assetStack};
+                            context]() {
+                auto templateContext = context;
                 return buildTemplateInstance(templateNode, templateSource,
                                              assetKey, templateContext);
             };
@@ -513,11 +528,8 @@ std::shared_ptr<UiAssetInstanceState> buildAsset(
 }
 
 std::shared_ptr<UiAssetInstance> instantiateLoadedAsset(
-    const ludork::engine::ui_asset_runtime_impl::AssetLoader& loader,
-    const std::string& assetKey, std::optional<sf::Vector2u> logicalSize,
-    bool designMode) {
-    ludork::engine::ui_asset_runtime_impl::BuildContext context{
-        loader, designMode, {}};
+    ludork::engine::ui_asset_runtime_impl::BuildContext context,
+    const std::string& assetKey, std::optional<sf::Vector2u> logicalSize) {
     std::optional<sf::Vector2f> size;
     if (logicalSize.has_value()) {
         if (logicalSize->x == 0 || logicalSize->y == 0) {
@@ -527,7 +539,7 @@ std::shared_ptr<UiAssetInstance> instantiateLoadedAsset(
         size = sf::Vector2f{static_cast<float>(logicalSize->x),
                             static_cast<float>(logicalSize->y)};
     }
-    const RuntimeData asset = loader(assetKey);
+    const RuntimeData& asset = context.resources->loadAsset(assetKey);
     return std::shared_ptr<UiAssetInstance>(
         new UiAssetInstance(buildAsset(asset, assetKey, context, size)));
 }
@@ -543,11 +555,7 @@ std::shared_ptr<UiAssetInstance> UiAssetRuntime::instantiate(
     const std::string& assetKey,
     std::optional<sf::Vector2u> logicalSize) const {
     static_cast<void>(validateLogicalAssetKey(assetKey));
-    ludork::engine::ui_asset_runtime_impl::AssetLoader loader =
-        [](const std::string& requestedKey) {
-            return loadData(assetPath(requestedKey));
-        };
-    return instantiateLoadedAsset(loader, assetKey, logicalSize, false);
+    return instantiateLoadedAsset({}, assetKey, logicalSize);
 }
 
 std::shared_ptr<UiAssetInstance> UiAssetRuntime::instantiateSnapshot(
@@ -559,20 +567,12 @@ std::shared_ptr<UiAssetInstance> UiAssetRuntime::instantiateSnapshot(
         static_cast<void>(dependency);
         static_cast<void>(validateLogicalAssetKey(dependencyKey));
     }
-    ludork::engine::ui_asset_runtime_impl::AssetLoader loader =
-        [asset, assetKey,
-         dependencies](const std::string& requestedKey) -> RuntimeData {
-        if (requestedKey == assetKey) {
-            return asset;
-        }
-        const auto dependency = dependencies.find(requestedKey);
-        if (dependency == dependencies.end()) {
-            throw std::out_of_range("UI asset snapshot dependency not found: " +
-                                    requestedKey);
-        }
-        return dependency->second;
-    };
-    return instantiateLoadedAsset(loader, assetKey, logicalSize, designMode);
+    ludork::engine::ui_asset_runtime_impl::BuildContext context;
+    context.resources->assets = dependencies;
+    context.resources->assets.insert_or_assign(assetKey, asset);
+    context.resources->snapshot = true;
+    context.designMode = designMode;
+    return instantiateLoadedAsset(std::move(context), assetKey, logicalSize);
 }
 
 std::shared_ptr<UiAssetInstance> instantiateUiAsset(

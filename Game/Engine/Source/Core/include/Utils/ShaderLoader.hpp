@@ -5,6 +5,7 @@
 #include <SFML/Graphics/Shader.hpp>
 
 #include <memory>
+#include <map>
 #include <optional>
 #include <string>
 
@@ -33,7 +34,8 @@ public:
     };
 
     static ShaderLoader::ShaderSourceResult readSource(
-        const std::string& shaderPath);
+        const std::string& shaderPath,
+        const std::map<std::string, std::string>* projectedSources = nullptr);
 
     static std::optional<sf::Shader::Type> inferType(
         const std::string& shaderPath);

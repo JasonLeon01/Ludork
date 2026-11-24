@@ -6,8 +6,6 @@ local WorldPublishPhase = require("Enums.WorldPublishPhase")
 local WorldRegionDemand = GlobalCore.WorldRegionDemand
 local WorldRegionState = GlobalCore.WorldRegionState
 
-local STREAM_BATCH_SIZE = 4
-
 ---@return number, number, number, number
 ---@param self WorldGameMapImplState
 local function getVisibleCellBounds(self)
@@ -211,6 +209,13 @@ function WorldGameMapStreaming.CancelExpiredStreamingBatch(self)
     self:_finishStreamingBatch(true)
 end
 
+---@param self   WorldGameMapImplState
+---@param region Global.WorldGameMap.WorldRegionData
+---@return FileBatchSpec
+local function regionSpec(self, region)
+    return { category = tostring(region.index), root = self._worldDataRoot, file = region.map, parseData = true }
+end
+
 ---@param self WorldGameMapImplState
 function WorldGameMapStreaming.StartStreamingBatch(self)
     if self._worldStreamJob ~= nil then
@@ -219,19 +224,14 @@ function WorldGameMapStreaming.StartStreamingBatch(self)
     local specs = {}
     local jobRegions = {}
     local batchRegions = {}
-    for _, regionIndex in ipairs(self._worldStreamingState:takeReadBatch(STREAM_BATCH_SIZE)) do
+    for _, regionIndex in ipairs(self._worldStreamingState:takeReadBatch(asyncio.file_worker_count())) do
         local region = assert(self._worldRegions[regionIndex], "Native world read queue returned an invalid region")
-        local category = tostring(regionIndex)
-        jobRegions[category] = region
-        batchRegions[#batchRegions + 1] = region
-        specs[#specs + 1] = {
-            category = category,
-            root = self._worldDataRoot,
-            suffix = region.map,
-            recursive = false,
-            required = true,
-            parseData = true
-        }
+        if region.viewportRead == nil then
+            local spec = regionSpec(self, region)
+            jobRegions[spec.category] = region
+            batchRegions[#batchRegions + 1] = region
+            specs[#specs + 1] = spec
+        end
     end
     if not bool(specs) then
         return
@@ -241,21 +241,21 @@ function WorldGameMapStreaming.StartStreamingBatch(self)
     self._worldStreamJob = asyncio.start_file_batch(specs)
 end
 
----@param item FileBatchItem
----@param self WorldGameMapImplState
-function WorldGameMapStreaming.ConsumeStreamingItem(self, item)
-    local region = self._worldStreamJobRegions[item.category]
+---@param self          WorldGameMapImplState
+---@param region        Global.WorldGameMap.WorldRegionData | nil
+---@param item          FileBatchItem
+---@param forceActivate boolean
+---@param priorityRect  Global.WorldGeometry.CellRect | nil
+local function consumeRegionItem(self, region, item, forceActivate, priorityRect)
     local conversion = assert(item.conversion, "World region JSON conversion is unavailable")
     local contentBytes = assert(item.contentBytes, "World region JSON byte size is unavailable")
-    if region == nil or item.relativePath ~= region.map then
+    if region == nil or item.category ~= tostring(region.index) or item.relativePath ~= region.map then
         asyncio.clear_file_batch_data(conversion)
         error("World region file batch returned an unexpected item: " .. item.relativePath)
     end
     if region.payload == nil then
-        if self:_isRegionDemanded(region) then
-            self:_beginRegionConversion(
-                region, conversion, contentBytes, false, self._camera ~= nil and self:_getVisibleCellRect() or nil
-            )
+        if forceActivate or self:_isRegionDemanded(region) then
+            self:_beginRegionConversion(region, conversion, contentBytes, forceActivate, priorityRect)
         else
             asyncio.clear_file_batch_data(conversion)
             self._worldStreamingState:cancelRead(region.index, false)
@@ -263,7 +263,134 @@ function WorldGameMapStreaming.ConsumeStreamingItem(self, item)
     else
         asyncio.clear_file_batch_data(conversion)
     end
-    self._worldStreamJobRegions[item.category] = nil
+end
+
+---@param self          WorldGameMapImplState
+---@param forcedRegion? Global.WorldGameMap.WorldRegionData
+---@param priorityRect? Global.WorldGeometry.CellRect
+---@return boolean
+local function pollStreamingBatch(self, forcedRegion, priorityRect)
+    local job = assert(self._worldStreamJob)
+    local pollStarted = perfCounter()
+    local snapshot = asyncio.poll_file_batch(job, 1, forcedRegion ~= nil)
+    local item = snapshot.items[1]
+    if item ~= nil then
+        self._worldPublishMilliseconds = self._worldPublishMilliseconds + (perfCounter() - pollStarted) * 1000.0
+        local region = self._worldStreamJobRegions[item.category]
+        consumeRegionItem(
+            self, region, item, forcedRegion ~= nil and region == forcedRegion,
+            priorityRect or (self._camera ~= nil and self:_getVisibleCellRect() or nil)
+        )
+        self._worldStreamJobRegions[item.category] = nil
+    end
+    if snapshot.state == asyncio.FILE_BATCH_FAILED then
+        local errorData = snapshot.error
+        local failedRegion = errorData ~= nil and self._worldStreamJobRegions[errorData.category] or nil
+        local required = failedRegion ~= nil and (failedRegion == forcedRegion or self:_isRegionDemanded(failedRegion))
+            or failedRegion == nil and (forcedRegion ~= nil or self:_streamBatchHasDemand())
+        self:_finishStreamingBatch(not required)
+        if required then
+            error(FileBatch.FormatError(errorData))
+        end
+        return true
+    end
+    if snapshot.state == asyncio.FILE_BATCH_CANCELLED then
+        for _, region in ipairs(self._worldStreamBatchRegions) do
+            self:_cancelRegionPublish(region)
+        end
+        self:_finishStreamingBatch(true)
+        return true
+    end
+    if snapshot.state == asyncio.FILE_BATCH_COMPLETED and snapshot.drained then
+        for _, region in pairs(self._worldStreamJobRegions) do
+            assert(
+                region.payload ~= nil or not self:_isRegionDemanded(region),
+                "World region was not read: " .. region.path
+            )
+        end
+        self:_finishStreamingBatch(true)
+        return true
+    end
+    return item ~= nil
+end
+
+---@param self         WorldGameMapImplState
+---@param region       Global.WorldGameMap.WorldRegionData
+---@param priorityRect Global.WorldGeometry.CellRect
+local function waitForViewportRead(self, region, priorityRect)
+    while region.viewportRead ~= nil do
+        local job = region.viewportRead
+        local snapshot = asyncio.poll_file_batch(job, 1, true)
+        if snapshot.state == asyncio.FILE_BATCH_FAILED then
+            error(FileBatch.FormatError(snapshot.error))
+        end
+        local item = assert(snapshot.items[1], "World region was not read: " .. region.path)
+        local delivered = assert(self._worldRegions[assert(tonumber(item.category))])
+        assert(delivered.viewportRead == job, "Unexpected viewport file batch item: " .. item.relativePath)
+        consumeRegionItem(self, delivered, item, true, priorityRect)
+        delivered.viewportRead = nil
+    end
+end
+
+---@param self         WorldGameMapImplState
+---@param regions      Global.WorldGameMap.WorldRegionData[]
+---@param priorityRect Global.WorldGeometry.CellRect
+function WorldGameMapStreaming.EnsureRegionsLoaded(self, regions, priorityRect)
+    local specs = {}
+    local scheduled = {}
+    for _, region in ipairs(regions) do
+        if region.payload == nil and region.publishState == nil and region.viewportRead == nil
+            and self._worldStreamJobRegions[tostring(region.index)] == nil then
+            specs[#specs + 1] = regionSpec(self, region)
+            scheduled[#scheduled + 1] = region
+        end
+    end
+    local job = #specs > 0 and asyncio.start_file_batch(specs) or nil
+    for _, region in ipairs(scheduled) do
+        region.viewportRead = job
+    end
+    local publishing
+    local _ <close> = setmetatable({}, {
+        __close = function (_, failure)
+            if failure == nil then
+                return
+            end
+            if job ~= nil then
+                asyncio.cancel_file_batch(job)
+                for _, region in ipairs(scheduled) do
+                    region.viewportRead = nil
+                    self:_cancelRegionPublish(region)
+                    if region.payload == nil then
+                        self._worldStreamingState:cancelRead(region.index, true)
+                    end
+                end
+            end
+            if publishing ~= nil then
+                self:_cancelRegionPublish(publishing)
+            end
+        end
+    })
+    for _, region in ipairs(regions) do
+        waitForViewportRead(self, region, priorityRect)
+        while self._worldStreamJobRegions[tostring(region.index)] ~= nil do
+            pollStreamingBatch(self, region, priorityRect)
+        end
+        if region.payload ~= nil then
+            self:_activateRegion(region)
+        else
+            publishing = region
+            if region.publishState == nil then
+                -- An obsolete sibling failure may have cancelled this in-flight read.
+                self:_beginRegionPublish(
+                    region, Engine.loadData(os.path.join(self._worldDataRoot, region.map)), true, priorityRect
+                )
+            else
+                region.publishState.forceActivate = true
+            end
+            self:_drainRegionPublish(region)
+            publishing = nil
+        end
+    end
 end
 
 ---@param self                 WorldGameMapImplState
@@ -281,50 +408,9 @@ function WorldGameMapStreaming.PumpStreaming(self, publishBudgetSeconds)
         if self._worldStreamJob == nil then
             break
         end
-        local pollStarted = perfCounter()
-        local snapshot = asyncio.poll_file_batch(self._worldStreamJob, 1)
-        local item = snapshot.items ~= nil and snapshot.items[1] or nil
-        if item ~= nil then
-            self._worldPublishMilliseconds = self._worldPublishMilliseconds + (perfCounter() - pollStarted) * 1000.0
-            self:_consumeStreamingItem(item)
-        end
-        if snapshot.state == asyncio.FILE_BATCH_FAILED then
-            local errorData = snapshot.error
-            local failedRegion = errorData ~= nil and self._worldStreamJobRegions[errorData.category] or nil
-            local failedRegionDemanded = failedRegion ~= nil and self:_isRegionDemanded(failedRegion)
-            if failedRegionDemanded or failedRegion == nil and self:_streamBatchHasDemand() then
-                local message = FileBatch.FormatError(errorData)
-                asyncio.cancel_file_batch(self._worldStreamJob)
-                self:_finishStreamingBatch(false)
-                error(message)
-            end
-            if failedRegion ~= nil and failedRegion.payload == nil and failedRegion.publishState == nil then
-                self._worldStreamingState:cancelRead(failedRegion.index, false)
-            end
-            asyncio.cancel_file_batch(self._worldStreamJob)
-            self:_finishStreamingBatch(true)
-            self:_startStreamingBatch()
-        elseif snapshot.state == asyncio.FILE_BATCH_CANCELLED then
-            for _, region in ipairs(self._worldStreamBatchRegions) do
-                self:_cancelRegionPublish(region)
-            end
-            self:_finishStreamingBatch(true)
-            self:_startStreamingBatch()
-        else
-            if snapshot.state == asyncio.FILE_BATCH_COMPLETED and snapshot.drained then
-                for _, region in pairs(self._worldStreamJobRegions) do
-                    assert(
-                        region.payload ~= nil or not self:_isRegionDemanded(region),
-                        "World region was not read: " .. region.path
-                    )
-                end
-                self:_finishStreamingBatch(true)
-                self:_startStreamingBatch()
-            end
-        end
+        local progressed = pollStreamingBatch(self)
         self:_pumpRegionPublishing(deadline, waitingBuilders)
-        if item == nil and snapshot.state ~= asyncio.FILE_BATCH_COMPLETED
-            and snapshot.state ~= asyncio.FILE_BATCH_CANCELLED and snapshot.state ~= asyncio.FILE_BATCH_FAILED then
+        if not progressed then
             break
         end
     end

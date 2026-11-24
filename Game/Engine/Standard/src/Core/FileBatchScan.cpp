@@ -50,6 +50,42 @@ bool jsonSuffix(std::string_view suffix) {
     return suffixMatches(suffix, ludork::generated::resources::DataExtension);
 }
 
+void appendExactFile(const FileBatchSpec& spec, ScanResult& result) {
+    std::filesystem::path path = spec.root / spec.file;
+    try {
+        const std::string relativePath = pathToGenericUtf8(spec.file);
+        if (jsonSuffix(relativePath)) {
+            path = resolveDataPath(path);
+        }
+        const ReadOnlyFileStatus status = readOnlyFileStatus(path);
+        std::error_code error;
+        std::uintmax_t size = status.size;
+        if (!status.handled) {
+            size = std::filesystem::file_size(path, error);
+        } else if (status.type != ReadOnlyFileType::Regular) {
+            error =
+                std::make_error_code(status.type == ReadOnlyFileType::Missing
+                                         ? std::errc::no_such_file_or_directory
+                                         : std::errc::is_a_directory);
+        }
+        if (error) {
+            if (spec.required ||
+                error != std::errc::no_such_file_or_directory) {
+                result.error = filesystemError("scan", spec, path, error);
+            }
+            return;
+        }
+        const bool encrypted =
+            path.extension() ==
+            ludork::generated::resources::EncryptedDataExtension;
+        result.entries.push_back(
+            {result.entries.size() + 1, spec.category, path, relativePath, size,
+             jsonSuffix(relativePath) || encrypted, spec.parseData, encrypted});
+    } catch (const std::exception& exception) {
+        result.error = providerError("scan", spec, path, exception.what());
+    }
+}
+
 template <typename Iterator>
 bool appendDirectoryEntries(const FileBatchSpec& spec,
                             const std::shared_ptr<FileBatchJob>& job,
@@ -225,11 +261,17 @@ bool appendReadOnlyDirectoryEntries(const FileBatchSpec& spec,
 
 ScanResult scanManifest(const std::shared_ptr<FileBatchJob>& job) {
     ScanResult result;
-    std::size_t nextIndex = 1;
     for (const FileBatchSpec& spec : job->specs) {
         if (job->cancellationRequested.load(std::memory_order_relaxed)) {
             result.cancelled = true;
             return result;
+        }
+        if (!spec.file.empty()) {
+            appendExactFile(spec, result);
+            if (result.error) {
+                return result;
+            }
+            continue;
         }
         std::vector<ManifestEntry> specEntries;
         FileBatchError scanError;
@@ -327,7 +369,7 @@ ScanResult scanManifest(const std::shared_ptr<FileBatchJob>& job) {
                 }),
             specEntries.end());
         for (ManifestEntry& entry : specEntries) {
-            entry.index = nextIndex++;
+            entry.index = result.entries.size() + 1;
             result.entries.push_back(std::move(entry));
         }
     }

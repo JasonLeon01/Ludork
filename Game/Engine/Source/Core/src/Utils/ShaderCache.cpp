@@ -12,6 +12,8 @@
 namespace {
 
 std::mutex requestMutex;
+std::unordered_map<lua_State*, std::weak_ptr<ludork::engine::GraphicsCachePlan>>
+    plans;
 std::unordered_map<
     lua_State*,
     std::pair<std::vector<std::vector<std::string>>,
@@ -19,14 +21,22 @@ std::unordered_map<
     requests;
 
 void shutdownShaderCache(lua_State* state) noexcept {
+    std::shared_ptr<ludork::engine::GraphicsCachePlan> plan;
     std::shared_ptr<ludork::engine::shaders::ShaderCacheRequest> request;
     {
         std::lock_guard lock(requestMutex);
+        if (const auto found = plans.find(state); found != plans.end()) {
+            plan = found->second.lock();
+            plans.erase(found);
+        }
         const auto found = requests.find(state);
         if (found != requests.end()) {
             request = found->second.second.lock();
             requests.erase(found);
         }
+    }
+    if (plan) {
+        plan->cancel();
     }
     if (request) {
         request->cancel();
@@ -64,4 +74,22 @@ std::shared_ptr<ludork::engine::shaders::ShaderCacheRequest> prepareShaderCache(
         root, additionalPrograms);
     active = {std::move(normalized), request};
     return request;
+}
+
+std::shared_ptr<ludork::engine::GraphicsCachePlan> planGraphicsCaches() {
+    ludork::runtime::RuntimeScope runtime;
+    const auto root = ludork::standard::pathFromUtf8(getUserDataPath());
+    ludork::standard::registerRuntimeCleanup(runtime.state(),
+                                             shutdownShaderCache);
+    std::lock_guard lock(requestMutex);
+    auto& active = plans[runtime.state()];
+    if (auto existing = active.lock()) {
+        const auto status = existing->getStatus();
+        if (status != "ready" && status != "failed" && status != "cancelled") {
+            return existing;
+        }
+    }
+    auto plan = std::make_shared<ludork::engine::GraphicsCachePlan>(root);
+    active = plan;
+    return plan;
 }

@@ -590,6 +590,7 @@ function asyncio.await(operation) end
 ---@class FileBatchSpec
 ---@field category       string
 ---@field root           string
+---@field file?          string  Exact relative file under root, in place of directory scan options.
 ---@field suffix?        string
 ---@field excludeSuffix? string
 ---@field recursive?     boolean
@@ -625,14 +626,19 @@ function asyncio.await(operation) end
 ---@field items     FileBatchItem[]
 ---@field error?    FileBatchError
 
+---@brief Maximum number of independent file reads for this process.
+---@return integer
+function asyncio.file_worker_count() end
+
 ---@param specs FileBatchSpec[]
 ---@return FileBatchJob
 function asyncio.start_file_batch(specs) end
 
----@param job       FileBatchJob
----@param maxItems? integer
+---@param job          FileBatchJob
+---@param maxItems?    integer
+---@param waitForItem? boolean      Wait for the next ordered item or a terminal state when maxItems is positive.
 ---@return FileBatchSnapshot
-function asyncio.poll_file_batch(job, maxItems) end
+function asyncio.poll_file_batch(job, maxItems, waitForItem) end
 
 ---@param job FileBatchJob
 ---@return boolean

@@ -37,6 +37,11 @@ public:
     BIND_METHOD(metadata = false, nonnull_return = true)
     std::shared_ptr<sf::Texture> getTexture() const;
 
+    /// Finish loading and uploading this request synchronously. Failed and
+    /// cancelled requests raise their errors.
+    BIND_METHOD(metadata = false, nonnull_return = true)
+    std::shared_ptr<sf::Texture> resolve() const;
+
     /// Change the priority of this pending subscription. Larger values run
     /// first.
     BIND_METHOD(metadata = false)

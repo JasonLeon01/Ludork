@@ -27,6 +27,10 @@ std::shared_ptr<sf::Texture> TextureLoadRequest::getTexture() const {
     return impl_->texture(*state_);
 }
 
+std::shared_ptr<sf::Texture> TextureLoadRequest::resolve() const {
+    return impl_->resolve(*state_);
+}
+
 void TextureLoadRequest::setPriority(int priority) {
     impl_->setPriority(*state_, priority);
 }

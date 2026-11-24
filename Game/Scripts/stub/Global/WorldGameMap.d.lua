@@ -12,6 +12,7 @@
 ---@field wasActive             boolean
 ---@field wakeTags              table<string, number> | nil
 ---@field publishState          Global.WorldGameMap.RegionPublishState | nil
+---@field viewportRead?         FileBatchJob
 ---@field backgroundBuilder     Global.WorldGameMap.RegionBuildState | nil
 ---@field geometryRevision      integer | nil
 ---@field lightingRevision      integer | nil

@@ -3,6 +3,7 @@
 #include <CoreMinimal.hpp>
 
 #include <EngineRuntimeApi.hpp>
+#include <Graphics/GraphicsCachePlan.hpp>
 #include <Graphics/Materials/MaterialCacheRequest.hpp>
 #include <Graphics/Shaders/ShaderCacheRequest.hpp>
 
@@ -25,6 +26,12 @@ BIND_FUNCTION(name = "prepareMaterialCache", metadata = false,
               nonnull_return = true)
 std::shared_ptr<ludork::engine::materials::MaterialCacheRequest>
 prepareMaterialCache();
+
+/// Plan material export and shader compilation together before displaying
+/// startup progress.
+BIND_FUNCTION(name = "planGraphicsCaches", metadata = false,
+              nonnull_return = true)
+std::shared_ptr<ludork::engine::GraphicsCachePlan> planGraphicsCaches();
 
 /// Translate and prepare all game shader programs after material generation.
 BIND_FUNCTION(name = "prepareShaderCache", metadata = false,

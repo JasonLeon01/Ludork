@@ -27,6 +27,7 @@ enum class FileBatchState {
 struct FileBatchSpec {
     std::string category;
     std::filesystem::path root;
+    std::filesystem::path file;
     std::string suffix;
     std::string excludeSuffix;
     bool recursive = false;
@@ -75,7 +76,7 @@ public:
 
     std::shared_ptr<FileBatchJob> start(std::vector<FileBatchSpec> specs);
     FileBatchSnapshot poll(const std::shared_ptr<FileBatchJob>& job,
-                           std::size_t maximum);
+                           std::size_t maximum, bool waitForItem);
     bool cancel(const std::shared_ptr<FileBatchJob>& job);
     void release(const std::shared_ptr<FileBatchJob>& job) noexcept;
     void shutdown() noexcept;

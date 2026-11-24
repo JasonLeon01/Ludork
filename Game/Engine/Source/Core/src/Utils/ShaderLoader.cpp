@@ -113,10 +113,27 @@ ShaderLoader::ShaderSourceResult decodeShader(
     }
 }
 
-ShaderLoader::ShaderSourceResult readShaderSource(const std::string& value) {
+ShaderLoader::ShaderSourceResult readShaderSource(
+    const std::string& value,
+    const std::map<std::string, std::string>* projectedSources) {
     const auto candidates = shaderCandidates(value);
     try {
-        const auto source = ludork::runtime::assetStore().readFirst(candidates);
+        std::optional<ludork::runtime::AssetStore::AssetContents> source;
+        if (projectedSources &&
+            value.starts_with(ludork::runtime::graphics::ShaderCache::
+                                  MaterialProjection::Prefix)) {
+            for (const auto& candidate : candidates) {
+                if (auto found = projectedSources->find(candidate);
+                    found != projectedSources->end()) {
+                    source.emplace(ludork::runtime::AssetStore::AssetContents{
+                        candidate,
+                        {found->second.begin(), found->second.end()}});
+                    break;
+                }
+            }
+        } else {
+            source = ludork::runtime::assetStore().readFirst(candidates);
+        }
         if (!source) {
             return {{}, value, "Shader file not found: " + value};
         }
@@ -176,8 +193,9 @@ ShaderLoadResult loadProgram(
 }  // namespace
 
 ShaderLoader::ShaderSourceResult ShaderLoader::readSource(
-    const std::string& shaderPath) {
-    auto result = readShaderSource(shaderPath);
+    const std::string& shaderPath,
+    const std::map<std::string, std::string>* projectedSources) {
+    auto result = readShaderSource(shaderPath, projectedSources);
     if (result) {
         const std::string marker = "// LUDORK_SCENE_LIGHTING";
         const auto position = result.source.find(marker);

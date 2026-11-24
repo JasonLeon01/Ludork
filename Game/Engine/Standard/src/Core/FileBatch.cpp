@@ -1,4 +1,5 @@
 #include "FileBatchRuntimeImpl.hpp"
+#include <FileWorkers.hpp>
 
 #include <algorithm>
 #include <atomic>
@@ -6,7 +7,7 @@
 #include <memory>
 #include <mutex>
 #include <stdexcept>
-#include <thread>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -40,10 +41,7 @@ bool isTerminal(FileBatchState state) {
 
 }  // namespace
 
-FileBatchRuntime::Impl::Impl() {
-    const unsigned int detected = std::thread::hardware_concurrency();
-    workerCount_ = std::min(4U, std::max(1U, detected));
-}
+FileBatchRuntime::Impl::Impl() : workerCount_(fileWorkerCount()) {}
 
 FileBatchRuntime::Impl::~Impl() {
     clearData();
@@ -62,15 +60,15 @@ std::shared_ptr<FileBatchJob> FileBatchRuntime::Impl::start(
             "file batch data conversion is not configured");
     }
     std::shared_ptr<FileBatchJob> job = std::make_shared<FileBatchJob>(
-        std::move(specs), static_cast<std::size_t>(workerCount_) * 2,
-        std::move(callbacks.parser), std::move(callbacks.begin),
-        std::move(callbacks.step), std::move(callbacks.clear));
+        std::move(specs), workerCount_ * 2, std::move(callbacks.parser),
+        std::move(callbacks.begin), std::move(callbacks.step),
+        std::move(callbacks.clear));
     {
         std::lock_guard<std::mutex> queueLock(queueMutex_);
         if (stopping_.load(std::memory_order_acquire)) {
             throw std::runtime_error("async worker is shutting down");
         }
-        ensureWorkersLocked();
+        ensureWorkersLocked(work_.size() + 1);
         {
             std::lock_guard<std::mutex> jobLock(job->mutex);
             job->pendingWork = 1;
@@ -98,6 +96,7 @@ bool FileBatchRuntime::Impl::cancel(const std::shared_ptr<FileBatchJob>& job) {
         discardedResults = !job->results.empty();
         takeParsedDataDisposals(job->results, disposals);
         job->results.clear();
+        job->unread.clear();
         if (isTerminal(job->state) ||
             job->state == FileBatchState::Cancelling) {
         } else {
@@ -120,20 +119,28 @@ bool FileBatchRuntime::Impl::cancel(const std::shared_ptr<FileBatchJob>& job) {
         }
     }
     dataRuntime_.deferDisposals(std::move(disposals));
-    job->resultSpace.notify_all();
+    job->resultReady.notify_all();
     workReady_.notify_all();
     return cancelled || clearedConversion || discardedResults;
 }
 
 FileBatchSnapshot FileBatchRuntime::Impl::poll(
-    const std::shared_ptr<FileBatchJob>& job, std::size_t maximum) {
+    const std::shared_ptr<FileBatchJob>& job, std::size_t maximum,
+    bool waitForItem) {
     BackgroundTask::poll();
     if (!job) {
         throw std::invalid_argument("file batch job is invalid");
     }
     FileBatchSnapshot snapshot;
+    bool refill = false;
     {
-        std::lock_guard<std::mutex> jobLock(job->mutex);
+        std::unique_lock<std::mutex> jobLock(job->mutex);
+        if (waitForItem && maximum != 0) {
+            BackgroundTask::wait(job->resultReady, jobLock, [&job] {
+                return isTerminal(job->state) ||
+                       job->results.contains(job->nextDeliveryIndex);
+            });
+        }
         snapshot.items.reserve(std::min(maximum, job->results.size()));
         while (snapshot.items.size() < maximum) {
             const auto iterator = job->results.find(job->nextDeliveryIndex);
@@ -152,8 +159,18 @@ FileBatchSnapshot FileBatchRuntime::Impl::poll(
         snapshot.error = job->error;
         snapshot.drained = isTerminal(job->state) && job->pendingWork == 0 &&
                            job->results.empty();
+        refill = !snapshot.items.empty() && !job->unread.empty();
     }
-    job->resultSpace.notify_all();
+    if (refill) {
+        std::lock_guard queueLock(queueMutex_);
+        std::lock_guard jobLock(job->mutex);
+        if (job->state == FileBatchState::Running &&
+            !stopping_.load(std::memory_order_acquire)) {
+            queueReadsLocked(job);
+            ensureWorkersLocked(work_.size());
+            workReady_.notify_all();
+        }
+    }
     return snapshot;
 }
 
@@ -168,9 +185,10 @@ void FileBatchRuntime::Impl::release(
         std::lock_guard<std::mutex> jobLock(job->mutex);
         takeParsedDataDisposals(job->results, disposals);
         job->results.clear();
+        job->unread.clear();
     }
     dataRuntime_.deferDisposals(std::move(disposals));
-    job->resultSpace.notify_all();
+    job->resultReady.notify_all();
 }
 
 void FileBatchRuntime::Impl::shutdown() {
@@ -194,11 +212,12 @@ void FileBatchRuntime::Impl::shutdown() {
         {
             std::lock_guard<std::mutex> jobLock(job->mutex);
             job->cancellationRequested.store(true, std::memory_order_release);
+            job->unread.clear();
             if (!isTerminal(job->state)) {
                 job->state = FileBatchState::Cancelling;
             }
         }
-        job->resultSpace.notify_all();
+        job->resultReady.notify_all();
     }
     workReady_.notify_all();
     for (ludork::standard::BackgroundTask& worker : workers_) {
@@ -212,6 +231,7 @@ void FileBatchRuntime::Impl::shutdown() {
         if (job->state == FileBatchState::Cancelling) {
             job->pendingWork = 0;
             job->state = FileBatchState::Cancelled;
+            job->resultReady.notify_all();
         }
     }
 }
@@ -273,15 +293,19 @@ bool FileBatchRuntime::Impl::clearDataConversion(
     return dataRuntime_.clearConversion(conversion);
 }
 
-void FileBatchRuntime::Impl::ensureWorkersLocked() {
-    if (!workers_.empty()) {
-        return;
-    }
-    workers_.reserve(workerCount_);
-    for (unsigned int index = 0; index < workerCount_; ++index) {
-        workers_.emplace_back([this]() {
-            workerLoop();
-        });
+void FileBatchRuntime::Impl::ensureWorkersLocked(std::size_t queued) {
+    const auto desired = std::min(workerCount_, busyWorkers_ + queued);
+    while (workers_.size() < desired) {
+        try {
+            workers_.emplace_back([this] {
+                workerLoop();
+            });
+        } catch (const std::system_error&) {
+            if (workers_.empty()) {
+                throw;
+            }
+            break;
+        }
     }
 }
 
@@ -311,11 +335,16 @@ void FileBatchRuntime::Impl::workerLoop() {
             }
             workItem = std::move(work_.front());
             work_.pop_front();
+            ++busyWorkers_;
         }
         if (workItem.kind == WorkKind::Scan) {
             handleScan(workItem.job);
         } else {
             handleRead(workItem.job, workItem.entry);
+        }
+        {
+            std::lock_guard lock(queueMutex_);
+            --busyWorkers_;
         }
         BackgroundTask::yield();
     }
@@ -355,19 +384,28 @@ void FileBatchRuntime::Impl::handleScan(
             if (job->pendingWork > 0) {
                 --job->pendingWork;
             }
-            job->pendingWork += result.entries.size();
             if (result.entries.empty()) {
                 job->state = FileBatchState::Completed;
             } else {
                 job->state = FileBatchState::Running;
-                for (ManifestEntry& entry : result.entries) {
-                    work_.push_back({WorkKind::Read, job, std::move(entry)});
-                }
+                job->unread = std::move(result.entries);
+                queueReadsLocked(job);
+                ensureWorkersLocked(work_.size() - 1);
             }
         }
     }
-    job->resultSpace.notify_all();
+    job->resultReady.notify_all();
     workReady_.notify_all();
+}
+
+void FileBatchRuntime::Impl::queueReadsLocked(
+    const std::shared_ptr<FileBatchJob>& job) {
+    while (!job->unread.empty() &&
+           job->pendingWork + job->results.size() < job->resultCapacity) {
+        work_.push_back({WorkKind::Read, job, std::move(job->unread.front())});
+        job->unread.pop_front();
+        ++job->pendingWork;
+    }
 }
 
 void FileBatchRuntime::Impl::handleRead(
@@ -388,14 +426,7 @@ void FileBatchRuntime::Impl::handleRead(
         return;
     }
 
-    std::unique_lock<std::mutex> jobLock(job->mutex);
-    ludork::standard::BackgroundTask::wait(
-        job->resultSpace, jobLock, [this, &job, &result]() {
-            return stopping_.load(std::memory_order_acquire) ||
-                   job->cancellationRequested.load(std::memory_order_acquire) ||
-                   job->results.size() < job->resultCapacity ||
-                   result.item->index == job->nextDeliveryIndex;
-        });
+    std::lock_guard jobLock(job->mutex);
     if (stopping_.load(std::memory_order_acquire) ||
         job->cancellationRequested.load(std::memory_order_acquire)) {
         if (job->pendingWork > 0) {
@@ -405,6 +436,7 @@ void FileBatchRuntime::Impl::handleRead(
             job->state = job->pendingWork == 0 ? FileBatchState::Cancelled
                                                : FileBatchState::Cancelling;
         }
+        job->resultReady.notify_all();
         return;
     }
     job->results.emplace(result.item->index, std::move(*result.item));
@@ -412,9 +444,10 @@ void FileBatchRuntime::Impl::handleRead(
     if (job->pendingWork > 0) {
         --job->pendingWork;
     }
-    if (job->pendingWork == 0) {
+    if (job->pendingWork == 0 && job->unread.empty()) {
         job->state = FileBatchState::Completed;
     }
+    job->resultReady.notify_all();
 }
 
 void FileBatchRuntime::Impl::finishCancelledWork(
@@ -428,7 +461,7 @@ void FileBatchRuntime::Impl::finishCancelledWork(
         job->state = job->pendingWork == 0 ? FileBatchState::Cancelled
                                            : FileBatchState::Cancelling;
     }
-    job->resultSpace.notify_all();
+    job->resultReady.notify_all();
 }
 
 void FileBatchRuntime::Impl::finishFailure(
@@ -440,10 +473,11 @@ void FileBatchRuntime::Impl::finishFailure(
     }
     job->state = FileBatchState::Failed;
     job->results.clear();
+    job->unread.clear();
     if (job->pendingWork > 0) {
         --job->pendingWork;
     }
-    job->resultSpace.notify_all();
+    job->resultReady.notify_all();
 }
 
 void FileBatchRuntime::Impl::removeQueuedWork(
@@ -463,7 +497,7 @@ void FileBatchRuntime::Impl::removeQueuedWork(
         job->pendingWork =
             removed >= job->pendingWork ? 0 : job->pendingWork - removed;
     }
-    job->resultSpace.notify_all();
+    job->resultReady.notify_all();
 }
 
 FileBatchRuntime::FileBatchRuntime() : impl_(std::make_unique<Impl>()) {}
@@ -476,8 +510,9 @@ std::shared_ptr<FileBatchJob> FileBatchRuntime::start(
 }
 
 FileBatchSnapshot FileBatchRuntime::poll(
-    const std::shared_ptr<FileBatchJob>& job, std::size_t maximum) {
-    return impl_->poll(job, maximum);
+    const std::shared_ptr<FileBatchJob>& job, std::size_t maximum,
+    bool waitForItem) {
+    return impl_->poll(job, maximum, waitForItem);
 }
 
 bool FileBatchRuntime::cancel(const std::shared_ptr<FileBatchJob>& job) {

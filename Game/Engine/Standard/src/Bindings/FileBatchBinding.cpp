@@ -2,6 +2,7 @@
 #include "Bindings.hpp"
 
 #include "Core/FileBatch.hpp"
+#include <FileWorkers.hpp>
 
 #include <Utf8Path.hpp>
 
@@ -209,13 +210,25 @@ std::vector<FileBatchSpec> readSpecs(const lua_glue::Object& value) {
         spec.recursive = optionalBoolean(specTable, "recursive", false);
         spec.required = optionalBoolean(specTable, "required", true);
         spec.parseData = optionalBoolean(specTable, "parseData", false);
+        const std::string file = optionalString(specTable, "file");
+        if (!file.empty()) {
+            spec.file = pathFromUtf8(file).lexically_normal();
+            if (spec.file.has_root_path() || !spec.file.has_filename() ||
+                spec.file == "." || *spec.file.begin() == ".." ||
+                !spec.suffix.empty() || !spec.excludeSuffix.empty() ||
+                spec.recursive) {
+                throw std::invalid_argument(
+                    "file batch file must be a relative file under root "
+                    "without directory scan options");
+            }
+        }
+        const std::string& selection = file.empty() ? spec.suffix : file;
         if (spec.parseData &&
-            !spec.suffix.ends_with(
-                ludork::generated::resources::DataExtension) &&
-            !spec.suffix.ends_with(
+            !selection.ends_with(ludork::generated::resources::DataExtension) &&
+            !selection.ends_with(
                 ludork::generated::resources::EncryptedDataExtension)) {
             throw std::invalid_argument(
-                "file batch parseData requires a .json or .ldc suffix");
+                "file batch parseData requires a .json or .ldc file or suffix");
         }
         specs.push_back(std::move(spec));
     }
@@ -343,6 +356,7 @@ void registerFileBatch(lua_glue::StateView lua) {
         lua.registry().raw_set(RUNTIME_KEY, runtime);
     }
     lua_glue::Table asyncio = lua["asyncio"].get_or_create<lua_glue::Table>();
+    asyncio.set_function("file_worker_count", &fileWorkerCount);
     asyncio.raw_set("FILE_BATCH_SCANNING",
                     fileBatchStateName(FileBatchState::Scanning));
     asyncio.raw_set("FILE_BATCH_RUNNING",
@@ -360,12 +374,14 @@ void registerFileBatch(lua_glue::StateView lua) {
             return FileBatchHandle(runtime, runtime->start(readSpecs(specs)));
         });
     asyncio.set_function(
-        "poll_file_batch", [runtime](FileBatchHandle& handle,
-                                     std::optional<lua_glue::Object> maximum,
-                                     lua_glue::ThisState state) {
+        "poll_file_batch",
+        [runtime](FileBatchHandle& handle,
+                  std::optional<lua_glue::Object> maximum,
+                  std::optional<bool> waitForItem, lua_glue::ThisState state) {
             return writeSnapshot(
                 lua_glue::StateView(state), runtime, handle.job(),
-                runtime->poll(handle.job(), readMaximum(maximum)));
+                runtime->poll(handle.job(), readMaximum(maximum),
+                              waitForItem.value_or(false)));
         });
     asyncio.set_function("cancel_file_batch",
                          [runtime](FileBatchHandle& handle) {

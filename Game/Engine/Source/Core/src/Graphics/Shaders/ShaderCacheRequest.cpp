@@ -1,5 +1,6 @@
 #include <Graphics/Shaders/ShaderCacheRequest.hpp>
 #include "ShaderCacheRequestImpl.hpp"
+#include "ShaderCachePreparation.hpp"
 
 #include <Runtime/AssetStore.hpp>
 #include <Runtime/Data.hpp>
@@ -8,6 +9,7 @@
 #include <Runtime/Graphics/ShaderCache.hpp>
 #include <Runtime/RuntimeDataReader.hpp>
 #include <Utils/ShaderLoader.hpp>
+#include <FileWorkers.hpp>
 
 #include <algorithm>
 #include <set>
@@ -40,20 +42,17 @@ ludork::runtime::graphics::ShaderTranslator::Stage stageFor(
 }
 
 ludork::runtime::graphics::ShaderCache::Program readProgram(
-    const std::vector<std::string>& paths) {
+    const std::vector<std::string>& paths,
+    const std::map<std::string, ShaderLoader::ShaderSourceResult>& sources) {
     ludork::runtime::graphics::ShaderCache::Program program;
     for (const auto& path : paths) {
-        auto source = ShaderLoader::readSource(path);
-        if (!source) {
-            throw std::runtime_error(source.error);
-        }
+        const auto& source = sources.at(path);
         const auto stage = stageFor(path);
         program.inputHashes.emplace(path, source.sourceHash);
         if (source.resolvedPath.ends_with("c")) {
             program.encryptedStages.insert(stage);
         }
-        program.source.stages.push_back(
-            {stage, std::move(source.source), path});
+        program.source.stages.push_back({stage, source.source, path});
     }
     return program;
 }
@@ -117,7 +116,11 @@ ShaderCacheRequest::Impl::~Impl() {
 
 void ShaderCacheRequest::Impl::run() noexcept {
     try {
-        prepare();
+        prepareShaderPrograms(userDataRoot, additionalPrograms, stop,
+                              [this](double value) {
+                                  progress = value;
+                              });
+        ludork::runtime::graphics::ShaderCache::savePipelineCache();
         std::lock_guard lock(mutex);
         progress = 1.0;
         status = "ready";
@@ -132,7 +135,13 @@ void ShaderCacheRequest::Impl::run() noexcept {
     }
 }
 
-void ShaderCacheRequest::Impl::prepare() {
+void prepareShaderPrograms(
+    const std::filesystem::path& userDataRoot,
+    const std::vector<std::vector<std::string>>& additionalPrograms,
+    const std::atomic<bool>& stop, const std::function<void(double)>& progress,
+    const ludork::runtime::graphics::ShaderCache::MaterialProjection*
+        projectedMaterials,
+    const std::function<void(bool)>& onPlanned) {
     bool encryptShaders = false;
     bool encryptData = false;
     const std::string settingsPath = "Data/RuntimeSettings.json";
@@ -149,13 +158,21 @@ void ShaderCacheRequest::Impl::prepare() {
                                                         settingsPath),
             settingsPath);
     }
+    constexpr auto materialPrefix =
+        ludork::runtime::graphics::ShaderCache::MaterialProjection::Prefix;
     std::set<std::string> sources;
+    if (projectedMaterials) {
+        for (const auto& [path, bytes] : projectedMaterials->sources) {
+            sources.insert(logicalShaderPath(path));
+        }
+    }
     for (const auto& path :
          ludork::runtime::assetStore().listFiles("/Game/Assets/Shaders")) {
         if (stop.load()) {
             throw std::runtime_error("Shader preparation was cancelled");
         }
-        if (path.starts_with("/Game/Assets/Shaders/.ShaderCache-") ||
+        if ((projectedMaterials && path.starts_with(materialPrefix)) ||
+            path.starts_with("/Game/Assets/Shaders/.ShaderCache-") ||
             path.starts_with("/Game/Assets/Shaders/.MaterialGenerated-")) {
             continue;
         }
@@ -172,6 +189,25 @@ void ShaderCacheRequest::Impl::prepare() {
             explicitStages.insert(path);
         }
     }
+    std::set<std::string> allPaths(sources);
+    allPaths.insert(explicitStages.begin(), explicitStages.end());
+    const std::vector<std::string> paths(allPaths.begin(), allPaths.end());
+    std::vector<ShaderLoader::ShaderSourceResult> results(paths.size());
+    ludork::standard::parallelFiles(paths.size(), [&](std::size_t i) {
+        if (stop.load()) {
+            throw std::runtime_error("Shader preparation was cancelled");
+        }
+        results[i] = ShaderLoader::readSource(
+            paths[i],
+            projectedMaterials ? &projectedMaterials->sources : nullptr);
+        if (!results[i]) {
+            throw std::runtime_error(results[i].error);
+        }
+    });
+    std::map<std::string, ShaderLoader::ShaderSourceResult> contents;
+    for (std::size_t i = 0; i < paths.size(); ++i) {
+        contents.emplace(paths[i], std::move(results[i]));
+    }
     std::set<std::string> pairedVertices;
     for (const auto& path : sources) {
         if (!path.ends_with(".frag") || explicitStages.contains(path)) {
@@ -183,10 +219,10 @@ void ShaderCacheRequest::Impl::prepare() {
                 ? directory + "vertex.vert"
                 : path.substr(0, path.size() - 5) + ".vert";
         if (sources.contains(vertex) && !explicitStages.contains(vertex)) {
-            programs.push_back(readProgram({vertex, path}));
+            programs.push_back(readProgram({vertex, path}, contents));
             pairedVertices.insert(vertex);
         } else {
-            programs.push_back(readProgram({path}));
+            programs.push_back(readProgram({path}, contents));
         }
     }
     for (const auto& path : sources) {
@@ -198,7 +234,7 @@ void ShaderCacheRequest::Impl::prepare() {
                     "entry: " +
                     path);
             }
-            programs.push_back(readProgram({path}));
+            programs.push_back(readProgram({path}, contents));
         }
     }
     programs.push_back(ludork::runtime::graphics::sceneLightingProgram());
@@ -211,7 +247,7 @@ void ShaderCacheRequest::Impl::prepare() {
             throw std::invalid_argument(
                 "Additional shader programs must contain at least one stage");
         }
-        programs.push_back(readProgram(paths));
+        programs.push_back(readProgram(paths, contents));
     }
     std::set<std::string> keys;
     std::erase_if(programs, [&](const auto& program) {
@@ -219,13 +255,10 @@ void ShaderCacheRequest::Impl::prepare() {
                         ludork::runtime::graphics::ShaderCache::key(program))
                     .second;
     });
-    progress = 0.1;
-    ludork::runtime::graphics::ShaderCache::prepare(userDataRoot, programs,
-                                                    encryptShaders, encryptData,
-                                                    stop, [this](double value) {
-                                                        progress = value;
-                                                    });
-    ludork::runtime::graphics::ShaderCache::savePipelineCache();
+    progress(0.1);
+    ludork::runtime::graphics::ShaderCache::prepare(
+        userDataRoot, programs, encryptShaders, encryptData, stop, progress,
+        projectedMaterials, onPlanned);
 }
 
 }  // namespace ludork::engine::shaders

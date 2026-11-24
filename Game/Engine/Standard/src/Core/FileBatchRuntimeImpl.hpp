@@ -21,7 +21,7 @@ public:
     std::shared_ptr<FileBatchJob> start(std::vector<FileBatchSpec> specs);
     bool cancel(const std::shared_ptr<FileBatchJob>& job);
     FileBatchSnapshot poll(const std::shared_ptr<FileBatchJob>& job,
-                           std::size_t maximum);
+                           std::size_t maximum, bool waitForItem);
     void release(const std::shared_ptr<FileBatchJob>& job) noexcept;
     void shutdown();
     void configureData(FileBatchDataParser parser, FileBatchDataBegin begin,
@@ -45,8 +45,9 @@ private:
         ManifestEntry entry;
     };
 
-    void ensureWorkersLocked();
+    void ensureWorkersLocked(std::size_t queued);
     void pruneJobsLocked();
+    void queueReadsLocked(const std::shared_ptr<FileBatchJob>& job);
     void workerLoop();
     void handleScan(const std::shared_ptr<FileBatchJob>& job);
     void handleRead(const std::shared_ptr<FileBatchJob>& job,
@@ -57,7 +58,8 @@ private:
     void removeQueuedWork(const std::shared_ptr<FileBatchJob>& job);
 
     std::atomic_bool stopping_ = false;
-    unsigned int workerCount_ = 1;
+    const std::size_t workerCount_;
+    std::size_t busyWorkers_ = 0;
     std::mutex queueMutex_;
     std::condition_variable workReady_;
     std::deque<WorkItem> work_;

@@ -90,6 +90,7 @@ function WorldGameMap:init(config, regionFactory, reservedTags)
     for _, region in ipairs(self._worldRegions) do
         region.payload = nil
         region.publishState = nil
+        region.viewportRead = nil
         region.backgroundBuilder = nil
         region.wasActive = false
         region.wakeTags = nil
@@ -252,19 +253,13 @@ function WorldGameMap:ensureRegionLoadedAt(position)
     if region == nil then
         return nil
     end
-    if region.payload == nil then
-        if region.publishState == nil then
-            local data = Engine.loadData(os.path.join(self._worldDataRoot, region.map))
-            local priorityRect = self._camera ~= nil and self:_getVisibleCellRect()
-                or { x = position.x, y = position.y, width = 1, height = 1 }
-            self:_beginRegionPublish(region, data, true, priorityRect)
-        else
-            region.publishState.forceActivate = true
-        end
-        self:_drainRegionPublish(region)
-    else
+    if region.payload ~= nil then
         self:_activateRegion(region)
+        return region
     end
+    local priorityRect = self._camera ~= nil and self:_getVisibleCellRect()
+        or { x = position.x, y = position.y, width = 1, height = 1 }
+    self:_ensureRegionsLoaded({ region }, priorityRect)
     return region
 end
 
@@ -720,8 +715,8 @@ function WorldGameMap:_startStreamingBatch()
     return WorldGameMapStreaming.StartStreamingBatch(self)
 end
 
-function WorldGameMap:_consumeStreamingItem(item)
-    return WorldGameMapStreaming.ConsumeStreamingItem(self, item)
+function WorldGameMap:_ensureRegionsLoaded(regions, priorityRect)
+    return WorldGameMapStreaming.EnsureRegionsLoaded(self, regions, priorityRect)
 end
 
 function WorldGameMap:_pumpStreaming()

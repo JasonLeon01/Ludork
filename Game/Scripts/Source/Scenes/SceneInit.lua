@@ -11,7 +11,7 @@ local SceneManager = GlobalCore.SceneManager
 local ResourceFileConstants = Engine.ResourceFileConstants
 local SceneBase = GlobalCore.SceneBase
 
-local PHASE_PROGRESS_WEIGHT = 1.0 / 4.0
+local SPLASH_HOLD_SECONDS = 0.20
 
 ---@class Source.Scenes.SceneInit.SceneInit
 local Scene = {
@@ -22,7 +22,8 @@ local Scene = {
 function Scene:onEnter() end
 
 function Scene:onCreate()
-    self.phaseKey = "INIT_MATERIALS"
+    self._preflightStart = perfCounter()
+    self.phaseKey = ""
     self._displayPhaseKey = self.phaseKey
     local gameSize = Display.getGameSize()
     self._ui = SceneInitController.new(self, gameSize)
@@ -38,6 +39,16 @@ function Scene:onCreate()
     self._activeBatch = nil
     self._cacheRequest = nil
     self._animationSourceKeys = {}
+    self._pendingAnimations = {}
+    self._alternateAnimationCaches = {}
+    self._phases = {}
+    self._phaseIndex = 0
+    self._splashFadeOutAt = nil
+    self._ui:playAnimation("FadeIn", "Splash", function ()
+        if not self._loadCancelled then
+            self._splashFadeOutAt = perfCounter() + SPLASH_HOLD_SECONDS
+        end
+    end)
     self._loadTask = asyncio.create_required_task(function ()
         self:prepareAssets()
         while not self._loadCancelled do
@@ -54,6 +65,15 @@ function Scene:onCreate()
 end
 
 function Scene:onLateTick(_)
+    if self._loadCancelled then
+        return
+    end
+    if self._splashFadeOutAt ~= nil and #self._phases > 0 and perfCounter() >= self._splashFadeOutAt then
+        self._splashFadeOutAt = nil
+        self._ui:playAnimation("FadeOut", "Splash", function ()
+            self.phaseKey = self._phases[1]
+        end)
+    end
     local target = self.progressDone and 1.0 or self.progressValue
     if target ~= self._displayProgress or self.phaseKey ~= self._displayPhaseKey then
         self._displayProgress = target
@@ -67,6 +87,8 @@ end
 
 function Scene:onQuit()
     self._loadCancelled = true
+    self._ui:stopAnimation("FadeIn", "Splash")
+    self._ui:stopAnimation("FadeOut", "Splash")
     if self._cacheRequest ~= nil then
         self._cacheRequest:cancel()
         self._cacheRequest = nil
@@ -86,7 +108,13 @@ function Scene:onQuit()
 end
 
 function Scene:loadGameData()
-    self.phaseKey = "INIT_DATA"
+    self:_beginPhase()
+    for _, path in ipairs(self._alternateAnimationCaches) do
+        if os.path.isfile(path) then
+            os.removeFile(path)
+            Logging.debug("Removed alternate animation cache: %s", path)
+        end
+    end
     self.progressTotal = 0
     self.processedCount = 0
     self._activeBatch = asyncio.start_file_batch({
@@ -144,37 +172,57 @@ function Scene:loadGameData()
 end
 
 function Scene:prepareAssets()
-    local startTime = perfCounter()
-    Logging.info("Preparing initial assets")
-    Logging.info("Preparing material cache")
-    local materialStartTime = perfCounter()
-    self:prepareMaterials()
-    if self:_isLoadCancelled() then
+    local request = Engine.planGraphicsCaches()
+    self._cacheRequest = request
+    self:_planAnimations()
+    if not self:_awaitCache(request, "planned", false) then
         return
     end
-    Logging.info("Prepared material cache in %.3fs", perfCounter() - materialStartTime)
-    Logging.info("Preparing shader cache")
-    local shaderStartTime = perfCounter()
-    self:prepareShaders()
-    if self:_isLoadCancelled() then
+    local materials = request:needsMaterialExport()
+    local shaders = request:needsShaderCompilation()
+    local animations = #self._pendingAnimations > 0
+    local phases = {}
+    if materials then
+        phases[#phases + 1] = "INIT_MATERIALS"
+    end
+    if shaders then
+        phases[#phases + 1] = "INIT_SHADERS"
+    end
+    if animations then
+        phases[#phases + 1] = "INIT_ANIMATIONS"
+    end
+    phases[#phases + 1] = "INIT_DATA"
+    self._phases = phases
+    Logging.info(
+        "Init preflight finished in %.3fs (materials=%s, shaders=%s, animations=%d)",
+        perfCounter() - self._preflightStart, tostring(materials), tostring(shaders), #self._pendingAnimations
+    )
+    if not self:_awaitSplash() then
         return
     end
-    Logging.info("Prepared shader cache in %.3fs", perfCounter() - shaderStartTime)
-    Logging.info("Preparing animation cache")
-    local animationStartTime = perfCounter()
-    self:compressAnimations()
-    if self:_isLoadCancelled() then
+
+    if materials then
+        self:_beginPhase()
+    end
+    request:startMaterials()
+    if not self:_awaitCache(request, "materialsReady", materials) then
         return
     end
-    Logging.info("Prepared animation cache files in %.3fs", perfCounter() - animationStartTime)
-    Logging.info("Loading game data")
-    local loadStartTime = perfCounter()
-    self:loadGameData()
-    if self:_isLoadCancelled() then
+    if shaders then
+        self:_beginPhase()
+    end
+    request:startShaders()
+    if not self:_awaitCache(request, "ready", shaders) then
         return
     end
-    Logging.info("Loaded game data in %.3fs", perfCounter() - loadStartTime)
-    Logging.info("Init asset preparation finished in %.3fs", perfCounter() - startTime)
+    request:getResult()
+    self._cacheRequest = nil
+    if animations then
+        self:compressAnimations()
+    end
+    if not self._loadCancelled then
+        self:loadGameData()
+    end
 end
 
 function Scene:onDestroy()
@@ -182,33 +230,37 @@ function Scene:onDestroy()
 end
 
 ---@return boolean
-function Scene:_isLoadCancelled()
-    return self._loadCancelled
+function Scene:_awaitSplash()
+    while not self._loadCancelled and self._displayPhaseKey == "" do
+        asyncio.sleep(0.0)
+    end
+    return not self._loadCancelled
 end
 
----@param offset number
----@param weight number
-function Scene:_setPhaseProgress(offset, weight)
-    local fraction = 0.0
-    if self.progressTotal > 0 then
-        fraction = self.processedCount / self.progressTotal
-    end
-    local value = offset + weight * math.clamp(fraction, 0.0, 1.0)
-    self.progressValue = math.max(self.progressValue, value)
+function Scene:_beginPhase()
+    self._phaseIndex = self._phaseIndex + 1
+    self.phaseKey = self._phases[self._phaseIndex]
+    self:_setPhaseProgress(0)
+    Logging.info("Init stage %d/%d: %s", self._phaseIndex, #self._phases, self.phaseKey)
+end
+
+---@param fraction number
+function Scene:_setPhaseProgress(fraction)
+    self.progressValue = math.max(
+        self.progressValue, (self._phaseIndex - 1 + math.clamp(fraction, 0.0, 1.0)) / #self._phases
+    )
 end
 
 ---@param item       FileBatchItem
+---@param payload    Engine.AnimationSourceData
 ---@param sourceRoot string
 ---@param cacheRoot  string
-function Scene:_processAnimationSource(item, sourceRoot, cacheRoot)
+function Scene:_planAnimationSource(item, payload, sourceRoot, cacheRoot)
     local relativePath = item.relativePath
     local sourceKey = AnimationCache.SourceKey(relativePath, ResourceFileConstants.DATA_EXTENSION)
     local encryptedSource = item.encryptedData == true
     assert(bool(sourceKey), "Animation source filename must not be empty")
     assert(not self._animationSourceKeys[sourceKey], "Duplicate animation source key: " .. sourceKey)
-    local content = assert(item.content, "Animation source content is missing: " .. relativePath)
-    local payload = Engine.decodeData(content)
-    ---@cast payload Engine.AnimationSourceData
     assert(payload.type == "animation", "Animation source has invalid type: " .. relativePath)
     self._animationSourceKeys[sourceKey] = true
 
@@ -219,6 +271,12 @@ function Scene:_processAnimationSource(item, sourceRoot, cacheRoot)
         .. (encryptedSource and ResourceFileConstants.ENCRYPTED_ANIMATION_CACHE_SUFFIX
             or ResourceFileConstants.ANIMATION_CACHE_SUFFIX)
     local cachePath = os.path.join(cacheRoot, cacheRelativePath)
+    local alternateCachePath = os.path.join(
+        cacheRoot,
+        sourceKey
+            .. (encryptedSource and ResourceFileConstants.ANIMATION_CACHE_SUFFIX
+                or ResourceFileConstants.ENCRYPTED_ANIMATION_CACHE_SUFFIX)
+    )
     local frameAssets = AnimationCache.GetFrameAssets(payload, relativePath)
     if AnimationCache.NeedsCompression(sourcePath, cachePath, frameAssets) then
         for _, asset in ipairs(frameAssets) do
@@ -229,53 +287,66 @@ function Scene:_processAnimationSource(item, sourceRoot, cacheRoot)
                 )
             )
         end
-        os.createDirectories(os.path.dirname(cachePath))
-        Logging.debug("Compressing animation: %s", relativePath)
-        local compressed = Engine.compressAnimation(payload, "png")
-        assert(Class.isInstance(compressed, "table"), "Compressed animation must be a data table")
-        ---@cast compressed table<string, Engine.RuntimeDataValue>
-        Engine.saveData(cachePath, compressed)
+        self._pendingAnimations[#self._pendingAnimations + 1] = {
+            payload = payload,
+            cachePath = cachePath,
+            relativePath = relativePath,
+            sourcePath = sourcePath,
+            sourceTime = os.path.getmtime(sourcePath)
+        }
     end
-    local alternateCachePath = os.path.join(
-        cacheRoot,
-        sourceKey
-            .. (encryptedSource and ResourceFileConstants.ANIMATION_CACHE_SUFFIX
-                or ResourceFileConstants.ENCRYPTED_ANIMATION_CACHE_SUFFIX)
-    )
     if os.path.isfile(alternateCachePath) then
-        os.removeFile(alternateCachePath)
-        Logging.debug("Removed alternate animation cache: %s", alternateCachePath)
+        self._alternateAnimationCaches[#self._alternateAnimationCaches + 1] = alternateCachePath
     end
 end
 
----@param request Engine.MaterialCacheRequest | Engine.ShaderCacheRequest
----@param offset  number
-function Scene:_prepareCache(request, offset)
-    self._cacheRequest = request
+---@param request Engine.GraphicsCachePlan
+---@param target  string
+---@param visible boolean
+---@return boolean
+function Scene:_awaitCache(request, target, visible)
     while not self._loadCancelled do
-        self.progressValue = math.max(self.progressValue, offset + request:getProgress() * PHASE_PROGRESS_WEIGHT)
-        if request:getStatus() ~= "pending" then
+        local status = request:getStatus()
+        if status == "failed" or status == "cancelled" then
             request:getResult()
-            self._cacheRequest = nil
-            self.progressValue = offset + PHASE_PROGRESS_WEIGHT
-            return
+        end
+        if status == target then
+            if visible then
+                self:_setPhaseProgress(1)
+            end
+            return true
+        end
+        if visible then
+            self:_setPhaseProgress(request:getProgress())
         end
         asyncio.sleep(0.0)
     end
-end
-
-function Scene:prepareMaterials()
-    self.phaseKey = "INIT_MATERIALS"
-    self:_prepareCache(Engine.prepareMaterialCache(), 0.0)
-end
-
-function Scene:prepareShaders()
-    self.phaseKey = "INIT_SHADERS"
-    self:_prepareCache(Engine.prepareShaderCache(), PHASE_PROGRESS_WEIGHT)
+    return false
 end
 
 function Scene:compressAnimations()
-    self.phaseKey = "INIT_ANIMATIONS"
+    self:_beginPhase()
+    for index, animation in ipairs(self._pendingAnimations) do
+        os.createDirectories(os.path.dirname(animation.cachePath))
+        Logging.debug("Compressing animation: %s", animation.relativePath)
+        local compressed = Engine.compressAnimation(animation.payload, "png")
+        assert(Class.isInstance(compressed, "table"), "Compressed animation must be a data table")
+        ---@cast compressed table<string, Engine.RuntimeDataValue>
+        assert(
+            os.path.getmtime(animation.sourcePath) == animation.sourceTime,
+            "Animation source changed during preparation: " .. animation.relativePath
+        )
+        Engine.saveData(animation.cachePath, compressed)
+        self:_setPhaseProgress(index / #self._pendingAnimations)
+        asyncio.sleep(0.0)
+        if self._loadCancelled then
+            return
+        end
+    end
+    self._pendingAnimations = {}
+end
+
+function Scene:_planAnimations()
     local sourceRoot = Engine.getAnimationSourceRoot()
     local cacheRoot = Engine.getAnimationCacheRoot()
     self.progressTotal = 0
@@ -287,11 +358,12 @@ function Scene:compressAnimations()
             suffix = ResourceFileConstants.DATA_EXTENSION,
             excludeSuffix = ResourceFileConstants.ANIMATION_CACHE_SUFFIX,
             recursive = true,
+            parseData = true,
             required = true
         }
     })
     while not self._loadCancelled do
-        local snapshot = asyncio.poll_file_batch(self._activeBatch, 1)
+        local snapshot = asyncio.poll_file_batch(self._activeBatch, 32)
         self.progressTotal = snapshot.total
         if snapshot.state == asyncio.FILE_BATCH_FAILED then
             error(FileBatch.FormatError(snapshot.error))
@@ -299,15 +371,26 @@ function Scene:compressAnimations()
         if snapshot.state == asyncio.FILE_BATCH_CANCELLED then
             error("Animation source file batch was cancelled")
         end
-        local item = snapshot.items ~= nil and snapshot.items[1] or nil
-        if item ~= nil then
-            self:_processAnimationSource(item, sourceRoot, cacheRoot)
+        local deadline = perfCounter() + 0.004
+        for _, item in ipairs(snapshot.items) do
+            local conversion = assert(item.conversion, "Animation source data is missing: " .. item.relativePath)
+            while true do
+                local remaining = (deadline - perfCounter()) * 1000
+                if remaining <= 0 then
+                    asyncio.sleep(0.0)
+                    deadline = perfCounter() + 0.004
+                else
+                    local done, _, payload = asyncio.step_file_batch_data(conversion, 4096, remaining)
+                    if done then
+                        self:_planAnimationSource(item, payload, sourceRoot, cacheRoot)
+                        break
+                    end
+                end
+            end
             self.processedCount = self.processedCount + 1
-            self:_setPhaseProgress(2.0 * PHASE_PROGRESS_WEIGHT, PHASE_PROGRESS_WEIGHT)
         end
         if snapshot.state == asyncio.FILE_BATCH_COMPLETED and snapshot.drained and self.processedCount == snapshot.total then
             self._activeBatch = nil
-            self.progressValue = math.max(self.progressValue, 3.0 * PHASE_PROGRESS_WEIGHT)
             return
         end
         asyncio.sleep(0.0)
@@ -352,7 +435,7 @@ function Scene:_pumpInitialLoad()
                 Data.ApplyInitialLoadItem(self._loadStage, item)
             end
             self.processedCount = self.processedCount + 1
-            self:_setPhaseProgress(3.0 * PHASE_PROGRESS_WEIGHT, PHASE_PROGRESS_WEIGHT)
+            self:_setPhaseProgress(self.processedCount / self.progressTotal)
         end
         if snapshot.state == asyncio.FILE_BATCH_COMPLETED and snapshot.drained and self.processedCount == snapshot.total then
             Data.CommitInitialLoad(self._loadStage)

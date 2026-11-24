@@ -9,6 +9,7 @@
 #include <SFML/Graphics/GraphicsBackend.hpp>
 #include <SFML/Window/Context.hpp>
 #include <BackgroundTask.hpp>
+#include <FileWorkers.hpp>
 #include <PersistentStorage.hpp>
 #include <Sha256.hpp>
 #include <StringUtils.hpp>
@@ -240,15 +241,13 @@ void ShaderCache::Impl::prewarm(
     }
 }
 
-void ShaderCache::Impl::prepare(const std::filesystem::path& userDataRoot,
-                                const std::vector<Program>& inputs,
-                                bool encryptSources, bool encryptMetadata,
-                                const std::atomic<bool>& stop,
-                                const std::function<void(double)>& progress) {
-    checkCancelled(stop);
-#ifndef __EMSCRIPTEN__
-    std::lock_guard preparationLock(preparationMutex);
-#endif
+void ShaderCache::Impl::prepare(
+    const std::filesystem::path& userDataRoot,
+    const std::vector<Program>& inputs, bool encryptSources,
+    bool encryptMetadata, const std::atomic<bool>& stop,
+    const std::function<void(double)>& progress,
+    const MaterialProjection* projectedMaterials,
+    const std::function<void(bool)>& onPlannedWithLocks) {
     checkCancelled(stop);
     const auto device = sf::rhi::getDevice();
     if (!device) {
@@ -292,7 +291,10 @@ void ShaderCache::Impl::prepare(const std::filesystem::path& userDataRoot,
     const auto directory = userDataRoot / "Assets" / "Shaders";
     static_cast<void>(physical(userDataRoot, "/Game/Assets/Shaders"));
     std::filesystem::create_directories(directory);
-    CacheFileLock fileLock(directory / ".ShaderCache.lock", stop);
+    std::optional<CacheFileLock> fileLock;
+    if (!onPlannedWithLocks) {
+        fileLock.emplace(directory / ".ShaderCache.lock", stop);
+    }
     const auto recordPath =
         directory / (encryptMetadata ? "ShaderCache.ldc" : "ShaderCache.json");
     RuntimeData previous = readRecord(recordPath);
@@ -309,16 +311,48 @@ void ShaderCache::Impl::prepare(const std::filesystem::path& userDataRoot,
     std::map<std::string, CachedFile> files;
     std::map<std::string, std::string> generatedSources;
     std::vector<PrewarmTarget> prewarmTargets;
+    const auto readFile = [&](const std::string& logical) {
+        CachedFile value;
+        if (projectedMaterials &&
+            logical.starts_with(MaterialProjection::Prefix)) {
+            if (auto found = projectedMaterials->artifacts.find(logical);
+                found != projectedMaterials->artifacts.end()) {
+                return CachedFile{true, found->second.bytes,
+                                  found->second.hash};
+            }
+            return value;
+        }
+        const auto path = physical(userDataRoot, logical);
+        value.exists = std::filesystem::is_regular_file(path);
+        if (value.exists) {
+            value.bytes = CacheFiles::read(path);
+            value.hash = ludork::standard::sha256(value.bytes);
+        }
+        return value;
+    };
+    if (const auto* outputs =
+            field(previous, "outputs").getIf<RuntimeData::Map>()) {
+        std::vector<std::string> paths;
+        for (const auto& [logical, hash] : *outputs) {
+            if (logical.starts_with("/Game/Assets/Shaders/") &&
+                cachePath(logical) && hash.getIf<std::string>() &&
+                validHash(*hash.getIf<std::string>())) {
+                paths.push_back(logical);
+            }
+        }
+        std::vector<CachedFile> results(paths.size());
+        ludork::standard::parallelFiles(paths.size(), [&](std::size_t i) {
+            checkCancelled(stop);
+            results[i] = readFile(paths[i]);
+        });
+        for (std::size_t i = 0; i < paths.size(); ++i) {
+            files.emplace(paths[i], std::move(results[i]));
+        }
+    }
     const auto read = [&](const std::string& logical) -> const CachedFile& {
         const auto [position, inserted] = files.try_emplace(logical);
         if (inserted) {
-            const auto path = physical(userDataRoot, logical);
-            auto& value = position->second;
-            value.exists = std::filesystem::is_regular_file(path);
-            if (value.exists) {
-                value.bytes = CacheFiles::read(path);
-                value.hash = ludork::standard::sha256(value.bytes);
-            }
+            position->second = readFile(logical);
         }
         return position->second;
     };
@@ -366,7 +400,10 @@ void ShaderCache::Impl::prepare(const std::filesystem::path& userDataRoot,
                             const CachedFile& file) {
         return remember(logical, file.bytes, file.hash);
     };
-    std::size_t completed = 0;
+    std::set<std::string> programKeys;
+    std::vector<ProgramPreparation> plans;
+    plans.reserve(inputs.size());
+    bool needsCompilation = false;
     for (const auto& input : inputs) {
         ludork::standard::BackgroundTask::yield();
         checkCancelled(stop);
@@ -375,11 +412,14 @@ void ShaderCache::Impl::prepare(const std::filesystem::path& userDataRoot,
                 "Cannot prepare an empty shader program");
         }
         const auto programKey = ShaderCache::key(input);
-        if (prepared.contains(programKey)) {
+        if (!programKeys.insert(programKey).second) {
             throw std::invalid_argument("Duplicate shader program: " +
                                         input.source.stages.front().name);
         }
-        Program program = input;
+        auto& plan = plans.emplace_back();
+        plan.key = programKey;
+        auto& program = plan.program;
+        program = input;
         std::set<ShaderTranslator::Stage> present;
         for (const auto& stage : program.source.stages) {
             if (!present.insert(stage.stage).second) {
@@ -402,7 +442,7 @@ void ShaderCache::Impl::prepare(const std::filesystem::path& userDataRoot,
         const bool sameTranslation =
             textField(old, "translation") == translationIdentity;
         bool needsTranslation = !sameTranslation;
-        std::vector<StagePreparation> stages;
+        auto& stages = plan.stages;
         for (const auto& source : program.source.stages) {
             StagePreparation stage;
             stage.source = &source;
@@ -446,16 +486,18 @@ void ShaderCache::Impl::prepare(const std::filesystem::path& userDataRoot,
                 validBindings(saved) &&
                 textField(saved, "source") == source.name &&
                 textField(saved, "sourceHash") == stage.sourceHash;
+            const bool binaryValid =
+                stage.binaryFile && textField(old, "compiler") == compiler &&
+                textField(saved, "compilation") ==
+                    compilationIdentity(compiler, source.stage,
+                                        textField(saved, "entry"),
+                                        textField(saved, "targetContentHash"));
+            if (backend == sf::GraphicsBackend::DirectX && !binaryValid) {
+                needsCompilation = true;
+            }
             if (!sameTranslation || !metadataValid || !stage.targetFile) {
                 needsTranslation = true;
             } else {
-                const bool binaryValid =
-                    stage.binaryFile &&
-                    textField(old, "compiler") == compiler &&
-                    textField(saved, "compilation") ==
-                        compilationIdentity(
-                            compiler, source.stage, textField(saved, "entry"),
-                            textField(saved, "targetContentHash"));
                 if (backend != sf::GraphicsBackend::DirectX ||
                     stage.savedTarget != stage.target || !binaryValid) {
                     try {
@@ -492,6 +534,25 @@ void ShaderCache::Impl::prepare(const std::filesystem::path& userDataRoot,
             }
             stages.push_back(std::move(stage));
         }
+        plan.needsTranslation = needsTranslation;
+        plan.translation = translationIdentity;
+        needsCompilation = needsCompilation || needsTranslation;
+    }
+    if (onPlannedWithLocks) {
+        onPlannedWithLocks(needsCompilation);
+        projectedMaterials = nullptr;
+    }
+    std::size_t completed = 0;
+    for (auto& plan : plans) {
+        ludork::standard::BackgroundTask::yield();
+        checkCancelled(stop);
+        const auto& input = inputs[completed];
+        const auto& program = plan.program;
+        const auto& programKey = plan.key;
+        const auto& translationIdentity = plan.translation;
+        const auto& old = field(field(previous, "programs"), programKey);
+        auto& stages = plan.stages;
+        const bool needsTranslation = plan.needsTranslation;
         std::map<ShaderTranslator::Stage, ShaderTranslator::Output> translated;
         if (needsTranslation) {
             for (auto& output :
@@ -636,26 +697,12 @@ void ShaderCache::Impl::prepare(const std::filesystem::path& userDataRoot,
                            static_cast<double>(inputs.size()));
     }
     checkCancelled(stop);
-    std::map<std::string, std::string> verifiedInputs;
+    std::map<std::string, std::string> inputHashes;
     for (const auto& input : inputs) {
         for (const auto& [name, hash] : input.inputHashes) {
-            checkCancelled(stop);
-            auto found = verifiedInputs.find(name);
-            if (found == verifiedInputs.end()) {
-                const auto current = assetStore().readFirst({name, name + "c"});
-                if (!current) {
-                    throw std::runtime_error(
-                        "Shader input disappeared during preparation: " + name);
-                }
-                found = verifiedInputs
-                            .emplace(name,
-                                     ludork::standard::sha256(std::string_view(
-                                         reinterpret_cast<const char*>(
-                                             current->bytes.data()),
-                                         current->bytes.size())))
-                            .first;
-            }
-            if (found->second != hash) {
+            const auto [position, inserted] =
+                inputHashes.try_emplace(name, hash);
+            if (!inserted && position->second != hash) {
                 throw std::runtime_error(
                     "Shader inputs changed during preparation; restart "
                     "initialization: " +
@@ -663,6 +710,26 @@ void ShaderCache::Impl::prepare(const std::filesystem::path& userDataRoot,
             }
         }
     }
+    const std::vector<std::pair<std::string, std::string>> checks(
+        inputHashes.begin(), inputHashes.end());
+    ludork::standard::parallelFiles(checks.size(), [&](std::size_t i) {
+        checkCancelled(stop);
+        const auto& [name, hash] = checks[i];
+        const auto current = assetStore().readFirst({name, name + "c"});
+        if (!current) {
+            throw std::runtime_error(
+                "Shader input disappeared during preparation: " + name);
+        }
+        const auto bytes = std::string_view(
+            reinterpret_cast<const char*>(current->bytes.data()),
+            current->bytes.size());
+        if (ludork::standard::sha256(bytes) != hash) {
+            throw std::runtime_error(
+                "Shader inputs changed during preparation; restart "
+                "initialization: " +
+                name);
+        }
+    });
     std::set<std::filesystem::path> obsolete;
     if (const auto* oldOutputs =
             field(previous, "outputs").getIf<RuntimeData::Map>()) {

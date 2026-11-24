@@ -6,6 +6,8 @@
 #include <Sha256.hpp>
 
 #include <algorithm>
+#include <chrono>
+#include <thread>
 #include <stdexcept>
 
 namespace ludork::runtime::graphics {
@@ -187,9 +189,32 @@ void ShaderCache::prepare(const std::filesystem::path& userDataRoot,
                           const std::vector<Program>& programs,
                           bool encryptShaders, bool encryptData,
                           const std::atomic<bool>& stop,
-                          const std::function<void(double)>& progress) {
-    impl().prepare(userDataRoot, programs, encryptShaders, encryptData, stop,
-                   progress);
+                          const std::function<void(double)>& progress,
+                          const MaterialProjection* projectedMaterials,
+                          const std::function<void(bool)>& onPlannedWithLocks) {
+    const auto work = [&] {
+        impl().prepare(userDataRoot, programs, encryptShaders, encryptData,
+                       stop, progress, projectedMaterials, onPlannedWithLocks);
+    };
+    if (onPlannedWithLocks) {
+        work();
+    } else {
+        withPreparationLock(stop, work);
+    }
+}
+
+void ShaderCache::withPreparationLock(const std::atomic<bool>& stop,
+                                      const std::function<void()>& work) {
+#ifndef __EMSCRIPTEN__
+    std::unique_lock guard(impl().preparationMutex, std::defer_lock);
+    while (!guard.try_lock()) {
+        if (stop.load()) {
+            throw std::runtime_error("Shader preparation was cancelled");
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+#endif
+    work();
 }
 
 void ShaderCache::savePipelineCache() {

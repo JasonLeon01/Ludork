@@ -173,11 +173,20 @@ end
 function SceneMapBuilder.GenerateTilemap(data, layerOrder, width, height)
     local mapWidth = width
     local mapHeight = height
-    local mapLayers = {}
+    local layerDataList = {}
+    ---@type table<string, GlobalCore.TextureLoadRequest>
+    local requests = {}
+    ---@param path string
+    local function requestTexture(path)
+        if requests[path] == nil then
+            requests[path] = TextureManager.request(path)
+        end
+    end
     for _, layerKey in ipairs(layerOrder) do
         local layerData = data[layerKey]
         local name = layerData.layerName
         local layerTileset = Data.GetTileset(layerData.layerTileset)
+        requestTexture(layerTileset.fileName)
         local layerTiles = layerData.tiles
         local tiles = {}
         for y = 1, mapHeight do
@@ -207,7 +216,9 @@ function SceneMapBuilder.GenerateTilemap(data, layerOrder, width, height)
                         ---@cast cell string
                         if bool(cell) and Data.HasAutoTile(cell) then
                             if autoTileIndexByKey[cell] == nil then
-                                autoTilePool[#autoTilePool + 1] = Data.GetAutoTile(cell)
+                                local autoTile = Data.GetAutoTile(cell)
+                                requestTexture(autoTile.fileName)
+                                autoTilePool[#autoTilePool + 1] = autoTile
                                 autoTileIndexByKey[cell] = #autoTilePool - 1
                             end
                             row[x] = autoTileIndexByKey[cell]
@@ -233,15 +244,19 @@ function SceneMapBuilder.GenerateTilemap(data, layerOrder, width, height)
             name, layerTileset, tiles, autoTileGrid, autoTilePool, autoTileKeys, tostring(layerData.material or "")
         )
         tileLayerData.layerTilesetKey = layerData.layerTileset
+        layerDataList[#layerDataList + 1] = tileLayerData
+    end
+    local mapLayers = {}
+    for _, tileLayerData in ipairs(layerDataList) do
         local autoTileTextures = {}
         local autoTileFrameCounts = {}
-        for index, entry in ipairs(autoTilePool) do
-            local texture = TextureManager.load(entry.fileName)
+        for index, entry in ipairs(tileLayerData.autoTilePool) do
+            local texture = requests[entry.fileName]:resolve()
             autoTileTextures[index] = texture
             autoTileFrameCounts[index] = AutoTileRuntime.GetFrameCount(texture)
         end
         mapLayers[#mapLayers + 1] = Engine.TileLayer.new(
-            tileLayerData, TextureManager.load(tileLayerData.layerTileset.fileName), autoTileTextures,
+            tileLayerData, requests[tileLayerData.layerTileset.fileName]:resolve(), autoTileTextures,
             autoTileFrameCounts
         )
     end

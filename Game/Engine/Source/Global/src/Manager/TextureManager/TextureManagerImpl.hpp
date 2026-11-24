@@ -33,6 +33,7 @@ public:
 
     std::string status(const RequestState& state) const;
     std::shared_ptr<sf::Texture> texture(const RequestState& state) const;
+    std::shared_ptr<sf::Texture> resolve(const RequestState& state);
     void setPriority(RequestState& state, int priority);
     void cancel(RequestState& state) noexcept;
 
@@ -42,7 +43,7 @@ public:
     TextureLoadingStatistics statistics() const;
 
 private:
-    static constexpr std::size_t WorkerCount = 2;
+    const std::size_t workerLimit_;
     static constexpr std::size_t ReadyByteLimit = 64 * 1024 * 1024;
     static constexpr std::size_t UploadByteLimit = 8 * 1024 * 1024;
     static constexpr std::size_t UploadCountLimit = 2;
@@ -60,7 +61,6 @@ private:
     void decode(const std::shared_ptr<DecodeTicket>& ticket);
     void upload(const std::shared_ptr<TextureEntry>& entry,
                 std::unique_ptr<sf::Image> image, std::size_t bytes);
-    std::shared_ptr<sf::Texture> resolve(const RequestState& state);
     std::shared_ptr<sf::Texture> textureLocked(const RequestState& state) const;
     std::unique_ptr<sf::Image> claimUploadLocked(TextureEntry& entry);
     void removeQueuedLocked(const std::shared_ptr<DecodeTicket>& ticket);

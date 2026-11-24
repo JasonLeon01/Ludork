@@ -35,6 +35,7 @@ public:
     void cancel();
 
 private:
+    friend class MaterialCachePreparation;
     explicit MaterialCacheRequest(const std::filesystem::path& userDataRoot);
     struct Impl;
     std::unique_ptr<Impl> impl_;

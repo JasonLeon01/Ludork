@@ -9,6 +9,32 @@
     "displayName": "Init",
     "category": "Scenes"
   },
+  "animations": [
+    {
+      "name": "FadeIn",
+      "target": "Splash",
+      "duration": 0.30,
+      "pivot": [0.5, 0.5],
+      "tracks": {
+        "colour": [
+          { "time": 0.0, "value": [255, 255, 255, 0] },
+          { "time": 0.30, "value": [255, 255, 255, 255] }
+        ]
+      }
+    },
+    {
+      "name": "FadeOut",
+      "target": "Splash",
+      "duration": 0.25,
+      "pivot": [0.5, 0.5],
+      "tracks": {
+        "colour": [
+          { "time": 0.0, "value": [255, 255, 255, 255] },
+          { "time": 0.25, "value": [255, 255, 255, 0] }
+        ]
+      }
+    }
+  ],
   "root": {
     "name": "Root",
     "controlId": "Engine.Canvas",
@@ -153,6 +179,49 @@
           "previewText": "正在转换和编译着色器…"
         },
         "children": []
+      },
+      {
+        "name": "Splash",
+        "controlId": "Engine.Canvas",
+        "properties": { "size": [640, 480], "visible": false },
+        "slot": {
+          "anchors": { "min": [0, 0], "max": [1, 1] },
+          "offsets": { "left": 0, "top": 0, "right": 0, "bottom": 0 },
+          "alignment": [0, 0],
+          "autoSize": false,
+          "zOrder": 3
+        },
+        "editor": {},
+        "children": [
+          {
+            "name": "SplashBackground",
+            "controlId": "Engine.SolidRect",
+            "properties": { "fillColor": [72, 72, 72, 255] },
+            "slot": {
+              "anchors": { "min": [0, 0], "max": [1, 1] },
+              "offsets": { "left": 0, "top": 0, "right": 0, "bottom": 0 },
+              "alignment": [0, 0],
+              "autoSize": false,
+              "zOrder": 0
+            },
+            "editor": {},
+            "children": []
+          },
+          {
+            "name": "SplashImage",
+            "controlId": "Engine.Image",
+            "properties": { "texture": "/Game/Assets/System/LudorkSplash.png" },
+            "slot": {
+              "anchors": { "min": [0.5, 0.5], "max": [0.5, 0.5] },
+              "offsets": { "left": 0, "top": 0, "right": 640, "bottom": 480 },
+              "alignment": [0.5, 0.5],
+              "autoSize": false,
+              "zOrder": 1
+            },
+            "editor": {},
+            "children": []
+          }
+        ]
       }
     ]
   }

@@ -14,8 +14,6 @@ struct ShaderCacheRequest::Impl {
          std::vector<std::vector<std::string>> additional);
     ~Impl();
     void run() noexcept;
-    void prepare();
-
     std::filesystem::path userDataRoot;
     std::vector<std::vector<std::string>> additionalPrograms;
     mutable std::mutex mutex;

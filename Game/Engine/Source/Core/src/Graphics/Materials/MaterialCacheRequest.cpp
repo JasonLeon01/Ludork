@@ -1,5 +1,6 @@
 #include <Graphics/Materials/MaterialCacheRequest.hpp>
 #include "MaterialCacheRequestImpl.hpp"
+#include "MaterialCachePreparation.hpp"
 #include <PersistentStorage.hpp>
 
 #include <chrono>
@@ -9,7 +10,11 @@ namespace ludork::engine::materials {
 
 MaterialCacheRequest::MaterialCacheRequest(
     const std::filesystem::path& userDataRoot)
-    : impl_(std::make_unique<Impl>(userDataRoot)) {}
+    : impl_(std::make_unique<Impl>(userDataRoot)) {
+    impl_->worker = ludork::standard::BackgroundTask([this] {
+        impl_->run(impl_->stopRequested);
+    });
+}
 
 MaterialCacheRequest::~MaterialCacheRequest() = default;
 
@@ -45,12 +50,17 @@ void MaterialCacheRequest::cancel() {
     }
 }
 
+void MaterialCachePreparation::prepare(
+    const std::filesystem::path& root, const std::atomic<bool>& stop,
+    const std::function<void(double)>& progress, const PlannedAction& action) {
+    MaterialCacheRequest::Impl material(root);
+    material.exportProgress = progress;
+    material.prepare(stop, action);
+}
+
 MaterialCacheRequest::Impl::Impl(std::filesystem::path root)
     : userDataRoot(std::move(root)),
-      cacheRoot(userDataRoot / "Assets" / "Shaders" / "MaterialGenerated"),
-      worker([this] {
-          run(stopRequested);
-      }) {}
+      cacheRoot(userDataRoot / "Assets" / "Shaders" / "MaterialGenerated") {}
 
 MaterialCacheRequest::Impl::~Impl() {
     stopRequested.store(true);

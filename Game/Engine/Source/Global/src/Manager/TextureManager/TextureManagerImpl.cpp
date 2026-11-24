@@ -1,4 +1,5 @@
 #include "TextureManagerImpl.hpp"
+#include <FileWorkers.hpp>
 
 #include <algorithm>
 #include <limits>
@@ -8,9 +9,8 @@
 
 namespace ludork::global::texture_manager_impl {
 
-TextureManagerImpl::TextureManagerImpl() {
-    workers_.reserve(WorkerCount);
-}
+TextureManagerImpl::TextureManagerImpl()
+    : workerLimit_(ludork::standard::fileWorkerCount()) {}
 
 TextureManagerImpl::~TextureManagerImpl() {
     shutdown();
@@ -144,7 +144,7 @@ std::shared_ptr<sf::Texture> TextureManagerImpl::load(
     const std::optional<sf::IntRect>& area, bool smooth) {
     const std::shared_ptr<TextureLoadRequest> pending =
         request(filePath, sRGB, area, smooth, 0);
-    return resolve(*pending->state_);
+    return pending->resolve();
 }
 
 std::string TextureManagerImpl::status(const RequestState& state) const {
