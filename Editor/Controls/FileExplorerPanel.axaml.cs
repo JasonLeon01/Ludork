@@ -29,6 +29,7 @@ public partial class FileExplorerPanel : UserControl
     private ListBox? dragSource;
     private PointerPressedEventArgs? dragPress;
     private bool startingDrag;
+    private bool deferSingleSelection;
     private FileExplorerViewModel? previewViewModel;
 
     public FileExplorerPanel()
@@ -84,6 +85,7 @@ public partial class FileExplorerPanel : UserControl
     {
         endMarquee(false);
         resetPendingDrag();
+        clearDropTarget();
         foreach (FileExplorerItemControl row in this.GetVisualDescendants().OfType<FileExplorerItemControl>())
             row.Deactivate();
         previewViewModel = null;
@@ -162,6 +164,8 @@ public partial class FileExplorerPanel : UserControl
     private void updateViewMode()
     {
         endMarquee(false);
+        resetPendingDrag();
+        clearDropTarget();
         ListBox previous = activeEntries;
         FileExplorerViewModel? viewModel = DataContext as FileExplorerViewModel;
         bool iconMode = ViewModeButton.IsChecked == true;
@@ -395,7 +399,7 @@ public partial class FileExplorerPanel : UserControl
         }
         if (DataContext is not FileExplorerViewModel { IsReadOnly: false }
             || isScrollBarSource(args.Source)
-            || getEntry(args.Source) is null)
+            || getEntry(args.Source) is not FileExplorerEntryViewModel pressed)
             return;
         ListBox list = sender as ListBox ?? activeEntries;
         PointerPoint point = args.GetCurrentPoint(list);
@@ -403,11 +407,16 @@ public partial class FileExplorerPanel : UserControl
             && !point.Properties.IsRightButtonPressed
             && !point.Properties.IsMiddleButtonPressed)
         {
-            pressedSelection = getEntry(args.Source);
+            pressedSelection = pressed;
             dragStart = args.GetPosition(list);
             dragSource = list;
             dragPress = args;
-            return;
+            if (args.Pointer.Type == PointerType.Mouse && args.KeyModifiers == KeyModifiers.None
+                && list.SelectedItems is { Count: > 1 } selected && selected.Contains(pressed))
+            {
+                deferSingleSelection = true;
+                args.Handled = true;
+            }
         }
     }
 
@@ -484,7 +493,8 @@ public partial class FileExplorerPanel : UserControl
         if (viewModel.HasClipboard)
         {
             MenuItem paste = new MenuItem { Header = LocaleService.Get("PASTE") };
-            paste.Click += async (_, _) => await runFileOperationAsync(viewModel, "PASTE", progress => viewModel.PasteAsync(targetDirectory, progress));
+            string pasteDirectory = viewModel.GetTransferDirectory(item);
+            paste.Click += async (_, _) => await runFileOperationAsync(viewModel, "PASTE", progress => viewModel.PasteAsync(pasteDirectory, progress));
             items.Add(paste);
         }
         if (item is not null)
@@ -605,7 +615,11 @@ public partial class FileExplorerPanel : UserControl
             IReadOnlyList<FileExplorerEntryViewModel> selected = getSelectedEntries(activeEntries);
             if (args.Key == Key.C) viewModel.SetClipboard(selected.Select(entry => entry.FullPath), false);
             else if (args.Key == Key.X) viewModel.SetClipboard(selected.Select(entry => entry.FullPath), true);
-            else if (args.Key == Key.V) await runFileOperationAsync(viewModel, "PASTE", progress => viewModel.PasteAsync(progress: progress));
+            else if (args.Key == Key.V)
+            {
+                string target = viewModel.GetTransferDirectory(selected.Count == 1 ? selected[0] : null, keyboardPaste: true);
+                await runFileOperationAsync(viewModel, "PASTE", progress => viewModel.PasteAsync(target, progress));
+            }
             else if (args.Key == Key.D) await runFileOperationAsync(viewModel, "DUPLICATE_FILE", progress => viewModel.DuplicateAsync(selected.Select(entry => entry.FullPath), progress));
             else if (args.Key == Key.N && modifiers.HasFlag(KeyModifiers.Shift)) await createFolder(viewModel, viewModel.CurrentPath);
             else if (args.Key == Key.A) activeEntries.SelectAll();
@@ -838,6 +852,7 @@ public partial class FileExplorerPanel : UserControl
     {
         DragDrop.SetAllowDrop(list, true);
         list.AddHandler(DragDrop.DragOverEvent, onDragOver);
+        list.AddHandler(DragDrop.DragLeaveEvent, (_, _) => clearDropTarget());
         list.AddHandler(DragDrop.DropEvent, onDrop);
     }
 
@@ -872,12 +887,18 @@ public partial class FileExplorerPanel : UserControl
         if (paths.Length == 0)
             return;
         startingDrag = true;
-        pressedSelection = null;
-        DataTransfer data = new();
-        data.Add(DataTransferItem.CreateText(DragPrefix + JsonSerializer.Serialize(paths)));
-        await DragDrop.DoDragDropAsync(press, data, DragDropEffects.Move);
-        startingDrag = false;
         resetPendingDrag();
+        try
+        {
+            DataTransfer data = new();
+            data.Add(DataTransferItem.CreateText(DragPrefix + JsonSerializer.Serialize(paths)));
+            await DragDrop.DoDragDropAsync(press, data, DragDropEffects.Move);
+        }
+        finally
+        {
+            startingDrag = false;
+            clearDropTarget();
+        }
     }
 
     private async void onPointerReleased(object? sender, PointerReleasedEventArgs args)
@@ -885,10 +906,22 @@ public partial class FileExplorerPanel : UserControl
         if (releaseMarquee(args))
             return;
         FileExplorerEntryViewModel? entry = pressedSelection;
+        bool selectOnRelease = deferSingleSelection;
         resetPendingDrag();
-        if (args.InitialPressMouseButton == MouseButton.Left && entry is not null
-            && ReferenceEquals(getEntry(args.Source), entry) && DataContext is FileExplorerViewModel viewModel)
-            await viewModel.NotifyUserSelectionAsync(entry);
+        if (args.InitialPressMouseButton != MouseButton.Left || entry is null || sender is not ListBox list
+            || !ReferenceEquals(getEntry(list.InputHitTest(args.GetPosition(list))), entry)
+            || DataContext is not FileExplorerViewModel viewModel)
+            return;
+        if (selectOnRelease)
+        {
+            using (list.Selection.BatchUpdate())
+            {
+                list.Selection.Clear();
+                list.Selection.Select(list.Items.IndexOf(entry));
+            }
+            list.ContainerFromItem(entry)?.Focus();
+        }
+        await viewModel.NotifyUserSelectionAsync(entry);
     }
 
     private void onPointerCaptureLost(object? sender, PointerCaptureLostEventArgs args)
@@ -903,24 +936,35 @@ public partial class FileExplorerPanel : UserControl
         dragSource = null;
         dragPress = null;
         pressedSelection = null;
+        deferSingleSelection = false;
     }
 
     private void onDragOver(object? sender, DragEventArgs args)
     {
-        if (DataContext is not FileExplorerViewModel viewModel
-            || viewModel.IsReadOnly
-            || getDraggedPaths(args) is not { Count: > 0 } paths
-            || paths.Any(path => !viewModel.IsUnderRoot(path)))
+        if (DataContext is not FileExplorerViewModel { IsReadOnly: false } viewModel
+            || sender is not ListBox list || getDraggedPaths(args) is not { Count: > 0 } paths)
         {
+            clearDropTarget();
+            args.DragEffects = DragDropEffects.None;
+            return;
+        }
+        ListBoxItem? hit = getDropContainer(list, args);
+        FileExplorerEntryViewModel? entry = hit?.DataContext as FileExplorerEntryViewModel;
+        string target = viewModel.GetTransferDirectory(entry);
+        args.Handled = true;
+        if (!viewModel.CanDropPaths(paths, target))
+        {
+            clearDropTarget();
             args.DragEffects = DragDropEffects.None;
             return;
         }
         args.DragEffects = DragDropEffects.Move;
-        args.Handled = true;
+        showDropTarget(list, viewModel, entry, hit, target);
     }
 
     private async void onDrop(object? sender, DragEventArgs args)
     {
+        clearDropTarget();
         if (DataContext is not FileExplorerViewModel viewModel
             || viewModel.IsReadOnly
             || sender is not ListBox list
@@ -928,8 +972,14 @@ public partial class FileExplorerPanel : UserControl
         {
             return;
         }
-        string targetDirectory = getDropTargetDirectory(list, args, viewModel);
+        string targetDirectory = viewModel.GetTransferDirectory(getDropContainer(list, args)?.DataContext as FileExplorerEntryViewModel);
         args.Handled = true;
+        if (!viewModel.CanDropPaths(paths, targetDirectory))
+        {
+            args.DragEffects = DragDropEffects.None;
+            return;
+        }
+        args.DragEffects = DragDropEffects.Move;
         await runFileOperationAsync(viewModel, "EDIT_OPERATION_MOVING", progress => viewModel.MoveAsync(paths, targetDirectory, progress));
     }
 
@@ -940,7 +990,9 @@ public partial class FileExplorerPanel : UserControl
             return null;
         try
         {
-            return JsonSerializer.Deserialize<string[]>(text[DragPrefix.Length..]);
+            string[]? paths = JsonSerializer.Deserialize<string[]>(text[DragPrefix.Length..]);
+            return paths?.All(path => !string.IsNullOrWhiteSpace(path) && path.IndexOf('\0') < 0
+                && Path.IsPathFullyQualified(path)) == true ? paths : null;
         }
         catch (JsonException)
         {
@@ -948,17 +1000,43 @@ public partial class FileExplorerPanel : UserControl
         }
     }
 
-    private static string getDropTargetDirectory(
-        ListBox list,
-        DragEventArgs args,
-        FileExplorerViewModel viewModel)
+    private static ListBoxItem? getDropContainer(ListBox list, DragEventArgs args)
     {
         Visual? hit = list.InputHitTest(args.GetPosition(list)) as Visual;
-        FileExplorerEntryViewModel? entry = hit?.GetVisualAncestors()
-            .OfType<ListBoxItem>()
-            .Select(item => item.DataContext as FileExplorerEntryViewModel)
-            .FirstOrDefault(item => item is not null);
-        return entry?.IsDirectory == true ? entry.FullPath : viewModel.CurrentPath;
+        return hit?.FindAncestorOfType<ListBoxItem>(includeSelf: true);
+    }
+
+    private void showDropTarget(ListBox list, FileExplorerViewModel viewModel, FileExplorerEntryViewModel? entry,
+        ListBoxItem? hit, string directory)
+    {
+        Control? folderRow = entry?.IsDirectory == true ? hit : null;
+        if (folderRow is null && entry is { Depth: > 0 })
+            folderRow = list.GetRealizedContainers().FirstOrDefault(container =>
+                container.DataContext is FileExplorerEntryViewModel { IsDirectory: true } folder && folder.FullPath == directory);
+        Rect viewport = new(EntriesSelectionSurface.Bounds.Size);
+        Rect bounds = default;
+        if (folderRow?.TranslatePoint(default, EntriesSelectionSurface) is Point origin)
+            bounds = viewport.Intersect(new Rect(origin, folderRow.Bounds.Size));
+        else if (directory == viewModel.CurrentPath)
+            bounds = viewport;
+        DropTargetHighlight.IsVisible = bounds.Width > 0 && bounds.Height > 0;
+        if (DropTargetHighlight.IsVisible)
+        {
+            Canvas.SetLeft(DropTargetHighlight, bounds.X);
+            Canvas.SetTop(DropTargetHighlight, bounds.Y);
+            DropTargetHighlight.Width = bounds.Width;
+            DropTargetHighlight.Height = bounds.Height;
+        }
+        DropTargetHint.IsVisible = !DropTargetHighlight.IsVisible || viewModel.IsSearching;
+        if (DropTargetHint.IsVisible)
+            DropTargetLabel.Text = LocaleService.Get("FILE_EXPLORER_MOVE_TO")
+                .Replace("{path}", Path.GetRelativePath(viewModel.ProjectPath, directory).Replace('\\', '/'));
+    }
+
+    private void clearDropTarget()
+    {
+        DropTargetHighlight.IsVisible = false;
+        DropTargetHint.IsVisible = false;
     }
 
     private static IReadOnlyList<FileExplorerEntryViewModel> getSelectedEntries(ListBox list)

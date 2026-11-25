@@ -29,6 +29,7 @@ public sealed partial class ProjectAssetPaths
     }
 
     public event EventHandler? Changed;
+    internal StringComparer FileSystemComparer => fileSystemComparer;
     public bool HasPendingChanges => currentPaths.Any(document => document.Modified);
 
     public EditorDocument? GetDocument(string key) => store.Documents.Find(Section, key);
@@ -200,7 +201,7 @@ public sealed partial class ProjectAssetPaths
     public Task<bool> MoveAsync(IReadOnlyList<(string OldPath, string NewPath)> moves,
         IProgress<EditorOperationProgress>? progress = null)
     {
-        return store.RunAssetPathOperationAsync(captured => captured.AssetPaths.move(moves), progress);
+        return store.RunAssetPathOperationAsync(captured => captured.AssetPaths.Move(moves), progress);
     }
 
     private IEnumerable<EditorDocument> documents() => store.Documents.All.Where(document => document.Section == Section && document.Exists);

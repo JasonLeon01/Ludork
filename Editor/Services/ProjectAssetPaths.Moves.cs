@@ -9,7 +9,7 @@ namespace Ludork.Services;
 
 public sealed partial class ProjectAssetPaths
 {
-    private bool move(IReadOnlyList<(string OldPath, string NewPath)> moves, EditorDocument? replaySource = null)
+    internal bool Move(IReadOnlyList<(string OldPath, string NewPath)> moves, EditorDocument? replaySource = null)
     {
         (string OldPath, string NewPath)[] roots = moves.Select(move => (
                 Path.TrimEndingDirectorySeparator(Path.GetFullPath(move.OldPath)),
@@ -159,7 +159,7 @@ public sealed partial class ProjectAssetPaths
         EditorDocumentState destination = undo ? entry.Before : entry.After;
         try
         {
-            bool changed = move([(document.Path, destination.Path)], document);
+            bool changed = Move([(document.Path, destination.Path)], document);
             return new HistoryResult(changed) { Changes = changed ? [document.Path] : [] };
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException or ArgumentException)

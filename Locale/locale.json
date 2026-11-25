@@ -2559,6 +2559,10 @@
     "zh_CN": "搜索当前目录及子目录",
     "en_GB": "Search this folder and subfolders"
   },
+  "FILE_EXPLORER_MOVE_TO": {
+    "zh_CN": "移动到 {path}",
+    "en_GB": "Move to {path}"
+  },
   "FILE_EXPLORER_ZOOM": {
     "zh_CN": "缩放（Ctrl＋滚轮）",
     "en_GB": "Zoom (Ctrl + scroll)"
@@ -2766,6 +2770,10 @@
   "FILE_ALREADY_EXISTS": {
     "zh_CN": "'{name}' 已存在",
     "en_GB": "'{name}' already exists"
+  },
+  "FILE_EXPLORER_MOVE_ROLLBACK_FAILED": {
+    "zh_CN": "无法将 {target} 移回 {source}。文件或文件夹仍在 {target}。{error}",
+    "en_GB": "Could not move {target} back to {source}. The file or folder remains at {target}. {error}"
   },
   "CONVERT_TO_JSON": {
     "zh_CN": "转换为json",

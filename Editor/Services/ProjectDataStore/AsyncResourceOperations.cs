@@ -77,7 +77,7 @@ public sealed partial class ProjectDataStore
 
     private async Task<T> runResourceOperationAsync<T>(Func<ProjectDataStore, T> operation,
         Func<T, bool> succeeded, IProgress<EditorOperationProgress>? progress,
-        string stage = "EDIT_OPERATION_RENAMING")
+        string stage = "EDIT_OPERATION_RENAMING", Action<Exception>? reportNotificationError = null)
     {
         progress?.Report(new EditorOperationProgress("EDIT_OPERATION_PREPARING"));
         ProjectOperationSnapshot snapshot = await CaptureOperationSnapshotAsync(progress);
@@ -132,12 +132,13 @@ public sealed partial class ProjectDataStore
         });
         if (Documents.Revision != snapshot.Revision || !filesCurrent)
             throw new InvalidOperationException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
-        await applyResourceChangesAsync(changes, progress, renamedReferences);
+        await applyResourceChangesAsync(changes, progress, renamedReferences, reportNotificationError);
         return result;
     }
 
     private async Task applyResourceChangesAsync(IReadOnlyList<PreparedResourceChange> changes,
-        IProgress<EditorOperationProgress>? progress, RenamedReferenceState renamedReferences)
+        IProgress<EditorOperationProgress>? progress, RenamedReferenceState renamedReferences,
+        Action<Exception>? reportNotificationError = null)
     {
         Dictionary<Guid, EditorDocument> existing = Documents.All.ToDictionary(document => document.Id);
         HashSet<Guid> existingIds = existing.Keys.ToHashSet();
@@ -223,8 +224,18 @@ public sealed partial class ProjectDataStore
                 Maps.NotifyMapContentChanged(change.After.Key);
             if (changes.Any(change => change.After.Section == "UI"))
                 UiAssets.NotifyUiAssetsChanged();
-            committed = true;
-            transaction.Commit();
+            try
+            {
+                transaction.Commit();
+            }
+            catch (Exception exception) when (transaction.IsCommitted && reportNotificationError is not null)
+            {
+                reportNotificationError(exception);
+            }
+            finally
+            {
+                committed = transaction.IsCommitted;
+            }
         }
         finally
         {

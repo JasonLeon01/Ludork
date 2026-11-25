@@ -23,36 +23,26 @@ public sealed partial class FileExplorerViewModel
         string? target = getTargetDirectory(targetDirectory);
         if (target is null)
             return FileOperationResult.Empty;
+        if (clipboardCut)
+            return await moveBatchAsync(clipboardPaths.ToArray(), target, true, progress);
         List<string> errors = [];
         List<string> externalAdded = [];
         List<string> managedAdded = [];
         FileCopyBatch copies = new(externalAdded, errors, progress);
-        List<(string OldPath, string NewPath)> moved = [];
-        List<(string OldPath, string NewPath)> managedMoved = [];
         foreach (string source in clipboardPaths.Where(path => pathExists(path) && isEditablePath(path)).ToArray())
         {
             string destination = Path.Combine(target, Path.GetFileName(source));
-            if (!clipboardCut && pathExists(destination))
+            if (pathExists(destination))
                 destination = getDuplicatePath(source, target);
-            bool independentFile = !clipboardCut && !isVisibleDirectory(source) && !isManagedCopySource(source);
+            bool independentFile = !isVisibleDirectory(source) && !isManagedCopySource(source);
             if (!copies.IsEmpty && (!independentFile || copies.ContainsDestination(destination)))
             {
                 await copies.FlushAsync();
                 destination = Path.Combine(target, Path.GetFileName(source));
-                if (!clipboardCut && pathExists(destination))
+                if (pathExists(destination))
                     destination = getDuplicatePath(source, target);
             }
-            (bool managed, string? managedError) = clipboardCut
-                ? await tryMoveManagedPathAsync(source, destination, progress) : (false, null);
-            if (managed)
-            {
-                if (managedError is not null)
-                    errors.Add(managedError);
-                else
-                    managedMoved.Add((source, destination));
-                continue;
-            }
-            (bool copied, string? copyError) = !clipboardCut && !independentFile
+            (bool copied, string? copyError) = !independentFile
                 ? await tryCopyManagedPathAsync(source, destination, progress) : (false, null);
             if (copied)
             {
@@ -79,22 +69,9 @@ public sealed partial class FileExplorerViewModel
             }
             try
             {
-                if (clipboardCut)
-                {
-                    changing(new FileExplorerFilesChangedEventArgs(
-                        [],
-                        [(source, destination)],
-                        []));
-                    progress?.Report(new EditorOperationProgress("EDIT_OPERATION_MOVING", source));
-                    await Task.Run(() => movePath(source, destination));
-                    moved.Add((source, destination));
-                }
-                else
-                {
-                    progress?.Report(new EditorOperationProgress("COPY", source));
-                    await Task.Run(() => copyPath(source, destination));
-                    externalAdded.Add(destination);
-                }
+                progress?.Report(new EditorOperationProgress("COPY", source));
+                await Task.Run(() => copyPath(source, destination));
+                externalAdded.Add(destination);
             }
             catch (Exception exception)
             {
@@ -102,41 +79,21 @@ public sealed partial class FileExplorerViewModel
             }
         }
         await copies.FlushAsync();
+        Exception? notificationError;
         try
         {
-            Exception? notificationError = await applyFileChangesAsync(externalAdded, moved, [], progress);
-            if (notificationError is not null)
-                errors.Add(notificationError.Message);
-            if (moved.Count != 0 || managedMoved.Count != 0)
-            {
-                clipboardPaths.Clear();
-                clipboardCut = false;
-            }
+            notificationError = await applyFileChangesAsync(externalAdded, [], [], progress);
         }
         catch (Exception exception)
         {
-            await Task.Run(() => rollbackMoves(moved));
             errors.Add(exception.Message);
-            moved.Clear();
-            if (externalAdded.Count != 0)
-            {
-                Exception? notificationError = await applyFileChangesAsync(externalAdded, [], [], progress);
-                if (notificationError is not null)
-                    errors.Add(notificationError.Message);
-            }
+            notificationError = await applyFileChangesAsync(externalAdded, [], [], progress);
         }
-        if (managedMoved.Count != 0)
-            changed(new FileExplorerFilesChangedEventArgs([], managedMoved, []));
+        if (notificationError is not null)
+            errors.Add(notificationError.Message);
         if (managedAdded.Count != 0)
-        {
-            changed(new FileExplorerFilesChangedEventArgs(
-                managedAdded,
-                [],
-                []));
-        }
-        return new FileOperationResult(
-            externalAdded.Count != 0 || managedAdded.Count != 0 || moved.Count != 0 || managedMoved.Count != 0,
-            errors);
+            changed(new FileExplorerFilesChangedEventArgs(managedAdded, [], []));
+        return new FileOperationResult(externalAdded.Count != 0 || managedAdded.Count != 0, errors);
     }
 
     public async Task<FileOperationResult> DuplicateAsync(IEnumerable<string> paths, IProgress<EditorOperationProgress>? progress = null)
@@ -425,64 +382,4 @@ public sealed partial class FileExplorerViewModel
             return new FileOperationResult(false, [$"{trimmedName}: {exception.Message}"]);
         }
     }
-
-    public async Task<FileOperationResult> MoveAsync(IEnumerable<string> paths, string targetDirectory, IProgress<EditorOperationProgress>? progress = null)
-    {
-        string? target = getTargetDirectory(targetDirectory);
-        if (target is null)
-            return FileOperationResult.Empty;
-        List<string> errors = [];
-        List<(string OldPath, string NewPath)> moved = [];
-        List<(string OldPath, string NewPath)> managedMoved = [];
-        foreach (string source in normalizeTopLevelPaths(paths).Where(isEditablePath))
-        {
-            string destination = Path.Combine(target, Path.GetFileName(source));
-            (bool managed, string? managedError) = await tryMoveManagedPathAsync(source, destination, progress);
-            if (managed)
-            {
-                if (managedError is not null)
-                    errors.Add(managedError);
-                else
-                    managedMoved.Add((source, destination));
-                continue;
-            }
-            (bool allowed, string? error) = await canTransferAsync(source, target, destination);
-            if (!allowed)
-            {
-                if (!string.IsNullOrWhiteSpace(error))
-                    errors.Add(error);
-                continue;
-            }
-            try
-            {
-                changing(new FileExplorerFilesChangedEventArgs(
-                    [],
-                    [(source, destination)],
-                    []));
-                progress?.Report(new EditorOperationProgress("EDIT_OPERATION_MOVING", source));
-                await Task.Run(() => movePath(source, destination));
-                moved.Add((source, destination));
-            }
-            catch (Exception exception)
-            {
-                errors.Add($"{Path.GetFileName(source)}: {exception.Message}");
-            }
-        }
-        try
-        {
-            Exception? notificationError = await applyFileChangesAsync([], moved, [], progress);
-            if (notificationError is not null)
-                errors.Add(notificationError.Message);
-        }
-        catch (Exception exception)
-        {
-            await Task.Run(() => rollbackMoves(moved));
-            errors.Add(exception.Message);
-            moved.Clear();
-        }
-        if (managedMoved.Count != 0)
-            changed(new FileExplorerFilesChangedEventArgs([], managedMoved, []));
-        return new FileOperationResult(moved.Count != 0 || managedMoved.Count != 0, errors);
-    }
-
 }

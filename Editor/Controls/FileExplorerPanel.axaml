@@ -308,7 +308,14 @@
                 <Border x:Name="EntriesSelectionBox" IsVisible="False"
                         Background="#338ab4f8" BorderBrush="{DynamicResource Editor.AccentBrush}"
                         BorderThickness="1" CornerRadius="2" />
+                <Border x:Name="DropTargetHighlight" IsVisible="False"
+                        BorderBrush="{DynamicResource Editor.AccentBrush}" BorderThickness="2" CornerRadius="2" />
             </Canvas>
+            <Border x:Name="DropTargetHint" IsVisible="False" IsHitTestVisible="False" HorizontalAlignment="Left"
+                    VerticalAlignment="Bottom" Margin="6" Padding="6,3" CornerRadius="2"
+                    Background="{DynamicResource Editor.SurfaceBrush}" BorderBrush="{DynamicResource Editor.AccentBrush}" BorderThickness="1">
+                <TextBlock x:Name="DropTargetLabel" TextTrimming="CharacterEllipsis" />
+            </Border>
         </Grid>
         <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="*,Auto" Margin="8,2">
             <StackPanel Spacing="2" VerticalAlignment="Center">

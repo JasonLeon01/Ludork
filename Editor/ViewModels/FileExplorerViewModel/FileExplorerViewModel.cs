@@ -21,6 +21,7 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
 {
     private static readonly List<string> clipboardPaths = [];
     private static bool clipboardCut;
+    private static WeakReference<FileExplorerEntryViewModel>? copiedFolder;
     private readonly string projectPath;
     private readonly ProjectConfigService projectConfig;
     private readonly ProjectDataStore gameData;
@@ -185,9 +186,41 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
     {
         if (IsReadOnly && cut)
             return;
+        string[] selected = paths.ToArray();
         clipboardPaths.Clear();
-        clipboardPaths.AddRange(normalizeTopLevelPaths(paths).Where(isEditablePath));
+        clipboardPaths.AddRange(normalizeTopLevelPaths(selected).Where(isEditablePath));
         clipboardCut = cut && clipboardPaths.Count != 0;
+        copiedFolder = !cut && selected.Length == 1 && clipboardPaths.Count == 1
+            && SelectedEntry is { IsDirectory: true } folder && PathComparer.Equals(folder.FullPath, clipboardPaths[0])
+            ? new WeakReference<FileExplorerEntryViewModel>(folder) : null;
+    }
+
+    partial void OnSelectedEntryChanged(FileExplorerEntryViewModel? oldValue, FileExplorerEntryViewModel? newValue)
+    {
+        if (copiedFolder?.TryGetTarget(out FileExplorerEntryViewModel? folder) == true && ReferenceEquals(folder, oldValue))
+            copiedFolder = null;
+    }
+
+    internal string GetTransferDirectory(FileExplorerEntryViewModel? entry, bool keyboardPaste = false)
+    {
+        if (entry is null)
+            return CurrentPath;
+        bool duplicateBesideSource = keyboardPaste && copiedFolder?.TryGetTarget(out FileExplorerEntryViewModel? folder) == true
+            && ReferenceEquals(entry, folder);
+        return entry.IsDirectory && !duplicateBesideSource ? entry.FullPath : Path.GetDirectoryName(entry.FullPath)!;
+    }
+
+    internal bool CanDropPaths(IReadOnlyList<string> paths, string target)
+    {
+        bool changesDirectory = false;
+        foreach (string path in paths)
+        {
+            if (!isEditablePath(path) || EditorPathSandbox.IsSameOrChildPath(path, target))
+                return false;
+            if (!PathComparer.Equals(Path.GetDirectoryName(path), target))
+                changesDirectory = true;
+        }
+        return changesDirectory;
     }
 
     public bool RequiresIdeInitialization(ExternalIde ide)

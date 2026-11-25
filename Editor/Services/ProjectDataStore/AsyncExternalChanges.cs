@@ -10,9 +10,14 @@ namespace Ludork.Services;
 
 public sealed partial class ProjectDataStore
 {
-    public async Task<Exception?> ApplyExternalFileChangesAsync(IReadOnlyList<string> addedPaths,
+    public Task<Exception?> ApplyExternalFileChangesAsync(IReadOnlyList<string> addedPaths,
         IReadOnlyList<(string OldPath, string NewPath)> movedPaths, IReadOnlyList<string> deletedPaths,
         IProgress<EditorOperationProgress>? progress = null)
+        => applyExternalFileChangesAsync(addedPaths, movedPaths, deletedPaths, null, progress);
+
+    private async Task<Exception?> applyExternalFileChangesAsync(IReadOnlyList<string> addedPaths,
+        IReadOnlyList<(string OldPath, string NewPath)> movedPaths, IReadOnlyList<string> deletedPaths,
+        Action<ProjectDataStore>? moveResources, IProgress<EditorOperationProgress>? progress)
     {
         if (addedPaths.Count == 0 && movedPaths.Count == 0 && deletedPaths.Count == 0)
             return null;
@@ -20,8 +25,8 @@ public sealed partial class ProjectDataStore
             .Concat(movedPaths.SelectMany(move => new[] { move.OldPath, move.NewPath })));
         ProjectOperationSnapshot snapshot = await CaptureOperationSnapshotAsync(progress);
         PreparedExternalFileChanges prepared = await Task.Run(() =>
-            prepareExternalFileChanges(snapshot, addedPaths, movedPaths, deletedPaths, progress));
-        bool inputsCurrent = await Task.Run(prepared.Inputs.IsCurrent);
+            prepareExternalFileChanges(snapshot, addedPaths, movedPaths, deletedPaths, moveResources, progress));
+        bool inputsCurrent = await Task.Run(prepared.InputsAreCurrent);
         if (IsDisposed || Documents.Revision != snapshot.Revision || !inputsCurrent)
             throw new InvalidOperationException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
         Dictionary<Guid, EditorDocument> documents = Documents.All.ToDictionary(document => document.Id);
@@ -77,7 +82,7 @@ public sealed partial class ProjectDataStore
                     originData[origin.Key.Section].Remove(origin.Key.Key);
                 await batch.YieldIfNeededAsync();
             }
-            inputsCurrent = await Task.Run(prepared.Inputs.IsCurrent);
+            inputsCurrent = await Task.Run(prepared.InputsAreCurrent);
             if (IsDisposed || Documents.Revision != snapshot.Revision || !inputsCurrent)
                 throw new InvalidOperationException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
             replaceExternalInvalidPaths(prepared.InvalidPaths, prepared.InvalidErrors);
@@ -90,12 +95,18 @@ public sealed partial class ProjectDataStore
                 && prepared.Origins.Keys.Any(location => location.Section == "UI"))
                 UiAssets.NotifyUiAssetsChanged();
             Documents.PublishReset();
-            committed = true;
-            transaction.Commit();
-        }
-        catch (Exception exception) when (committed)
-        {
-            notificationError = exception;
+            try
+            {
+                transaction.Commit();
+            }
+            catch (Exception exception) when (transaction.IsCommitted)
+            {
+                notificationError = exception;
+            }
+            finally
+            {
+                committed = transaction.IsCommitted;
+            }
         }
         finally
         {
@@ -121,7 +132,8 @@ public sealed partial class ProjectDataStore
 
     private static PreparedExternalFileChanges prepareExternalFileChanges(ProjectOperationSnapshot snapshot,
         IReadOnlyList<string> addedPaths, IReadOnlyList<(string OldPath, string NewPath)> movedPaths,
-        IReadOnlyList<string> deletedPaths, IProgress<EditorOperationProgress>? progress)
+        IReadOnlyList<string> deletedPaths, Action<ProjectDataStore>? moveResources,
+        IProgress<EditorOperationProgress>? progress)
     {
         string[] paths = snapshot.Documents.SelectMany(document => new[] { document.Current.Path, document.Saved.Path })
             .Distinct(StringComparer.Ordinal).ToArray();
@@ -131,6 +143,7 @@ public sealed partial class ProjectDataStore
         IReadOnlyDictionary<string, string> replacements = working.ReferenceIndex.CreateMapMoveReplacements(movedPaths);
         working.ApplyExternalFileChanges(addedPaths, movedPaths, deletedPaths,
             replacements.Count == 0 ? null : () => working.ReferenceIndex.PrepareMapReferenceRewrites(replacements));
+        moveResources?.Invoke(working);
         Dictionary<Guid, ProjectOperationDocument> originals = snapshot.Documents.ToDictionary(document => document.Id);
         Dictionary<string, MapCatalogEntry> beforeCatalog = snapshot.MapCatalog.ToDictionary(
             entry => MapDataService.getMapCatalogDataKey(entry.Kind, entry.Key), StringComparer.Ordinal);
@@ -146,8 +159,8 @@ public sealed partial class ProjectDataStore
             if (original is not null && original.Revision == document.Revision)
                 continue;
             EditorDocumentState after = document.CaptureState();
-            EditorDocumentState before = original?.Current
-                ?? new EditorDocumentState(after.Section, after.Key, after.Path, null);
+            EditorDocumentState before = original?.Current ?? (moveResources is not null && document.Path != document.SavedPath
+                ? document.SavedState : new EditorDocumentState(after.Section, after.Key, after.Path, null));
             MapCatalogEntryKind kind = document.Section == "WorldMaps" ? MapCatalogEntryKind.WorldMap
                 : document.Key.Contains('/') ? MapCatalogEntryKind.WorldChildMap : MapCatalogEntryKind.StandaloneMap;
             changes.Add(new PreparedResourceChange(document.Id, before, after, document.SavedState,
@@ -185,7 +198,7 @@ public sealed partial class ProjectDataStore
             throw new IOException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
         return new PreparedExternalFileChanges(changes.ToArray(), removed, origins, catalogChanges.ToArray(),
             working.InvalidLoadPaths.ToArray(), working.InvalidLoadErrors, working.deletedDocumentPaths.ToArray(), inputs,
-            working.RenamedReferences);
+            working.RenamedReferences, moveResources is null ? null : working.AssetPaths.CaptureInputs());
     }
 
     private void replaceExternalInvalidPaths(IReadOnlyList<string> paths, IReadOnlyDictionary<string, string> errors)
@@ -204,5 +217,12 @@ public sealed partial class ProjectDataStore
         IReadOnlyDictionary<(string Section, string Key), JsonObject?> Origins,
         (MapCatalogEntry? Before, MapCatalogEntry? After)[] Catalog,
         string[] InvalidPaths, IReadOnlyDictionary<string, string> InvalidErrors, string[] DeletedPaths, ReferenceInputFiles Inputs,
-        RenamedReferenceState RenamedReferences);
+        RenamedReferenceState RenamedReferences, ProjectAssetPathInputs? AssetInputs)
+    {
+        internal bool InputsAreCurrent()
+        {
+            AssetInputs?.Validate();
+            return Inputs.IsCurrent();
+        }
+    }
 }

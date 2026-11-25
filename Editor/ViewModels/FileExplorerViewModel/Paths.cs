@@ -4,6 +4,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Ludork.Models;
+using Ludork.Plugin.Abstractions;
 using Ludork.Services;
 using System;
 using System.Collections.Generic;
@@ -12,6 +13,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
 namespace Ludork.ViewModels;
@@ -171,11 +173,19 @@ public sealed partial class FileExplorerViewModel
         if (!directory && !Path.GetExtension(source).Equals(DataConfig.DataFileExtension, StringComparison.OrdinalIgnoreCase))
             return (true, null);
         ProjectOperationSnapshot snapshot = await gameData.CaptureOperationSnapshotAsync();
-        IReadOnlyList<(string SourcePath, string DestinationPath)> uiAssetMoves = await Task.Run(() =>
+        IReadOnlyList<(string SourcePath, string DestinationPath)> uiAssetMoves;
+        try
         {
-            using ProjectDataStore captured = snapshot.CreateStore();
-            return getUiAssetTransferPaths(captured, source, destination);
-        });
+            uiAssetMoves = await Task.Run(() =>
+            {
+                using ProjectDataStore captured = snapshot.CreateStore();
+                return getUiAssetTransferPaths(captured, source, destination);
+            });
+        }
+        catch (Exception exception) when (EditorPathSandbox.IsPathFailure(exception))
+        {
+            return (false, exception.Message);
+        }
         if (gameData.Documents.Revision != snapshot.Revision)
             throw new InvalidOperationException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
         if (uiAssetMoves.Count != 0)
@@ -244,7 +254,7 @@ public sealed partial class FileExplorerViewModel
         IEnumerable<string> diskFiles = sourceIsFile
             ? [source]
             : Directory.Exists(source)
-                ? Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories)
+                ? enumerateDirectoryForTransfer(source).OfType<FileInfo>().Select(file => file.FullName)
                 : [];
         HashSet<string> known = result.Select(move => move.SourcePath).ToHashSet(ProjectDiskSnapshot.PathComparer);
         string[] candidates = diskFiles.Where(path => !known.Contains(path)
@@ -264,18 +274,22 @@ public sealed partial class FileExplorerViewModel
         return result;
     }
 
-    private static IReadOnlyList<string> normalizeTopLevelPaths(IEnumerable<string> paths)
+    private IReadOnlyList<string> normalizeTopLevelPaths(IEnumerable<string> paths)
     {
-        string[] normalized = paths
+        string[] selected = paths
             .Where(path => !string.IsNullOrWhiteSpace(path))
-            .Select(Path.GetFullPath)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(path => Path.TrimEndingDirectorySeparator(Path.GetFullPath(path)))
+            .Distinct(gameData.AssetPaths.FileSystemComparer)
             .OrderBy(path => path.Length)
             .ToArray();
-        return normalized
-            .Where(path => !normalized.Any(parent => !string.Equals(parent, path, StringComparison.OrdinalIgnoreCase)
-                && EditorPathSandbox.IsSameOrChildPath(parent, path)))
-            .ToArray();
+        HashSet<string> selectedPaths = selected.ToHashSet(gameData.AssetPaths.FileSystemComparer);
+        return selected.Where(path =>
+        {
+            for (string? parent = Path.GetDirectoryName(path); parent is not null; parent = Path.GetDirectoryName(parent))
+                if (selectedPaths.Contains(parent))
+                    return false;
+            return true;
+        }).ToArray();
     }
 
     private static void movePath(string source, string target)
@@ -288,14 +302,14 @@ public sealed partial class FileExplorerViewModel
                 ".ludork-case-move-" + Guid.NewGuid().ToString("N"));
             if (Directory.Exists(source))
             {
-                Directory.Move(source, temporary);
+                moveDirectory(source, temporary);
                 try
                 {
-                    Directory.Move(temporary, target);
+                    moveDirectory(temporary, target);
                 }
                 catch
                 {
-                    Directory.Move(temporary, source);
+                    moveDirectory(temporary, source);
                     throw;
                 }
             }
@@ -315,7 +329,7 @@ public sealed partial class FileExplorerViewModel
             return;
         }
         if (Directory.Exists(source))
-            Directory.Move(source, target);
+            moveDirectory(source, target);
         else
             File.Move(source, target);
     }
@@ -387,17 +401,57 @@ public sealed partial class FileExplorerViewModel
 
     private static void copyDirectory(string source, string target)
     {
+        string staging = Path.Combine(Path.GetDirectoryName(target)!, $".ludork-copy-{Guid.NewGuid():N}");
         List<(string Source, string Target)> files = [];
-        collect(source, target);
-        EditorValidationBatch.ForEachFile(files, file => File.Copy(file.Source, file.Target));
-
-        void collect(string directory, string destination)
+        Directory.CreateDirectory(staging);
+        try
         {
-            Directory.CreateDirectory(destination);
-            foreach (string file in Directory.EnumerateFiles(directory))
-                files.Add((file, Path.Combine(destination, Path.GetFileName(file))));
-            foreach (string child in Directory.EnumerateDirectories(directory))
-                collect(child, Path.Combine(destination, Path.GetFileName(child)));
+            foreach (FileSystemInfo entry in enumerateDirectoryForTransfer(source))
+            {
+                string destination = Path.Combine(staging, Path.GetRelativePath(source, entry.FullName));
+                if (entry is DirectoryInfo)
+                    Directory.CreateDirectory(destination);
+                else
+                    files.Add((entry.FullName, destination));
+            }
+            EditorValidationBatch.ForEachFile(files, file => File.Copy(file.Source, file.Target));
+            moveDirectory(staging, target);
+        }
+        catch
+        {
+            EditorValidationBatch.ForEachFile(files, file => FilePersistence.DeleteFile(file.Target));
+            Directory.Delete(staging, true);
+            throw;
         }
     }
+
+    private static IEnumerable<FileSystemInfo> enumerateDirectoryForTransfer(string path)
+    {
+        Stack<FileSystemInfo> pending = new();
+        pending.Push(new DirectoryInfo(path));
+        while (pending.TryPop(out FileSystemInfo? entry))
+        {
+            if (EditorPathSandbox.IsLink(entry))
+                throw new IOException($"The asset directory contains a symbolic link: {entry.FullName}");
+            yield return entry;
+            if (entry is DirectoryInfo directory)
+                foreach (FileSystemInfo child in directory.EnumerateFileSystemInfos())
+                    pending.Push(child);
+        }
+    }
+
+    private static void moveDirectory(string source, string target)
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            Directory.Move(source, target);
+            return;
+        }
+        const uint renameExclusive = 0x00000004;
+        if (renameDirectoryOnMacOS(source, target, renameExclusive) != 0)
+            throw new IOException($"{target}: {Marshal.GetLastPInvokeErrorMessage()}");
+    }
+
+    [DllImport("/usr/lib/libSystem.B.dylib", EntryPoint = "renamex_np", CharSet = CharSet.Ansi, SetLastError = true)]
+    private static extern int renameDirectoryOnMacOS(string source, string destination, uint flags);
 }
