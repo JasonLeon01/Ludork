@@ -223,19 +223,12 @@ public sealed class BlueprintEditorDocument : IDisposable
         IReadOnlyDictionary<string, JsonNode?> updates,
         IEnumerable<string> removals)
     {
-        string[] removedNames = removals.ToArray();
         if (!CanEditAttributes || blueprintKey is null
-            || !mutate(() => gameData.Blueprints.UpdateBlueprintAttributes(blueprintKey, updates, removedNames)))
+            || !mutate(() => gameData.Blueprints.UpdateBlueprintAttributes(blueprintKey, updates, removals)))
         {
             return false;
         }
-        JsonObject workingAttrs = ensureObject(data, "attrs");
-        foreach (string name in removedNames)
-            workingAttrs.Remove(name);
-        foreach (KeyValuePair<string, JsonNode?> pair in updates)
-            workingAttrs[pair.Key] = pair.Value?.DeepClone();
-        if (!updates.ContainsKey("materialParameters") && (updates.ContainsKey("material") || removedNames.Contains("material")))
-            workingAttrs["materialParameters"] = new JsonObject();
+        data["attrs"] = resourceDocument!.InternalData!["attrs"]!.DeepClone();
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
     }

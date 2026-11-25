@@ -158,6 +158,13 @@ std::string sourceSignature(const RuntimeData& value) {
 
 }  // namespace
 
+std::string MaterialResource::resolveActorPath(std::string path) {
+    if (path.empty()) {
+        return "Data/Materials/Global/Standard.json";
+    }
+    return path;
+}
+
 std::shared_ptr<const MaterialResource> MaterialResource::load(
     const std::string& path) {
     static_cast<void>(MaterialGenerated::resourceDirectory(path));

@@ -21,13 +21,24 @@ public sealed partial class BlueprintDataService
             next.Remove(name);
         foreach (KeyValuePair<string, JsonNode?> pair in updates)
             next[pair.Key] = pair.Value?.DeepClone();
-        if (!updates.ContainsKey("materialParameters") && !JsonNode.DeepEquals(current?["material"], next["material"]))
+        if (!updates.ContainsKey("materialParameters") && ActorMaterialChanges(blueprint["parent"], current?["material"], next["material"]))
             next["materialParameters"] = new JsonObject();
         if (current is null && next.Count == 0 || JsonNode.DeepEquals(current, next))
             return false;
         JsonObject candidate = (JsonObject)blueprint.DeepClone();
         candidate["attrs"] = next;
         return UpdateBlueprint(key, candidate);
+    }
+
+    internal bool ActorMaterialChanges(JsonNode? classReference, JsonNode? previous, JsonNode? next)
+    {
+        if (JsonNode.DeepEquals(previous, next))
+            return false;
+        JsonNode? inherited = previous is null || next is null
+            ? store.BlueprintClasses.GetValue(JsonScalar.String(classReference, string.Empty), "material")
+            : null;
+        return ActorMaterialReference.Resolve(JsonScalar.String(previous ?? inherited))
+            != ActorMaterialReference.Resolve(JsonScalar.String(next ?? inherited));
     }
 
     public bool UpdateBlueprintParent(string key, string parent)

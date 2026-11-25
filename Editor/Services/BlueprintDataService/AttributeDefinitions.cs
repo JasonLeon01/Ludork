@@ -39,7 +39,7 @@ public sealed partial class BlueprintDataService
             return false;
         JsonObject next = (JsonObject)current.DeepClone();
         bool changed = next["attrs"] is JsonObject attrs && attrs.Remove(name);
-        if (changed && name == "material")
+        if (changed && name == "material" && ActorMaterialChanges(current["parent"], current["attrs"]?[name], null))
             next["attrs"]!["materialParameters"] = new JsonObject();
         if (next["attrDefs"] is JsonObject definitions)
         {

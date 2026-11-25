@@ -317,7 +317,8 @@ public sealed partial class BlueprintVariableForm
         if (disposed || building || applyingFieldValues || isReadOnly || root.IsReadOnly || root.IsMultiEditReadOnly
             || field.IsReadOnly || field.IsMultiEditReadOnly)
             return;
-        if (!field.IsMixedValue && JsonNode.DeepEquals(getFieldValue(field), value))
+        if (!field.IsMixedValue && JsonNode.DeepEquals(getFieldValue(field), value)
+            && !ActorMaterialReference.IsField(field.Name, field.SourceClass))
             return;
         field.IsMixedValue = false;
         field.Value = value?.DeepClone();

@@ -529,7 +529,8 @@ public sealed partial class BlueprintVariableForm
                 return;
             }
             box.PlaceholderText = null;
-            box.Text = storedPath;
+            box.Text = ActorMaterialReference.IsField(field.Name, field.SourceClass)
+                ? ActorMaterialReference.Resolve(storedPath) : storedPath;
             tilesetBrowse = false;
             syncTilesetCheck(storedPath);
             changed(JsonValue.Create(storedPath), false);
@@ -586,7 +587,8 @@ public sealed partial class BlueprintVariableForm
         {
             void updateActionVisibility()
             {
-                action.IsVisible = browse.IsEffectivelyEnabled && string.IsNullOrWhiteSpace(box.Text);
+                action.IsVisible = browse.IsEffectivelyEnabled && (string.IsNullOrWhiteSpace(box.Text)
+                    || ActorMaterialReference.IsField(field.Name, field.SourceClass) && box.Text == ActorMaterialReference.Standard);
             }
             browse.PropertyChanged += (_, args) =>
             {

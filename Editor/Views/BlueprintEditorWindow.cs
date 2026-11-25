@@ -488,7 +488,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
                 VerticalAlignment = VerticalAlignment.Center,
-                IsEnabled = hasLocalValue && !JsonNode.DeepEquals(field.Value, parentField.Value),
+                IsEnabled = hasLocalValue && canRevertAttribute(field.Name, field.Value, parentField.Value),
             };
             JsonNode? parentValue = parentField.Value?.DeepClone();
             revertActions[field.Name] = (revert, parentValue?.DeepClone());
@@ -522,6 +522,11 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
             refreshPreview(resolvedClass);
         };
         return remove;
+    }
+
+    private static bool canRevertAttribute(string name, JsonNode? value, JsonNode? parentValue)
+    {
+        return name == "material" || !JsonNode.DeepEquals(value, parentValue);
     }
 
     private async Task removeLocalScriptPathAsync()
@@ -831,7 +836,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
             args.Name,
             out (Button Button, JsonNode? ParentValue) action))
         {
-            action.Button.IsEnabled = !JsonNode.DeepEquals(args.Value, action.ParentValue);
+            action.Button.IsEnabled = canRevertAttribute(args.Name, args.Value, action.ParentValue);
         }
         if (generalDataSelectorChanged)
         {

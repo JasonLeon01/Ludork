@@ -36,17 +36,14 @@ public sealed partial class MapDataService
             || map["BPClassVarChanged"] is not null and not JsonObject)
             return false;
         Dictionary<string, Dictionary<string, int>> layerTagIndices = new(StringComparer.Ordinal);
-        foreach (MapActorOverrideEdit change in overrides)
-        {
-            if (string.IsNullOrEmpty(change.Name)
-                || !tryFindEditableBatchActor(map, change.Actor, layerTagIndices, out _)
-                || map["BPClassVarChanged"]?[change.Actor.Tag] is not null and not JsonObject)
-                return false;
-        }
         JsonObject? root = map["BPClassVarChanged"] as JsonObject;
         Dictionary<string, ActorOverrideChanges> changes = new(StringComparer.Ordinal);
         foreach (MapActorOverrideEdit change in overrides)
         {
+            if (string.IsNullOrEmpty(change.Name)
+                || !tryFindEditableBatchActor(map, change.Actor, layerTagIndices, out int index)
+                || root?[change.Actor.Tag] is not null and not JsonObject)
+                return false;
             if (!changes.TryGetValue(change.Actor.Tag, out ActorOverrideChanges? actorChanges))
             {
                 actorChanges = new(root?[change.Actor.Tag] as JsonObject, root?.ContainsKey(change.Actor.Tag) == true);
@@ -58,7 +55,8 @@ public sealed partial class MapDataService
             if (!changed)
                 continue;
             actorChanges.Set(change.Name, !change.Remove, change.Value);
-            if (change.Name == "material")
+            if (change.Name == "material" && store.Blueprints.ActorMaterialChanges(
+                map["actors"]![change.Actor.LayerName]![index]!["bp"], previous, change.Remove ? null : change.Value))
                 actorChanges.Set("materialParameters", true, new JsonObject());
         }
         int rootCount = root?.Count ?? 0;

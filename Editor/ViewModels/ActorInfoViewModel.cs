@@ -398,7 +398,7 @@ public sealed partial class ActorInfoViewModel
         if (actorData is null)
             return;
         JsonNode? value = cloneNode(nextValue);
-        bool isDefault = fieldsWithDefaults.Contains(name)
+        bool isDefault = name != "material" && fieldsWithDefaults.Contains(name)
             && blueprintValuesEqual(value, defaultValues.GetValueOrDefault(name));
         JsonObject? changes = getClassVarChanges(actorData);
         bool currentExists = changes?.ContainsKey(name) == true;

@@ -8,6 +8,9 @@ local TextureManager = GlobalCore.TextureManager
 local BlueprintActorOverrides = {}
 
 function BlueprintActorOverrides.ResolveValue(actorType, key, value, descriptor, configResolver)
+    if key == "material" and value == "" then
+        return Engine.Actor.material
+    end
     if Class.isInstance(value, "string") and not bool(value) then
         local configName, settingName = Engine.resolveConfigVar(actorType, key)
         if configName ~= nil then

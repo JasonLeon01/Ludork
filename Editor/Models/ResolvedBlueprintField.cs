@@ -1,3 +1,4 @@
+using Ludork.Services;
 using System.Text.Json.Nodes;
 
 namespace Ludork.Models;
@@ -18,8 +19,16 @@ public sealed class ResolvedBlueprintField
     {
         Name = name;
         Type = type;
-        Value = value?.DeepClone();
-        BlueprintDefaultValue = blueprintDefaultValue?.DeepClone();
+        if (ActorMaterialReference.IsField(name, sourceClass))
+        {
+            Value = JsonValue.Create(ActorMaterialReference.Resolve(value?.GetValue<string>()));
+            BlueprintDefaultValue = JsonValue.Create(ActorMaterialReference.Resolve(blueprintDefaultValue?.GetValue<string>()));
+        }
+        else
+        {
+            Value = value?.DeepClone();
+            BlueprintDefaultValue = blueprintDefaultValue?.DeepClone();
+        }
         Metadata = metadata;
         IsUnknown = isUnknown;
         HasBlueprintDefaultValue = hasBlueprintDefaultValue;

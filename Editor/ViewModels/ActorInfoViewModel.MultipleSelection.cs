@@ -268,7 +268,7 @@ public sealed partial class ActorInfoViewModel
             BlueprintVariableField field = selection.Fields.First(item => item.Name == name);
             JsonNode? value = BlueprintMultiSelectionFields.Replace(BlueprintMultiSelectionFields.EffectiveValue(field), path, nextValue);
             ResolvedBlueprintField? resolved = selection.Resolved.GetField(name);
-            bool remove = resolved?.HasBlueprintDefaultValue == true && JsonNode.DeepEquals(value, resolved.BlueprintDefaultValue);
+            bool remove = name != "material" && resolved?.HasBlueprintDefaultValue == true && JsonNode.DeepEquals(value, resolved.BlueprintDefaultValue);
             edits.Add(new MapActorOverrideEdit(selection.Reference, name, value, remove));
         }
         if (!gameData.Maps.ApplyMapActorOverrides(mapKey, edits))

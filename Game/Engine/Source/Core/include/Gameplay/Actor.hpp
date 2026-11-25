@@ -57,7 +57,8 @@ public:
     BIND_PROPERTY()
     bool visible = true;
 
-    BIND_METHOD(property = "material", setter = "setMaterial", default = "",
+    BIND_METHOD(property = "material", setter = "setMaterial",
+                default = "Data/Materials/Global/Standard.json",
                 meta(PathRoot = "Data", PathVars = "Data/Materials",
                      PathFilter = "*.json"))
     const std::string& materialReference() const;
@@ -561,7 +562,8 @@ private:
         const std::shared_ptr<sf::Texture>& texture);
 
     void ensureMaterialLoaded() const;
-    std::string material_;
+    std::string material_ =
+        ludork::engine::materials::MaterialResource::resolveActorPath({});
     RuntimeData::Map materialParameters_;
 
     std::weak_ptr<ActorMapService> map_;

@@ -216,7 +216,8 @@ ActorBatchRenderer::Impl::parseVisual(const RuntimeData& value,
                              rect, "y", source + ".textureRect"),
                          source + ".textureRect.y")},
                     {width, height}),
-        material, parameters};
+        ludork::engine::materials::MaterialResource::resolveActorPath(material),
+        parameters};
     PackedActorVisual packed;
     packed.visual = std::move(visual);
     try {

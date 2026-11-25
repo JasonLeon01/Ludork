@@ -53,6 +53,7 @@ public:
         std::optional<float> maximum;
     };
 
+    static std::string resolveActorPath(std::string path);
     static std::shared_ptr<const MaterialResource> load(
         const std::string& path);
     static std::shared_ptr<const MaterialResource> fromData(

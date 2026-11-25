@@ -75,7 +75,7 @@ function ActorPreviews:_getTemplate(classPath)
         scale = classModel.defaultScale:copy(),
         origin = classModel.defaultOrigin:copy(),
         visible = classModel.visible,
-        material = classModel.material or "",
+        material = bool(classModel.material) and classModel.material or Actor.material,
         materialParameters = deepcopy(classModel.materialParameters or {}),
         conditionVariable = conditional and classModel.conditionVariable or "",
         conditionOperator = conditional and classModel.conditionOperator or "==",

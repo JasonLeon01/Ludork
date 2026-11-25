@@ -931,12 +931,13 @@ public sealed class BlueprintClassResolver : IDisposable
                 bool hasBlueprintValue = blueprintFieldSet.Contains(name);
                 bool hasDefault = fieldsWithMetadataDefaults.Contains(name);
                 bool hasOverride = overrides?.ContainsKey(name) == true;
-                JsonNode? blueprintDefaultValue = hasBlueprintValue
-                    ? blueprintValues[name]
-                    : hasDefault
-                        ? metadataDefaults[name]
-                        : null;
+                JsonNode? blueprintDefaultValue = getBlueprintDefault(name);
                 JsonNode? value = hasOverride ? overrides![name] : blueprintDefaultValue;
+                if (name == "materialParameters" && !hasOverride && overrides?["material"] is JsonValue material
+                    && fieldSources.GetValueOrDefault(name) == "Engine.Actor"
+                    && ActorMaterialReference.Resolve(material.GetValue<string>()) !=
+                        ActorMaterialReference.Resolve(getBlueprintDefault("material")?.GetValue<string>()))
+                    value = new JsonObject();
                 fields.Add(new ResolvedBlueprintField(
                     name,
                     fieldMetadata.Type,
@@ -1025,6 +1026,9 @@ public sealed class BlueprintClassResolver : IDisposable
                 MetadataRevision,
                 blueprintDependencies);
         }
+
+        private JsonNode? getBlueprintDefault(string name) =>
+            blueprintValues.TryGetValue(name, out JsonNode? value) ? value : metadataDefaults.GetValueOrDefault(name);
 
         private bool includesField(string name) => selectedFields is null || selectedFields.Contains(name);
 

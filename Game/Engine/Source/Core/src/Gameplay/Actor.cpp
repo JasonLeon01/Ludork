@@ -1096,9 +1096,11 @@ sf::FloatRect Actor::getMaterialBounds() const {
 }
 
 void Actor::setMaterial(const std::string& value) {
-    ludork::engine::materials::MaterialResource::load(value);
-    if (material_ != value) {
-        material_ = value;
+    std::string path =
+        ludork::engine::materials::MaterialResource::resolveActorPath(value);
+    if (material_ != path) {
+        impl_.get().visual.getMaterial(path);
+        material_ = std::move(path);
         materialParameters_.clear();
     }
 }

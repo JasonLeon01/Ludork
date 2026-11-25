@@ -716,7 +716,7 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
         if (disposed || building || applyingFieldValues || isReadOnly || field.IsReadOnly)
             return;
         values.TryGetValue(field.Name, out JsonNode? previous);
-        if (JsonNode.DeepEquals(previous, value))
+        if (JsonNode.DeepEquals(previous, value) && !ActorMaterialReference.IsField(field.Name, field.SourceClass))
             return;
         JsonNode? next = (value)?.DeepClone();
         field.Value = (next)?.DeepClone();
