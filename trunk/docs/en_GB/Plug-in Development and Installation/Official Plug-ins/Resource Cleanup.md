@@ -10,7 +10,7 @@ Review project resources for which no static reference can be found, protect res
 ## Steps
 
 1. Choose **Plugins → Resource Cleanup**. The window shows the built-in protected resource list and the project's additional keep paths separately.
-2. Review the built-in list. `NativeResources.list` ships with the plug-in and protects resources used directly by native C++, including shaders, UI defaults, text styles and curves. It also retains standard application icons and the bundled asset licence files used by distribution. These entries are read-only in the window.
+2. Review the built-in list. It includes the editor's [fixed resource directories](<../../Editor User Guide/Project Settings and Asset Layout.md#fixed-resource-directories>) and the plug-in's additional keep entries for UI defaults, application icons and asset licences. These entries are read-only in the window. Cleanup also retains assets referenced by files in a protected directory.
 3. Add files or directories needed by dynamic Lua paths to the additional keep list, one project-relative path per line. For example, keep `Assets/Characters/Dynamic` or `Data/Animations/GeneratedEffect.json`. A directory protects its contents. Static scanning cannot identify concatenated or runtime-calculated paths; add those paths yourself.
 4. Select **Scan**. The scan runs in the background and shows its stage, progress and current path. **Cancel** stops the operation without starting a cleanup.
 5. Review the **Data** and **Assets** tabs. Each candidate shows its complete project-relative path and size; each tab also shows its file count and total size. A candidate means no supported static reference was found; it does not mean that runtime use has been disproved.

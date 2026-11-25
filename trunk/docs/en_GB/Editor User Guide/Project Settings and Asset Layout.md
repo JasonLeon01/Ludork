@@ -91,6 +91,20 @@ Switching configurations keeps pending edits and does not save automatically. An
 
 *Select System to edit the game's title, dimensions and startup settings, or Audio to edit sound and music resources.*
 
+## Fixed resource directories
+
+The editor reserves the following project directories for runtime configuration and built-in resources. Path protection covers each directory and its entire contents, including custom files and subfolders added later.
+
+| Directory | Contents |
+| --- | --- |
+| `Data/Configs` | Game configuration, including startup, audio and gameplay settings |
+| `Assets/Shaders/Global` | Built-in rendering shaders |
+| `Data/Curves/Global` | Shared animation and effect curves |
+| `Data/Materials/Global` | Shared materials such as the standard material |
+| `Data/TextConfigs/Global` | Shared text styles |
+
+You can edit, save or copy resources at these paths. File Explorer blocks renaming (including case-only changes), moving or deleting a protected entry or a parent that contains one. If a selection includes such an entry, the whole operation is blocked and the editor identifies the protected path.
+
 ## Assets
 
 Authoring files live under the physical `Assets` directory. Stored resources use exact-case `/Game/Assets/...` paths with `/` separators and file extensions. Paths such as `Assets/...`, category-relative paths, native absolute paths and traversal paths are invalid. `PathVars` marks a field as a validated canonical `/Game/Assets/...` reference, unless `PathRoot` selects `"Project"` files or `"Data"` documents. Config `base` only sets the picker root. Runtime lookup follows the [resource priority](#runtime-resource-lookup) below. Direct LuaSF file constructors and ordinary physical filesystem operations continue to use native paths.
