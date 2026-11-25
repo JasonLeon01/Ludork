@@ -111,7 +111,7 @@ Undo cannot restore a reference to a deleted resource or to an unavailable asset
 
 Automatic reference updates create a marked Undo barrier in every changed target file, including unopened files. Later edits remain undoable, but Undo cannot cross the barrier and reports the barrier's source. Undoing or redoing the source rename updates references against the current target content and adds a new barrier, which preserves unrelated edits. Saving preserves the history and the barriers, so Undo can mark a saved file as modified again.
 
-To Undo or Redo an asset path change, select the file or folder in File Explorer. Undoing a folder move preserves later independent changes to its children. Save pending moves before copying, deleting, importing, creating or writing files at their source or destination paths; further renames and moves remain available. Destination conflicts reject the whole operation.
+To Undo or Redo an asset path change, select the file or folder in File Explorer. Undoing a folder move preserves later independent changes to its children. Save pending moves before copying, deleting, importing, creating or writing files at their source or destination paths. Further renames and moves remain available.
 
 For external-change conflicts, **Keep memory** accepts the current disk contents while retaining pending paths, updated references and Undo/Redo history. **Use disk** cancels the affected pending moves and restores recognised references to the last saved paths, preserving unrelated edits.
 
@@ -129,7 +129,9 @@ Each tab keeps its own browsing state. Use **Back** and **Forward**, `Alt+Left` 
 
 Resource **Locate** actions use the most recently active File Explorer, including when Console is selected. Reopening the project restores the browser tabs, their directories and display preferences, and the active browser; search, navigation history, selection and scroll position last only for the current session. The saved fields and directory recovery rules are described in [Main.proj](<Project Settings and Asset Layout.md#mainproj>).
 
-Right-click an entry for file operations or empty space for the current directory menu. Paste targets the current browsing directory.
+Right-click an entry for file operations or empty space for the current directory menu. Paste or drop on a folder to place entries inside it, on a file to use its containing folder, or on empty space to use the current browsing directory. These rules also apply to expanded folders and search results. Keyboard paste (`Ctrl/Command+V`) uses the selected entry, or the current browsing directory when several entries or none are selected.
+
+To move several entries together, drag from any selected entry. Clicking and releasing there without dragging selects just that entry. The highlighted folder or content area shows the destination. Search results also show its project-relative path. A folder cannot be moved into itself or a descendant.
 
 Right-click a file or folder and choose **Show in File Explorer** on Windows or **Show in Finder** on macOS to open its containing directory and select it. This also works in expanded folders and search results. With multiple entries selected, it reveals only the right-clicked entry. The action is disabled for entries that do not yet exist on disk and does not save pending changes.
 
@@ -151,7 +153,9 @@ Creating or copying a managed resource leaves it unsaved and adds no Undo step f
 
 Recycling preserves the last saved disk contents and path, including when a resource has an unsaved rename. Unsaved edits are discarded. A new resource that has never been saved is removed from the editor without creating a recoverable copy. Successfully deleted resources are removed from managed documents and resource lists, so a later Save does not recreate them. Editor Undo cannot restore resource deletion. Restore saved files through the operating system, then reopen the project to load them again. Deleting items within a document, such as Actors, graph nodes and map layers, continues to use that document's Undo history.
 
-Copy/paste name conflicts produce names such as `name_copy.ext`, then `name_copy2.ext`, without overwriting existing files or folders.
+To duplicate a folder in place, select it and press `Ctrl/Command+C` followed by `Ctrl/Command+V` with the same selection. For example, copying `Icons` creates `Icons_copy` alongside it. A name conflict adds `_copy`, then `_copy2` and so on, before the extension for files. A folder copy appears at its final path once all its contents have been copied.
+
+If a cut or drag would give two entries the same destination, or a destination name is already taken, the whole move is rejected. After cutting, resolve the conflict and paste again using the same clipboard selection. If a disk error interrupts a move, the editor attempts to move the files back. If one cannot be returned, the error identifies its location and the cut clipboard keeps the entries still to move.
 
 The open menu at the upper right always offers the system file manager, which opens the current browsing directory. Selecting an entry saves it as the preferred open target. If it is unavailable in another project or on the current machine, the button uses the system file manager while retaining the saved preference. It lists VS Code or Cursor only when the corresponding application is installed. C++ Source projects also list an installed CLion, and Visual Studio 2022 on Windows. VS Code, Cursor and CLion open the project root regardless of the directory displayed in File Explorer. When the local `.idea` or `.vs` configuration is absent, opening CLion or Visual Studio for the first time prompts before running the project-provided environment generator. Cancelling leaves the project unchanged. Visual Studio opens the generated `Main.sln` at the project root.
 
