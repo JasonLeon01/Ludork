@@ -21,6 +21,8 @@ public sealed partial class FileExplorerViewModel
         if (target is null || IsReadOnly)
             return FileOperationResult.Empty;
         string[] sources = normalizeTopLevelPaths(paths).ToArray();
+        if (gameData.GetBuiltInPathError(sources) is string moveError)
+            return new FileOperationResult(false, [moveError]);
         List<(string OldPath, string NewPath)> assets = [];
         List<(string OldPath, string NewPath)> resources = [];
         List<(string OldPath, string NewPath)> files = [];
@@ -81,6 +83,7 @@ public sealed partial class FileExplorerViewModel
                     foreach ((string source, string destination) in files)
                     {
                         progress?.Report(new EditorOperationProgress("EDIT_OPERATION_MOVING", source));
+                        gameData.BuiltInResources.AssertCanChangeOnDisk(source);
                         movePath(source, destination);
                         transferred.Add((source, destination));
                     }

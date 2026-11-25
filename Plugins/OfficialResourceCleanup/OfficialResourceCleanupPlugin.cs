@@ -36,9 +36,10 @@ public sealed class OfficialResourceCleanupPlugin : IEditorPlugin
                 PluginMessageKind.Warning, context.CancellationToken);
             return PluginResult.Failed(error);
         }
-        string[] nativePaths = (await File.ReadAllLinesAsync(
-                Path.Combine(context.PluginDirectory, "NativeResources.list"),
-                context.CancellationToken))
+        string[][] lists = await Task.WhenAll(
+            File.ReadAllLinesAsync(Path.Combine(context.PluginDirectory, "BuiltInResourceDirectories.list"), context.CancellationToken),
+            File.ReadAllLinesAsync(Path.Combine(context.PluginDirectory, "NativeResources.list"), context.CancellationToken));
+        string[] nativePaths = lists.SelectMany(lines => lines)
             .Select(line => line.Trim())
             .Where(line => line.Length != 0 && !line.StartsWith('#'))
             .Distinct(StringComparer.Ordinal)

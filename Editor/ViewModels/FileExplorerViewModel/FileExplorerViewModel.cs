@@ -187,8 +187,11 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
         if (IsReadOnly && cut)
             return;
         string[] selected = paths.ToArray();
+        IReadOnlyList<string> normalized = normalizeTopLevelPaths(selected);
+        if (cut && gameData.GetBuiltInPathError(normalized) is not null)
+            return;
         clipboardPaths.Clear();
-        clipboardPaths.AddRange(normalizeTopLevelPaths(selected).Where(isEditablePath));
+        clipboardPaths.AddRange(normalized.Where(isEditablePath));
         clipboardCut = cut && clipboardPaths.Count != 0;
         copiedFolder = !cut && selected.Length == 1 && clipboardPaths.Count == 1
             && SelectedEntry is { IsDirectory: true } folder && PathComparer.Equals(folder.FullPath, clipboardPaths[0])
@@ -212,6 +215,8 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
 
     internal bool CanDropPaths(IReadOnlyList<string> paths, string target)
     {
+        if (gameData.GetBuiltInPathError(paths) is not null)
+            return false;
         bool changesDirectory = false;
         foreach (string path in paths)
         {

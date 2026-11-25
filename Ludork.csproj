@@ -57,6 +57,7 @@
     <AvaloniaResource Include="Editor\EditorTutorial\Scenes\**\*.json" />
     <AvaloniaResource Include="Editor\EditorTutorial\Assets\**" />
     <EmbeddedResource Include="Editor\PluginTemplates\**\*" WithCulture="false" />
+    <EmbeddedResource Include="Plugins\OfficialResourceCleanup\BuiltInResourceDirectories.list" LogicalName="Ludork.BuiltInResourceDirectories" />
     <Content Include="Locale\**" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="LICENSE.md" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="README.md" CopyToOutputDirectory="PreserveNewest" />

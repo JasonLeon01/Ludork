@@ -25,6 +25,8 @@ public sealed partial class ProjectDataStore
     internal async Task<(bool Handled, string? Error)> TryDeleteManagedPathAsync(string path,
         ProjectResourceDeletionValidation validation, IProgress<EditorOperationProgress>? progress = null)
     {
+        if (GetBuiltInPathError([path]) is string deletionError)
+            return (true, deletionError);
         EditorDocument? document = Documents.FindByPath(path);
         string? section = document?.Section;
         string? key = document?.Key;

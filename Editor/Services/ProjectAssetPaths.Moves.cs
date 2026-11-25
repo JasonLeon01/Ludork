@@ -17,6 +17,8 @@ public sealed partial class ProjectAssetPaths
             .Where(move => move.Item1 != move.Item2).Distinct().ToArray();
         if (roots.Length == 0)
             return false;
+        if (store.GetBuiltInPathError(roots.Select(move => move.OldPath)) is string moveError)
+            throw new InvalidOperationException(moveError);
         using EditorDocumentTransaction transaction = store.Documents.BeginTransaction([]);
         Dictionary<EditorDocument, (string Path, EditorDocument Source)> changes = [];
         foreach ((string oldPath, string newPath) in roots)

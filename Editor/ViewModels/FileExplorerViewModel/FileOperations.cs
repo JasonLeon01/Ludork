@@ -201,7 +201,10 @@ public sealed partial class FileExplorerViewModel
 
     public async Task<FileOperationResult> DeleteAsync(IEnumerable<string> paths, IProgress<EditorOperationProgress>? progress = null)
     {
-        string[] normalizedPaths = normalizeTopLevelPaths(paths).Where(isEditablePath).ToArray();
+        IReadOnlyList<string> selected = normalizeTopLevelPaths(paths);
+        if (gameData.GetBuiltInPathError(selected) is string deletionError)
+            return new FileOperationResult(false, [deletionError]);
+        string[] normalizedPaths = selected.Where(isEditablePath).ToArray();
         if (normalizedPaths.Length == 0)
             return FileOperationResult.Empty;
         string[] protectedMapPaths = normalizedPaths
@@ -215,30 +218,28 @@ public sealed partial class FileExplorerViewModel
                     .Select(path => $"{Path.GetFileName(path)}: {LocaleService.Get("MAP_DELETE_USE_MAP_LIST")}")
                     .ToArray());
         }
-        string[] uiIncoming = await ProjectSnapshotReader.ReadAsync(gameData, store =>
+        string assetsRoot = Path.Combine(projectPath, "Assets");
+        HashSet<string> assetPaths = normalizedPaths.Where(path => EditorPathSandbox.IsSameOrChildPath(assetsRoot, path))
+            .ToHashSet(gameData.AssetPaths.FileSystemComparer);
+        using ProjectResourceDeletionValidation deletionValidation = new(gameData.ProjectPath);
+        FileExplorerDeletionValidation validation;
+        try
         {
-            ReferenceImpact impact = store.ReferenceIndex.GetImpactForPaths(normalizedPaths);
-            return impact.Incoming.Where(record => store.ReferenceIndex.GetNode(record.Source)?.Type == "uiAsset"
-                    || store.ReferenceIndex.GetNode(record.Target)?.Type == "uiAsset")
-                .Select(record => $"{store.ReferenceIndex.GetNode(record.Source)?.Key ?? record.Source} [{record.Kind}] {record.Path}")
-                .ToArray();
-        }, progress);
-        if (uiIncoming.Length != 0)
-        {
-            string references = string.Join(
-                Environment.NewLine,
-                uiIncoming);
-            return new FileOperationResult(
-                false,
-                [
-                    LocaleService.Get("UI_ASSET_DELETE_REFERENCED")
-                        .Replace("{references}", references, StringComparison.Ordinal),
-                ]);
+            if (assetPaths.Count != 0)
+                gameData.AssetPaths.AssertCanWrite(assetPaths);
+            validation = await FileExplorerDeletionValidation.PrepareAsync(gameData, normalizedPaths, assetPaths,
+                deletionValidation, progress);
         }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            return new FileOperationResult(false, [exception.Message]);
+        }
+        if (validation.Errors.Count != 0)
+            return new FileOperationResult(false, validation.Errors);
         List<string> errors = [];
         List<string> deleted = [];
         List<string> externalDeleted = [];
-        using ProjectResourceDeletionValidation deletionValidation = new(gameData.ProjectPath);
+        normalizedPaths = normalizedPaths.OrderByDescending(assetPaths.Contains).ToArray();
         for (int index = 0; index < normalizedPaths.Length; index++)
         {
             string path = normalizedPaths[index];
@@ -266,7 +267,8 @@ public sealed partial class FileExplorerViewModel
                     }
                     continue;
                 }
-                (bool managed, string? managedError) = EditorPathSandbox.IsSameOrChildPath(Path.Combine(projectPath, "Assets"), path)
+                bool asset = assetPaths.Contains(path);
+                (bool managed, string? managedError) = asset
                     ? (false, null) : await gameData.TryDeleteManagedPathAsync(path, deletionValidation, progress);
                 if (managed)
                 {
@@ -277,7 +279,22 @@ public sealed partial class FileExplorerViewModel
                     continue;
                 }
                 progress?.Report(new EditorOperationProgress("EDIT_OPERATION_DELETING", path));
-                await SystemTrashService.MoveToTrashAsync(path);
+                if (asset)
+                {
+                    if (!await validation.TryRecycleAssetAsync(path))
+                    {
+                        errors.Add(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
+                        break;
+                    }
+                }
+                else
+                {
+                    await SystemTrashService.RunAsync(trash =>
+                    {
+                        gameData.BuiltInResources.AssertCanChangeOnDisk(path);
+                        return trash.MoveToTrash(path);
+                    }, default);
+                }
                 deleted.Add(path);
                 externalDeleted.Add(path);
             }
@@ -343,6 +360,8 @@ public sealed partial class FileExplorerViewModel
             return new FileOperationResult(false, [LocaleService.Get("RENAME_FAILED") + Environment.NewLine + newName]);
         if (string.Equals(oldPath, newPath, StringComparison.Ordinal))
             return FileOperationResult.Empty;
+        if (gameData.GetBuiltInPathError([oldPath]) is string moveError)
+            return new FileOperationResult(false, [moveError]);
         bool caseOnlyRename = isCaseOnlyPathChange(oldPath, newPath);
         if (!caseOnlyRename && pathExists(newPath))
             return new FileOperationResult(false, [LocaleService.Get("FILE_ALREADY_EXISTS").Replace("{name}", trimmedName)]);
@@ -369,7 +388,11 @@ public sealed partial class FileExplorerViewModel
                 [(oldPath, newPath)],
                 []));
             progress?.Report(new EditorOperationProgress("EDIT_OPERATION_MOVING", oldPath));
-            await Task.Run(() => movePath(oldPath, newPath));
+            await Task.Run(() =>
+            {
+                gameData.BuiltInResources.AssertCanChangeOnDisk(oldPath);
+                movePath(oldPath, newPath);
+            });
             Exception? notificationError = await applyFileChangesAsync([], [(oldPath, newPath)], [], progress);
             SelectedEntry = Entries.FirstOrDefault(entry => string.Equals(entry.FullPath, newPath, StringComparison.OrdinalIgnoreCase));
             return new FileOperationResult(

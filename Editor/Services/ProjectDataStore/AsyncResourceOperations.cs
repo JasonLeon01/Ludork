@@ -24,6 +24,8 @@ public sealed partial class ProjectDataStore
     public Task<(bool Handled, string? Error)> TryRenameManagedPathAsync(string oldPath, string newPath,
         IProgress<EditorOperationProgress>? progress = null)
     {
+        if (getBuiltInMoveError(oldPath, newPath) is string moveError)
+            return Task.FromResult<(bool, string?)>((true, moveError));
         return runResourceOperationAsync(store =>
         {
             bool handled = store.TryRenameManagedPath(oldPath, newPath, out string? error);

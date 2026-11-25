@@ -9,6 +9,18 @@ namespace Ludork.Services;
 
 public sealed partial class ProjectDataStore
 {
+    private BuiltInResourcePaths? builtInResources;
+    internal BuiltInResourcePaths BuiltInResources => builtInResources ??= new(ProjectPath);
+
+    internal string? GetBuiltInPathError(IEnumerable<string> paths) =>
+        BuiltInResources.GetError(paths, Documents.All.Where(document => document.Exists).Select(document => document.Path));
+
+    private bool hasFixedDocumentPath(EditorDocument document) =>
+        GetBuiltInPathError(document.SavedPath == document.Path ? [document.Path] : [document.Path, document.SavedPath]) is not null;
+
+    private string? getBuiltInMoveError(string oldPath, string newPath) =>
+        Path.GetFullPath(oldPath) == Path.GetFullPath(newPath) ? null : GetBuiltInPathError([oldPath]);
+
     public IReadOnlyList<string> GetUnsavedDocumentPaths()
     {
         IEnumerable<string> paths = Documents.ModifiedDocuments.Select(document => document.Path)
@@ -97,6 +109,11 @@ public sealed partial class ProjectDataStore
     public bool TryRenameManagedPath(string oldPath, string newPath, out string? error)
     {
         error = null;
+        if (getBuiltInMoveError(oldPath, newPath) is string moveError)
+        {
+            error = moveError;
+            return true;
+        }
         EditorDocument? document = GetDocumentByPath(oldPath);
         string? worldKey = sections["WorldMaps"].Keys.FirstOrDefault(key => pathsEqual(Worlds.getWorldDirectory(key), oldPath));
         if (worldKey is not null)
@@ -146,6 +163,11 @@ public sealed partial class ProjectDataStore
     internal bool TryDeleteManagedPath(string path, ProjectResourceDeletionValidation validation, out string? error)
     {
         error = null;
+        if (GetBuiltInPathError([path]) is string deletionError)
+        {
+            error = deletionError;
+            return true;
+        }
         EditorDocument? document = GetDocumentByPath(path);
         string? worldKey = sections["WorldMaps"].Keys.FirstOrDefault(key => pathsEqual(Worlds.getWorldDirectory(key), path));
         if (worldKey is not null)
@@ -195,7 +217,7 @@ public sealed partial class ProjectDataStore
         ProjectResourceDeletionValidation validation, IProgress<EditorOperationProgress>? progress)
     {
         EditorDocument? document = GetDocument(section, key);
-        if (document is null)
+        if (document is null || hasFixedDocumentPath(document))
             return null;
         List<EditorDocument> targets = [document];
         if (section == "WorldMaps")

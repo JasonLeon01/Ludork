@@ -45,6 +45,7 @@ public partial class FileExplorerPanel : UserControl
         initializeMarquee();
         IconEntries.AddHandler(KeyDownEvent, onPreviewKeyDown, RoutingStrategies.Tunnel);
         ListEntries.AddHandler(KeyDownEvent, onPreviewKeyDown, RoutingStrategies.Tunnel);
+        AddHandler(KeyDownEvent, onFixedPathShortcut, RoutingStrategies.Tunnel);
         ListEntries.AddHandler(KeyDownEvent, onTreeKeyDown, RoutingStrategies.Tunnel);
         DataContextChanged += (_, _) =>
         {
@@ -470,6 +471,7 @@ public partial class FileExplorerPanel : UserControl
         if (viewModel.IsReadOnly)
             return;
         IReadOnlyList<FileExplorerEntryViewModel> selected = getSelectedEntries(list);
+        string? pathError = item is null ? null : viewModel.GameData.GetBuiltInPathError(selected.Select(entry => entry.FullPath));
         IReadOnlyList<FileExplorerEntryViewModel> selectedFiles = selected
             .Where(entry => !entry.IsDirectory)
             .ToArray();
@@ -486,7 +488,7 @@ public partial class FileExplorerPanel : UserControl
             MenuItem copy = new MenuItem { Header = LocaleService.Get("COPY") };
             copy.Click += (_, _) => viewModel.SetClipboard(selected.Select(entry => entry.FullPath), false);
             items.Add(copy);
-            MenuItem cut = new MenuItem { Header = LocaleService.Get("CUT") };
+            MenuItem cut = createPathMenuItem("CUT", pathError);
             cut.Click += (_, _) => viewModel.SetClipboard(selected.Select(entry => entry.FullPath), true);
             items.Add(cut);
         }
@@ -534,11 +536,11 @@ public partial class FileExplorerPanel : UserControl
             }
             if (selected.Count == 1)
             {
-                MenuItem rename = new MenuItem { Header = LocaleService.Get("RENAME_FILE") };
+                MenuItem rename = createPathMenuItem("RENAME_FILE", pathError);
                 rename.Click += async (_, _) => await renameSelected(viewModel, item);
                 items.Add(rename);
             }
-            MenuItem delete = new MenuItem { Header = LocaleService.Get("DELETE") };
+            MenuItem delete = createPathMenuItem("DELETE", pathError);
             delete.Click += async (_, _) => await deleteSelected(viewModel, selected);
             items.Add(delete);
         }
@@ -548,6 +550,37 @@ public partial class FileExplorerPanel : UserControl
             : PlacementMode.Bottom;
         menu.PlacementTarget = placementTarget;
         menu.Open(list);
+    }
+
+    private static MenuItem createPathMenuItem(string label, string? pathError)
+    {
+        MenuItem command = new() { Header = LocaleService.Get(label), IsEnabled = pathError is null };
+        if (pathError is not null)
+        {
+            ToolTip.SetTip(command, pathError);
+            ToolTip.SetShowOnDisabled(command, true);
+            AutomationProperties.SetHelpText(command, pathError);
+        }
+        return command;
+    }
+
+    private async void onFixedPathShortcut(object? sender, KeyEventArgs args)
+    {
+        if (DataContext is not FileExplorerViewModel { IsReadOnly: false } viewModel
+            || SearchBox.IsKeyboardFocusWithin || RootEntries.IsKeyboardFocusWithin)
+            return;
+        bool primary = EditorShortcuts.HasPrimaryModifier(args.KeyModifiers);
+        bool cut = primary && args.Key == Key.X;
+        bool delete = !primary && args.Key == Key.Delete;
+        bool rename = !primary && (OperatingSystem.IsMacOS() ? args.Key == Key.Enter && activeEntries.IsKeyboardFocusWithin : args.Key == Key.F2);
+        if (!cut && !delete && !rename)
+            return;
+        IReadOnlyList<FileExplorerEntryViewModel> selected = getSelectedEntries(activeEntries);
+        if (rename && selected.Count != 1 || viewModel.GameData.GetBuiltInPathError(selected.Select(entry => entry.FullPath)) is not string pathError)
+            return;
+        args.Handled = true;
+        if (TopLevel.GetTopLevel(this) is Window owner)
+            await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), pathError);
     }
 
     private async void onPreviewKeyDown(object? sender, KeyEventArgs args)
@@ -886,6 +919,13 @@ public partial class FileExplorerPanel : UserControl
         string[] paths = getSelectedEntries(list).Select(entry => entry.FullPath).ToArray();
         if (paths.Length == 0)
             return;
+        if (DataContext is FileExplorerViewModel viewModel && viewModel.GameData.GetBuiltInPathError(paths) is string pathError)
+        {
+            resetPendingDrag();
+            DropTargetLabel.Text = pathError;
+            DropTargetHint.IsVisible = true;
+            return;
+        }
         startingDrag = true;
         resetPendingDrag();
         try
@@ -903,6 +943,7 @@ public partial class FileExplorerPanel : UserControl
 
     private async void onPointerReleased(object? sender, PointerReleasedEventArgs args)
     {
+        clearDropTarget();
         if (releaseMarquee(args))
             return;
         FileExplorerEntryViewModel? entry = pressedSelection;
@@ -926,6 +967,7 @@ public partial class FileExplorerPanel : UserControl
 
     private void onPointerCaptureLost(object? sender, PointerCaptureLostEventArgs args)
     {
+        clearDropTarget();
         endMarquee(false);
         resetPendingDrag();
     }

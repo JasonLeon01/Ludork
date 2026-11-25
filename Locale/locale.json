@@ -2439,6 +2439,10 @@
     "zh_CN": "此处为 {source} 触发的自动引用更新，不能撤销该记录及更早的操作。",
     "en_GB": "This automatic reference update was triggered by {source}. This entry and earlier operations cannot be undone."
   },
+  "BUILT_IN_RESOURCE_FIXED_PATH": {
+    "zh_CN": "内置资源使用固定路径 {path}，无法重命名、移动或删除。",
+    "en_GB": "The built-in resource at {path} has a fixed location and cannot be renamed, moved or deleted."
+  },
   "DOCUMENT_DELETE_REFERENCED": {
     "zh_CN": "该文件仍被引用，不能删除；如果已修改相关引用，请先保存全部后重试。",
     "en_GB": "This file is still referenced and cannot be deleted. If you have changed those references, save all files and try again."

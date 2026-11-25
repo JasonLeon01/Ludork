@@ -6,6 +6,15 @@ namespace Ludork.Services;
 
 internal static class FileSystemPathIdentity
 {
+    internal static StringComparer GetProjectComparer(string projectPath)
+    {
+        if (OperatingSystem.IsWindows())
+            return StringComparer.OrdinalIgnoreCase;
+        string directory = Directory.Exists(Path.Combine(projectPath, "Assets")) ? "Assets" : "Data";
+        return RefersToSameEntry(Path.Combine(projectPath, directory), Path.Combine(projectPath, directory.ToLowerInvariant()))
+            ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+    }
+
     internal static bool RefersToSameEntry(string source, string destination)
     {
         source = Path.GetFullPath(source);

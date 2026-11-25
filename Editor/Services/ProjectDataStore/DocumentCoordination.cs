@@ -42,6 +42,8 @@ public sealed partial class ProjectDataStore
             return false;
         oldKey = source.Key;
         bool renamed = !string.Equals(oldKey, newKey, StringComparison.Ordinal);
+        if (renamed && hasFixedDocumentPath(source))
+            return false;
         if (renamed && (GetDocument(section, newKey) is EditorDocument occupied && !ReferenceEquals(occupied, source)
             || File.Exists(getSectionDataPath(section, newKey))
                 && !FileSystemPathIdentity.RefersToSameEntry(source.SavedPath, getSectionDataPath(section, newKey))

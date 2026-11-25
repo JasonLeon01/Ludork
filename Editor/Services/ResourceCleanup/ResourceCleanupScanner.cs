@@ -55,8 +55,11 @@ internal sealed class ResourceCleanupScanner
             if (issues.Count == 0)
                 buildIndex(root, edges, candidates, issues, progress, token);
         }
+        BuiltInResourcePaths builtIns = new(root);
         foreach (string file in files)
         {
+            if (builtIns.IsFixedPath(file))
+                roots.Add(file);
             if (file.StartsWith("Assets/", StringComparison.Ordinal))
                 candidates.Add(file);
             else if (file.StartsWith("Data/", StringComparison.Ordinal) && !candidates.Contains(file))

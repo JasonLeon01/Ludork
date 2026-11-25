@@ -314,7 +314,7 @@
             <Border x:Name="DropTargetHint" IsVisible="False" IsHitTestVisible="False" HorizontalAlignment="Left"
                     VerticalAlignment="Bottom" Margin="6" Padding="6,3" CornerRadius="2"
                     Background="{DynamicResource Editor.SurfaceBrush}" BorderBrush="{DynamicResource Editor.AccentBrush}" BorderThickness="1">
-                <TextBlock x:Name="DropTargetLabel" TextTrimming="CharacterEllipsis" />
+                <TextBlock x:Name="DropTargetLabel" TextWrapping="Wrap" />
             </Border>
         </Grid>
         <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="*,Auto" Margin="8,2">

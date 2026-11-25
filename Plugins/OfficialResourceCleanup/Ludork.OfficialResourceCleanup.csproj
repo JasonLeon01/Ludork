@@ -20,6 +20,7 @@
   <ItemGroup>
     <None Update="plugin.json" CopyToOutputDirectory="PreserveNewest" />
     <None Update="NativeResources.list" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="BuiltInResourceDirectories.list" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="locales\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

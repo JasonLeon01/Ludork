@@ -21,9 +21,7 @@ public sealed partial class ProjectAssetPaths
     {
         this.store = store;
         root = Path.Combine(store.ProjectPath, "Assets");
-        fileSystemComparer = OperatingSystem.IsWindows()
-            || FileSystemPathIdentity.RefersToSameEntry(root, Path.Combine(store.ProjectPath, "assets"))
-                ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        fileSystemComparer = FileSystemPathIdentity.GetProjectComparer(store.ProjectPath);
         store.Documents.Changed += onDocumentsChanged;
         Refresh();
     }
