@@ -101,9 +101,9 @@ The native-only `TileLayer::updateBlock` updates an existing rectangular block a
 
 ## Material resources
 
-The shared standard resource is `Data/Materials/Global/Standard.json`. Effect examples and `Surfaces` presets remain directly under `Data/Materials` and its `Surfaces` directory.
+The shared standard resource is `Data/Materials/Global/Standard.json`. Actors use it for an empty material reference. Effect examples and `Surfaces` presets remain directly under `Data/Materials` and its `Surfaces` directory.
 
-An authored material is a `Data/Materials/<name>.json` graph with `type: "material"` and `version: 1`. Actors, autotiles and layers retain this string reference. The empty reference selects the built-in neutral material, separately from `Global/Standard.json`; an invalid non-empty reference fails. Initialisation prepares shaders and runtime metadata in the user data directory. Drawing loads those prepared files, including their encrypted forms. Auxiliary textures retain canonical `/Game/Assets/...` paths, and the host supplies the sprite texture, current frame, transform and time.
+An authored material is a `Data/Materials/<name>.json` graph with `type: "material"` and `version: 1`. An empty base material on a tile or autotile selects the built-in neutral surface. An invalid non-empty reference fails. Initialisation prepares shaders and runtime metadata in the user data directory. Drawing loads those prepared files, including their encrypted forms. Auxiliary textures retain canonical `/Game/Assets/...` paths, and the host supplies the sprite texture, current frame, transform and time.
 
 For native C++ callers, `MaterialResource::load` loads the prepared runtime resource. `MaterialResource::fromData` creates a resource with a graph definition for cache generation and preview compilation. Preview integrations can retain a `MaterialResource::Overrides` snapshot to reuse parsed resources, activating it for each request with `ScopedOverrides`. Keep the snapshot alive for the entire scope and use it on the same preview thread; replace it when its documents or source resources change. The scope does not remain active between requests. See [Runtime generation](<../../../../Editor User Guide/Materials.md#runtime-generation>) for generation, combinations and file layout.
 
@@ -182,7 +182,7 @@ The VertexOffset dependency branch may use positions, time, parameters and mathe
 
 ### Actor parameters
 
-`Actor.material` is the shared resource reference; `Actor.materialParameters` is a JSON-compatible dictionary of instance overrides. Changing material clears old overrides, so apply the path before parameters. `getMaterialParameter(id)` returns the effective value; `setMaterialParameter(id, value)` changes only that Actor; `resetMaterialParameter(id)` restores its resource default. Assign the entire dictionary to replace the override set. Editing a returned dictionary alone does not update the Actor.
+`actor.material` and `actor:getMaterial()` return the effective resource path. Assigning `""` or calling `actor:setMaterial("")` selects Standard. `Actor.materialParameters` is a JSON-compatible dictionary of instance overrides. Changing to a different resource clears old overrides, so apply the path before parameters. `getMaterialParameter(id)` returns the effective value; `setMaterialParameter(id, value)` changes only that Actor; `resetMaterialParameter(id)` restores its resource default. Assign the entire dictionary to replace the override set. Editing a returned dictionary alone does not update the Actor.
 
 ```lua
 actor:setMaterial("Data/Materials/Frozen.json")
@@ -220,7 +220,7 @@ The incremental overload accepts dimensions, and `writeBlock` then fills zero-ba
 
 ## Tileset
 
-`materials` is a sparse map indexed by the existing zero-based tile number; JSON keys are decimal strings. Store only non-empty explicit references. An absent entry selects the standard default material; clear a material by removing its key. The editor saves keys in tile-number order. Tile count comes from the atlas dimensions, independently of the map size; `layer:getTilesetTileCount()` returns that valid tile count.
+`materials` is a sparse map indexed by the existing zero-based tile number; JSON keys are decimal strings. Store only non-empty explicit references. An absent entry selects the built-in default material. To clear a material, remove its key. The editor saves keys in tile-number order. Tile count comes from the atlas dimensions, independently of the map size; `layer:getTilesetTileCount()` returns that valid tile count.
 
 ### Properties
 

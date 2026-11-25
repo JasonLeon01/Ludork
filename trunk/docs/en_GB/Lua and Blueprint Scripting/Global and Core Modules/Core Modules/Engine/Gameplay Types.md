@@ -2,7 +2,7 @@
 
 ## Actor
 
-`material` references a formal 2D material resource; `materialParameters` holds independent per-Actor overrides. Switching the material clears the old overrides, and parameter writes are validated against the new resource. See [Maps and Materials](<Maps and Materials.md#material-resources>) for paths, defaults, lighting and masking.
+`material` references a formal 2D material resource. `materialParameters` holds independent per-Actor overrides. Switching to a different resource clears the old overrides, and parameter writes are validated against the selected resource. See [Maps and Materials](<Maps and Materials.md#material-resources>) for paths, defaults, lighting and masking.
 
 `getMaterialBounds()` (`metadata = false`) returns the world-space visual bounds, including the material's declared maximum vertex displacement and the Actor transform. Runtime capture effects use these bounds to avoid clipping displaced pixels. This method does not change collision bounds or occupied map cells.
 
@@ -43,7 +43,7 @@ The following Lua-only methods manage additional operations, such as door animat
 | `switchInterval` | `float` | `0.2` | — |
 | `animatable` | `bool` | `false` | — |
 | `visible` | `bool` | `true` | — |
-| `material` | `string` | `""` | Data/Materials/*.json |
+| `material` | `string` | `"Data/Materials/Global/Standard.json"` | Data/Materials/*.json |
 | `materialParameters` | `Dict[string, any]` | `{}` | — |
 | `collisionEnabled` | `bool` | `false` | — |
 | `tickable` | `bool` | `false` | — |

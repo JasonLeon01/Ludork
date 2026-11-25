@@ -1,16 +1,18 @@
 # Materials
 
-A 2D material controls sprite colour, alpha, local emission, lighting response, light blocking, reflection strength and vertex displacement. Actors, CharacterView controls, tiles, autotiles and tile layers reference material resources under `Data/Materials`. An empty reference uses the built-in default: the source texture receives scene lighting, with no emission, reflection, light blocking or displacement.
+A 2D material controls sprite colour, alpha, local emission, lighting response, light blocking, reflection strength and vertex displacement. Actors, CharacterView controls, tiles, autotiles and tile layers reference material resources under `Data/Materials`.
 
-The standard material is `Data/Materials/Global/Standard.json`. The `Global` directory identifies this shared standard resource; effect examples and `Surfaces` presets remain outside it.
+Actors default to the shared `Data/Materials/Global/Standard.json` resource. CharacterView controls, tiles and autotiles with an empty material use the built-in default. Its source texture receives scene lighting, with no emission, reflection, light blocking or displacement. Effect examples and `Surfaces` presets live outside the `Global` directory.
 
 ## Create and assign
 
-Use **New Material** in the project file explorer or File menu, then choose a file under `Data/Materials`. Double-click an existing material to open it. An empty Actor `material` field also offers creation; the open action beside an assigned field opens that resource. Resources belong to the project and can be shared by many instances.
+Use **New Material** in the project file explorer or File menu, then choose a file under `Data/Materials`. Double-click an existing material to open it. In an Actor Blueprint, the material field also offers creation when it shows Standard. Use the open action beside the field to edit the displayed resource. Resources belong to the project and can be shared by many instances.
 
 The editor opens on the **Preview** tab. A parameter list stays on the left, with the selected parameter's details below it. The right side contains **Preview** and **Node Graph** tabs; drag the dividers to adjust the panes. Switching tabs preserves selections, graph zoom and position, preview settings and playback time. Changing a parameter default changes the resource for all instances that do not override that parameter. Edits and renames follow the shared [save and Undo rules](<Start Page Workspace and Shortcuts.md#editing-and-saving>). Recognised material and texture references are included in reference inspection, rename rewriting and deletion checks. Dynamically constructed script paths still require manual maintenance.
 
-Assign a full `Data/Materials/...json` path to `material`. An Actor or CharacterView stores instance overrides in `materialParameters`: check a parameter to override it, or uncheck it to use its resource default. Changing the material clears old overrides in the same edit. A Blueprint child that chooses a different material writes an explicit empty override dictionary so it does not inherit parameters from the previous material. Resetting the entire instance retains the normal Blueprint inheritance rules.
+Set `material` to a full `Data/Materials/...json` path. A child Blueprint inherits its parent's material until you override the field. For example, if the parent uses Rainbow, choosing **Clear** in the child's material picker or selecting Standard explicitly makes the child use Standard. Remove the override to inherit Rainbow again. Map instances follow the same rule. The Actor field, parameter list and previews use the effective material.
+
+Actors and CharacterView controls store parameter overrides in `materialParameters`. Check a parameter to override it, or uncheck it to use its resource default. Switching an Actor between **Clear** and explicit Standard preserves overrides such as `lightBlock`. Changing to a different material clears old overrides in the same edit. A child Blueprint that switches material saves an empty parameter dictionary to block inherited parameters from the previous material. Resetting the entire instance restores inheritance.
 
 Tilesets store only assigned materials in a sparse `materials` object whose keys are zero-based tile indices, for example `{"7":"Data/Materials/Water.json"}`. Missing entries use the default, and clearing a selection removes its key. Autotiles store one `material` reference. A tile layer evaluates the tile or autotile material first, then the layer material on that surface. Actors on the layer use their own material.
 
@@ -83,7 +85,7 @@ Save material changes before running the game. During `SceneInit`, the native ma
 
 Preparation includes every material without a layer, including the built-in default. Layered programs are the deduplicated union of map usage and [additional combinations](#material-combinations), sorted by their complete paths. Preparation scans all ordinary maps recursively under `Data/Maps`, including world-map children, regardless of the starting map or current visibility. For each layer with a non-empty material, it combines that material with the base materials of the tiles and autotiles actually used on the layer. A tile with no assigned material uses the default; unused tileset entries do not create combinations. Scripts are not scanned or executed to infer dynamic combinations. Source reads follow the [user-directory resource priority](<Project Settings and Asset Layout.md#runtime-resource-lookup>).
 
-Within the user data directory, `Data/Materials/Surfaces/Water.json` maps to `Assets/Shaders/MaterialGenerated/Materials/Surfaces/Water/`. The empty material reference maps to `Assets/Shaders/MaterialGenerated/Builtin/Default/`, independently of `Global/Standard.json`. Each base directory contains:
+Within the user data directory, `Data/Materials/Surfaces/Water.json` maps to `Assets/Shaders/MaterialGenerated/Materials/Surfaces/Water/`. The built-in default uses `Assets/Shaders/MaterialGenerated/Builtin/Default/`. Each base directory contains:
 
 | Entry | Contents |
 |---|---|
