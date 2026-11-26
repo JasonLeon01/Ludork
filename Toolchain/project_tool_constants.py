@@ -16,6 +16,7 @@ def generate(path: pathlib.Path) -> None:
         "SigningExitCode": constants.EXIT_SIGNING,
         "ProjectExitCode": constants.EXIT_PROJECT,
         "CompileLuaDirectoriesEnvironment": constants.COMPILE_LUA_DIRECTORIES_ENVIRONMENT,
+        "ProcessorCountEnvironment": constants.PROCESSOR_COUNT_ENVIRONMENT,
         "ExcludedFilesEnvironment": constants.EXCLUDED_FILES_ENVIRONMENT,
     }
     lines = ["namespace Ludork.Services;", "", "internal static class ProjectToolConstants", "{"]

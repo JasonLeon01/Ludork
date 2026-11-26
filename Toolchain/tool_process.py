@@ -195,8 +195,15 @@ def run(command: Sequence[str | pathlib.Path] | str, *, cwd: pathlib.Path | str 
             remaining = None if deadline is None else deadline - time.monotonic()
             if remaining is not None and remaining <= 0:
                 raise subprocess.TimeoutExpired(arguments, timeout)
-            changed.wait(0.2 if remaining is None else min(0.2, remaining))
-            changed.clear()
+            interval = 0.2 if remaining is None else min(0.2, remaining)
+            if workers:
+                changed.wait(interval)
+                changed.clear()
+            else:
+                try:
+                    process.wait(timeout=interval)
+                except subprocess.TimeoutExpired:
+                    pass
     except BaseException as error:
         if process is None:
             raise

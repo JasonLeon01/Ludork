@@ -7,10 +7,16 @@ import shutil
 import sys
 import tempfile
 import zlib
-from collections.abc import Iterable
+from collections import deque
+from collections.abc import Iterable, Iterator
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 from dataclasses import dataclass
+from itertools import groupby
+from operator import itemgetter
 from typing import BinaryIO
 
+from .file_workers import process_worker_count
 from .package_contents import is_excluded
 from .packaging_constants import FILE_BUFFER_SIZE
 from .resource_constants import (
@@ -34,7 +40,6 @@ from .runtime_formats import (
     LDPK_VERSION as VERSION,
 )
 
-
 class LdPakError(RuntimeError):
     pass
 
@@ -52,6 +57,14 @@ class _ArchiveBlock:
     stored_size: int
     flags: int
     data_crc32: int
+
+
+@dataclass(frozen=True)
+class _StoredBlock:
+    data: bytes
+    original_size: int
+    file_crc32: int
+    index: _ArchiveBlock
 
 
 @dataclass(frozen=True)
@@ -196,6 +209,56 @@ def _write_padding(stream: BinaryIO, target_offset: int) -> None:
         stream.write(b"\0" * (target_offset - current_offset))
 
 
+def _read_blocks(entries: list[_SourceEntry]) -> Iterator[tuple[_SourceEntry, bytes, int]]:
+    for entry in entries:
+        if entry.is_directory:
+            yield entry, b"", 0
+            continue
+        if _is_link(entry.source_path):
+            raise LdPakError(f"Asset packages must not contain symbolic links: {entry.source_path}")
+        with entry.source_path.open("rb") as source:
+            chunk = source.read(BLOCK_SIZE)
+            if not chunk:
+                yield entry, b"", 0
+            file_crc32 = 0
+            while chunk:
+                file_crc32 = zlib.crc32(chunk, file_crc32)
+                yield entry, chunk, file_crc32
+                chunk = source.read(BLOCK_SIZE)
+
+
+def _compress_block(
+    item: tuple[_SourceEntry, bytes, int],
+) -> tuple[_SourceEntry, _StoredBlock | None]:
+    entry, data, file_crc32 = item
+    if not data:
+        return entry, None
+    compressed = zlib.compress(data, COMPRESSION_LEVEL)
+    use_compressed = len(compressed) < len(data)
+    stored = compressed if use_compressed else data
+    index = _ArchiveBlock(len(stored), BLOCK_ZLIB_FLAG if use_compressed else 0, zlib.crc32(data))
+    return entry, _StoredBlock(stored, len(data), file_crc32, index)
+
+
+def _stored_blocks(entries: list[_SourceEntry]) -> Iterator[tuple[_SourceEntry, _StoredBlock | None]]:
+    workers = process_worker_count()
+    with closing(_read_blocks(entries)) as source:
+        if workers == 1:
+            yield from map(_compress_block, source)
+            return
+        executor = ThreadPoolExecutor(max_workers=workers)
+        try:
+            pending = deque()
+            for item in source:
+                pending.append(executor.submit(_compress_block, item))
+                if len(pending) == 2 * workers:
+                    yield pending.popleft().result()
+            for future in pending:
+                yield future.result()
+        finally:
+            executor.shutdown(cancel_futures=True)
+
+
 def write_ldpak(group_root: pathlib.Path, destination: pathlib.Path) -> int:
     group_root = pathlib.Path(group_root)
     destination = pathlib.Path(destination)
@@ -206,13 +269,14 @@ def write_ldpak(group_root: pathlib.Path, destination: pathlib.Path) -> int:
         raise LdPakError(f"Asset package output already exists: {destination}")
 
     archive_entries: list[_ArchiveEntry] = []
+    stream = destination.open("xb")
     try:
-        with destination.open("xb") as stream:
+        with stream, closing(_stored_blocks(entries)) as stored_blocks:
             stream.write(b"\0" * HEADER.size)
             stream.write(group_bytes)
             _write_padding(stream, _align(stream.tell()))
 
-            for entry in entries:
+            for entry, payload in groupby(stored_blocks, key=itemgetter(0)):
                 if entry.is_directory:
                     archive_entries.append(
                         _ArchiveEntry(
@@ -227,31 +291,19 @@ def write_ldpak(group_root: pathlib.Path, destination: pathlib.Path) -> int:
                         )
                     )
                     continue
-                if _is_link(entry.source_path):
-                    raise LdPakError(
-                        "Asset packages must not contain symbolic links: "
-                        f"{entry.source_path}"
-                    )
                 _write_padding(stream, _align(stream.tell()))
                 data_offset = stream.tell()
                 data_size = 0
                 stored_size = 0
                 data_crc32 = 0
                 blocks: list[_ArchiveBlock] = []
-                with entry.source_path.open("rb") as source:
-                    while chunk := source.read(BLOCK_SIZE):
-                        compressed = zlib.compress(chunk, COMPRESSION_LEVEL)
-                        use_compressed = len(compressed) < len(chunk)
-                        stored = compressed if use_compressed else chunk
-                        stream.write(stored)
-                        data_size += len(chunk)
-                        stored_size += len(stored)
-                        data_crc32 = zlib.crc32(chunk, data_crc32)
-                        blocks.append(_ArchiveBlock(
-                            len(stored),
-                            BLOCK_ZLIB_FLAG if use_compressed else 0,
-                            zlib.crc32(chunk) & 0xFFFFFFFF,
-                        ))
+                for _, block in payload:
+                    if block is not None:
+                        stream.write(block.data)
+                        data_size += block.original_size
+                        stored_size += block.index.stored_size
+                        data_crc32 = block.file_crc32
+                        blocks.append(block.index)
                 if data_size > 0xFFFFFFFFFFFFFFFF or len(blocks) > 0xFFFFFFFF:
                     raise LdPakError(
                         f"Asset package entry is too large: {entry.relative_path}"

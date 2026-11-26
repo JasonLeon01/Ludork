@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -787,6 +788,8 @@ public sealed class ProjectPackService
         };
         startInfo.Environment["PYTHONUTF8"] = "1";
         startInfo.Environment["PYTHONIOENCODING"] = "utf-8";
+        startInfo.Environment[ProjectToolConstants.ProcessorCountEnvironment] =
+            EditorValidationBatch.FileWorkers.ToString(CultureInfo.InvariantCulture);
         LudorkServerConfiguration.ApplyPackEnvironment(startInfo, options.Server);
         startInfo.Environment.Remove(ProjectToolConstants.CompileLuaDirectoriesEnvironment);
         startInfo.Environment.Remove(ProjectToolConstants.ExcludedFilesEnvironment);

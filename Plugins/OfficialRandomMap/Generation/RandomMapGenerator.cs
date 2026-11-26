@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Ludork.Plugins.OfficialRandomMap.Generation;
 
@@ -59,8 +60,15 @@ public static class RandomMapGenerator
 
         MapLayout? best = null;
         double bestScore = double.NegativeInfinity;
+        int bestIndex = int.MaxValue;
+        Lock bestLock = new();
         int candidateCount = area < 400 ? 64 : area < 1024 ? 32 : 16;
-        for (int index = 0; index < candidateCount; index++)
+        ParallelOptions options = new()
+        {
+            MaxDegreeOfParallelism = Math.Min(candidateCount, Environment.ProcessorCount),
+            CancellationToken = cancellationToken,
+        };
+        Parallel.For(0, candidateCount, options, index =>
         {
             cancellationToken.ThrowIfCancellationRequested();
             StableRandom random = new StableRandom(DeriveSeed(seed, index));
@@ -69,7 +77,7 @@ public static class RandomMapGenerator
                 : RoomLayoutGenerator.Generate(width, height, markerSet, targetWalls, tolerance, random, cancellationToken);
             if (candidate is null)
             {
-                continue;
+                return;
             }
 
             int distance = Math.Abs(MapTopology.CountWalls(candidate.Walls) - targetWalls);
@@ -78,16 +86,20 @@ public static class RandomMapGenerator
                 || MapTopology.HasWallBlock(candidate.Walls)
                 || !MapTopology.IsConnected(candidate.Walls, cancellationToken))
             {
-                continue;
+                return;
             }
 
             double score = candidate.Quality - distance / (double)area;
-            if (score > bestScore)
+            lock (bestLock)
             {
-                best = candidate;
-                bestScore = score;
+                if (score > bestScore || (score == bestScore && index < bestIndex))
+                {
+                    best = candidate;
+                    bestScore = score;
+                    bestIndex = index;
+                }
             }
-        }
+        });
 
         cancellationToken.ThrowIfCancellationRequested();
         if (best is null)
