@@ -3,9 +3,14 @@
 #include <Runtime/Graphics/ShaderCache.hpp>
 #include <Runtime/RuntimeData.hpp>
 
+#include <deque>
 #include <map>
 #include <mutex>
 #include <optional>
+
+namespace ludork::standard {
+class BatchWorkerPool;
+}
 
 namespace ludork::runtime::graphics {
 
@@ -41,7 +46,9 @@ struct ShaderCache::Impl {
         std::string savedTarget;
         const CachedFile* targetFile = nullptr;
         const CachedFile* binaryFile = nullptr;
-        std::optional<std::string> text;
+        ShaderTranslator::Output output{};
+        std::string contentHash;
+        std::string compilation;
     };
     struct ProgramPreparation {
         Program program;
@@ -65,6 +72,19 @@ struct ShaderCache::Impl {
     std::vector<sf::BlendMode> blendModes;
 
     static RuntimeData describe(const Program& program, bool includeText);
+    static void checkCancelled(const std::atomic<bool>& stop);
+    static std::string compilationIdentity(const std::string& compiler,
+                                           ShaderTranslator::Stage stage,
+                                           const std::string& entry,
+                                           const std::string& contentHash);
+    static double compilePrograms(std::vector<ProgramPreparation>& plans,
+                                  std::deque<CachedFile>& compiledBinaries,
+                                  ShaderTranslator::Language language,
+                                  const std::string& compiler,
+                                  const std::string& profile,
+                                  ludork::standard::BatchWorkerPool& pool,
+                                  const std::atomic<bool>& stop,
+                                  const std::function<void(double)>& progress);
     static std::shared_ptr<sf::Shader> create(
         const Program& program,
         const std::map<ShaderTranslator::Stage, std::string>& sources);

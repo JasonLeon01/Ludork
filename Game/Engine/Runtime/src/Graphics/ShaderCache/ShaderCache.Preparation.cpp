@@ -9,6 +9,7 @@
 #include <SFML/Graphics/GraphicsBackend.hpp>
 #include <SFML/Window/Context.hpp>
 #include <BackgroundTask.hpp>
+#include <BatchWorkerPool.hpp>
 #include <FileWorkers.hpp>
 #include <PersistentStorage.hpp>
 #include <Sha256.hpp>
@@ -81,16 +82,6 @@ bool validBindings(const RuntimeData& record) {
            ludork::standard::sha256(stringifyJSON(bindingRecord(record)));
 }
 
-std::string compilationIdentity(const std::string& compiler,
-                                ShaderTranslator::Stage stage,
-                                const std::string& entry,
-                                const std::string& contentHash) {
-    return ludork::standard::sha256(stringifyJSON(RuntimeData(
-        RuntimeData::Array{RuntimeData(compiler),
-                           RuntimeData(static_cast<std::int64_t>(stage)),
-                           RuntimeData(entry), RuntimeData(contentHash)})));
-}
-
 std::string targetPath(const std::string& source, bool encrypted,
                        const std::string& extension,
                        const std::string& programKey, bool variant) {
@@ -153,12 +144,6 @@ void appendBindings(const RuntimeData& record,
                                *field(record, "glslMatrixLayout").getIf<bool>();
 }
 
-void checkCancelled(const std::atomic<bool>& stop) {
-    if (stop.load()) {
-        throw std::runtime_error("Shader preparation was cancelled");
-    }
-}
-
 std::string targetExtension(sf::GraphicsBackend backend) {
     switch (backend) {
         case sf::GraphicsBackend::DirectX:
@@ -186,6 +171,12 @@ ShaderTranslator::Language targetLanguage(sf::GraphicsBackend backend) {
 }
 
 }  // namespace
+
+void ShaderCache::Impl::checkCancelled(const std::atomic<bool>& stop) {
+    if (stop.load()) {
+        throw std::runtime_error("Shader preparation was cancelled");
+    }
+}
 
 void ShaderCache::Impl::prewarm(
     const std::shared_ptr<sf::rhi::Device>& device,
@@ -249,6 +240,7 @@ void ShaderCache::Impl::prepare(
     const MaterialProjection* projectedMaterials,
     const std::function<void(bool)>& onPlannedWithLocks) {
     checkCancelled(stop);
+    ludork::standard::BatchWorkerPool pool;
     const auto device = sf::rhi::getDevice();
     if (!device) {
         throw std::runtime_error(
@@ -486,25 +478,31 @@ void ShaderCache::Impl::prepare(
                 validBindings(saved) &&
                 textField(saved, "source") == source.name &&
                 textField(saved, "sourceHash") == stage.sourceHash;
-            const bool binaryValid =
-                stage.binaryFile && textField(old, "compiler") == compiler &&
-                textField(saved, "compilation") ==
-                    compilationIdentity(compiler, source.stage,
-                                        textField(saved, "entry"),
-                                        textField(saved, "targetContentHash"));
-            if (backend == sf::GraphicsBackend::DirectX && !binaryValid) {
-                needsCompilation = true;
+            stage.output.entryPoint = textField(saved, "entry");
+            stage.contentHash = textField(saved, "targetContentHash");
+            if (backend == sf::GraphicsBackend::DirectX) {
+                if (metadataValid || stage.binaryFile) {
+                    stage.compilation = compilationIdentity(
+                        compiler, source.stage, stage.output.entryPoint,
+                        stage.contentHash);
+                }
+                if (textField(old, "compiler") != compiler ||
+                    textField(saved, "compilation") != stage.compilation) {
+                    stage.binaryFile = nullptr;
+                }
+                needsCompilation = needsCompilation || !stage.binaryFile;
             }
             if (!sameTranslation || !metadataValid || !stage.targetFile) {
                 needsTranslation = true;
             } else {
                 if (backend != sf::GraphicsBackend::DirectX ||
-                    stage.savedTarget != stage.target || !binaryValid) {
+                    stage.savedTarget != stage.target || !stage.binaryFile) {
                     try {
-                        stage.text = decode(stage.targetFile->bytes,
-                                            stage.savedTarget, *savedEncrypted);
-                        if (ludork::standard::sha256(*stage.text) !=
-                            textField(saved, "targetContentHash")) {
+                        stage.output.text =
+                            decode(stage.targetFile->bytes, stage.savedTarget,
+                                   *savedEncrypted);
+                        if (ludork::standard::sha256(stage.output.text) !=
+                            stage.contentHash) {
                             needsTranslation = true;
                         }
                     } catch (const std::exception&) {
@@ -542,24 +540,21 @@ void ShaderCache::Impl::prepare(
         onPlannedWithLocks(needsCompilation);
         projectedMaterials = nullptr;
     }
+    std::deque<CachedFile> compiledBinaries;
+    const double restoreStart =
+        needsCompilation
+            ? compilePrograms(plans, compiledBinaries, language, compiler,
+                              profile, pool, stop, progress)
+            : 0.1;
     std::size_t completed = 0;
     for (auto& plan : plans) {
         ludork::standard::BackgroundTask::yield();
         checkCancelled(stop);
         const auto& input = inputs[completed];
-        const auto& program = plan.program;
         const auto& programKey = plan.key;
         const auto& translationIdentity = plan.translation;
-        const auto& old = field(field(previous, "programs"), programKey);
         auto& stages = plan.stages;
-        const bool needsTranslation = plan.needsTranslation;
-        std::map<ShaderTranslator::Stage, ShaderTranslator::Output> translated;
-        if (needsTranslation) {
-            for (auto& output :
-                 ShaderTranslator::translate(program.source, language)) {
-                translated.emplace(output.stage, std::move(output));
-            }
-        }
+        const bool generated = plan.needsTranslation;
         RuntimeData::Map stageRecords;
         StoredProgram result;
         result.options = input.options;
@@ -567,66 +562,22 @@ void ShaderCache::Impl::prepare(
             checkCancelled(stop);
             const auto& source = *stage.source;
             const auto& saved = *stage.record;
-            const auto output = translated.find(source.stage);
-            const bool generated = output != translated.end();
-            if (generated) {
-                stage.text = output->second.text;
-            }
-            const std::string contentHash =
-                generated ? ludork::standard::sha256(*stage.text)
-                          : textField(saved, "targetContentHash");
-            const std::string entry = generated ? output->second.entryPoint
-                                                : textField(saved, "entry");
+            auto& output = stage.output;
             const std::string targetHash =
                 !generated && stage.savedTarget == stage.target
                     ? retain(stage.target, *stage.targetFile)
-                    : encodeOutput(stage.target, *stage.text, stage.encrypted);
+                    : encodeOutput(stage.target, output.text, stage.encrypted);
             std::string finalPath = stage.target;
             std::string bytes;
             std::string hash = targetHash;
             bool finalEncrypted = stage.encrypted;
-            std::string compilation;
             if (backend == sf::GraphicsBackend::DirectX) {
                 finalPath += ".dxbc";
                 finalEncrypted = false;
-                compilation = compilationIdentity(compiler, source.stage, entry,
-                                                  contentHash);
-                if (stage.binaryFile &&
-                    textField(old, "compiler") == compiler &&
-                    textField(saved, "compilation") == compilation) {
-                    bytes = stage.binaryFile->bytes;
-                    hash = retain(finalPath, *stage.binaryFile);
-                } else {
-#if defined(_WIN32)
-                    if (!stage.text) {
-                        throw std::logic_error(
-                            "DXBC compilation requires the validated target "
-                            "source");
-                    }
-                    const auto binary = ShaderCompiler::compileDxbc(
-                        *stage.text, source.stage, entry, stage.target,
-                        profile);
-                    bytes.assign(reinterpret_cast<const char*>(binary.data()),
-                                 binary.size());
-                    if (!bytes.starts_with("DXBC")) {
-                        throw std::runtime_error(
-                            "Shader compiler did not produce raw DXBC: " +
-                            finalPath);
-                    }
-                    hash = remember(finalPath, bytes,
-                                    ludork::standard::sha256(bytes));
-#else
-                    throw std::runtime_error(
-                        "DXBC compilation requires Windows");
-#endif
-                }
+                bytes = stage.binaryFile->bytes;
+                hash = retain(finalPath, *stage.binaryFile);
             } else {
-                if (!stage.text) {
-                    throw std::logic_error(
-                        "Native shader creation requires the validated target "
-                        "source");
-                }
-                bytes = *stage.text;
+                bytes = std::move(output.text);
             }
             RuntimeData::Map values;
             if (!generated) {
@@ -640,21 +591,22 @@ void ShaderCache::Impl::prepare(
             values.insert_or_assign("targetEncrypted",
                                     RuntimeData(stage.encrypted));
             values.insert_or_assign("targetContentHash",
-                                    RuntimeData(contentHash));
-            values.insert_or_assign("entry", RuntimeData(entry));
+                                    RuntimeData(stage.contentHash));
+            values.insert_or_assign("entry", RuntimeData(output.entryPoint));
             values.insert_or_assign("path", RuntimeData(finalPath));
             values.insert_or_assign("hash", RuntimeData(hash));
             values.insert_or_assign("encrypted", RuntimeData(finalEncrypted));
-            values.insert_or_assign("compilation", RuntimeData(compilation));
+            values.insert_or_assign("compilation",
+                                    RuntimeData(stage.compilation));
             if (generated) {
                 RuntimeData::Array aliases, transforms;
-                for (const auto& alias : output->second.uniformAliases) {
+                for (const auto& alias : output.uniformAliases) {
                     aliases.emplace_back(
                         RuntimeData::Array{RuntimeData(alias.name),
                                            RuntimeData(alias.translatedName)});
                 }
                 for (const auto& transform :
-                     output->second.samplerCoordinateTransforms) {
+                     output.samplerCoordinateTransforms) {
                     transforms.emplace_back(
                         RuntimeData::Array{RuntimeData(transform.name),
                                            RuntimeData(transform.uniformName)});
@@ -663,9 +615,8 @@ void ShaderCache::Impl::prepare(
                                         RuntimeData(std::move(aliases)));
                 values.insert_or_assign("samplerTransforms",
                                         RuntimeData(std::move(transforms)));
-                values.insert_or_assign(
-                    "glslMatrixLayout",
-                    RuntimeData(output->second.glslMatrixLayout));
+                values.insert_or_assign("glslMatrixLayout",
+                                        RuntimeData(output.glslMatrixLayout));
             }
             values.insert_or_assign(
                 "bindingsHash",
@@ -678,6 +629,7 @@ void ShaderCache::Impl::prepare(
             result.stages.push_back(
                 {source.stage, finalPath, hash, finalEncrypted});
             result.bytes.emplace(source.stage, std::move(bytes));
+            output = {};
         }
         Program configured = input;
         configured.options = result.options;
@@ -693,9 +645,12 @@ void ShaderCache::Impl::prepare(
                             {"translation", RuntimeData(translationIdentity)},
                             {"compiler", RuntimeData(compiler)},
                             {"stages", RuntimeData(std::move(stageRecords))}}));
-        progress(0.1 + 0.8 * static_cast<double>(++completed) /
-                           static_cast<double>(inputs.size()));
+        progress(restoreStart + (0.9 - restoreStart) *
+                                    static_cast<double>(++completed) /
+                                    static_cast<double>(inputs.size()));
     }
+    plans.clear();
+    compiledBinaries.clear();
     checkCancelled(stop);
     std::map<std::string, std::string> inputHashes;
     for (const auto& input : inputs) {

@@ -1,14 +1,16 @@
 #include <FileWorkers.hpp>
-#include <BackgroundTask.hpp>
+#include <BatchWorkerPool.hpp>
 
 #include <algorithm>
-#include <atomic>
 #include <bit>
-#include <chrono>
-#include <exception>
-#include <mutex>
 #include <thread>
 #include <vector>
+
+#ifndef __EMSCRIPTEN__
+#include "BatchWorkerScope.hpp"
+#include <optional>
+#include <utility>
+#endif
 
 #if defined(_WIN32)
 #ifndef NOMINMAX
@@ -26,6 +28,10 @@
 
 namespace ludork::standard {
 namespace {
+
+#ifndef __EMSCRIPTEN__
+thread_local std::optional<BatchWorkerPool>* taskPool = nullptr;
+#endif
 
 #if defined(__linux__) && !defined(__EMSCRIPTEN__)
 std::size_t cpuQuota(std::size_t count) {
@@ -137,55 +143,35 @@ std::size_t fileWorkerCount() {
     return count;
 }
 
+#ifndef __EMSCRIPTEN__
+void runWithBatchWorkerScope(const std::function<void()>& work) {
+    struct Scope {
+        std::optional<BatchWorkerPool> workers;
+        std::optional<BatchWorkerPool>* previous =
+            std::exchange(taskPool, &workers);
+        ~Scope() {
+            taskPool = previous;
+        }
+    } scope;
+    work();
+}
+#endif
+
 void parallelFiles(std::size_t count,
                    const std::function<void(std::size_t)>& work) {
-    const auto workers = std::min(count, fileWorkerCount());
-    if (workers <= 1) {
-#if defined(__EMSCRIPTEN__)
-        auto slice = std::chrono::steady_clock::now();
-#endif
-        for (std::size_t index = 0; index < count; ++index) {
-            work(index);
-#if defined(__EMSCRIPTEN__)
-            if (std::chrono::steady_clock::now() - slice >=
-                std::chrono::milliseconds(2)) {
-                BackgroundTask::yield();
-                slice = std::chrono::steady_clock::now();
-            }
-#endif
-        }
+#ifndef __EMSCRIPTEN__
+    if (count == 0) {
         return;
     }
-    std::atomic_size_t next{0};
-    std::mutex mutex;
-    std::exception_ptr failure;
-    const auto run = [&] {
-        try {
-            for (;;) {
-                const auto index = next.fetch_add(1, std::memory_order_relaxed);
-                if (index >= count) {
-                    return;
-                }
-                work(index);
-            }
-        } catch (...) {
-            next.store(count, std::memory_order_relaxed);
-            std::lock_guard lock(mutex);
-            if (!failure) {
-                failure = std::current_exception();
-            }
+    if (taskPool) {
+        if (!taskPool->has_value()) {
+            taskPool->emplace();
         }
-    };
-    std::vector<BackgroundTask> threads;
-    threads.reserve(workers - 1);
-    for (std::size_t index = 1; index < workers; ++index) {
-        threads.emplace_back(run);
+        taskPool->value().run(count, work);
+        return;
     }
-    run();
-    threads.clear();
-    if (failure) {
-        std::rethrow_exception(failure);
-    }
+#endif
+    BatchWorkerPool{}.run(count, work);
 }
 
 }  // namespace ludork::standard

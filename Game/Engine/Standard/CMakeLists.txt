@@ -19,6 +19,7 @@ if(LUDORK_WITH_LUA)
 else()
     set(LUDORK_STANDARD_SOURCES
         src/Core/BackgroundTask.cpp
+        src/Core/BatchWorkerPool.cpp
         src/Core/PersistentStorage.cpp
         src/Core/Base64.cpp
         src/Core/Compression.cpp

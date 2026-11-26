@@ -9,6 +9,8 @@
 #include <utility>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#else
+#include "BatchWorkerScope.hpp"
 #endif
 
 namespace ludork::standard {
@@ -63,7 +65,7 @@ void BackgroundTask::Impl::resume() {
 }
 #else
 BackgroundTask::Impl::Impl(std::function<void()> work)
-    : worker(std::move(work)) {}
+    : worker(runWithBatchWorkerScope, std::move(work)) {}
 #endif
 
 BackgroundTask::BackgroundTask() noexcept = default;
