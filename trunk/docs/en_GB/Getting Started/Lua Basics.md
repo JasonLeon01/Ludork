@@ -1,10 +1,10 @@
 # Lua Basics
 
-Ludork runs Lua 5.5. This page covers the syntax and behaviour that differ from C. See [Ludork Lua Advanced](<Ludork Lua Advanced.md>) for Ludork's additions and [SFML Quickstart](<SFML Quickstart.md>) for graphics and geometry types.
+Ludork runs Lua 5.5. This guide covers the syntax and runtime behaviour that differ from C; see [Ludork Lua Advanced](<Ludork Lua Advanced.md>) for Ludork's Standard extensions and [SFML Quickstart](<SFML Quickstart.md>) for graphics and geometry types.
 
 ## Files, comments and local variables
 
-Lua files use `.lua`; comments use `--` or `--[[ ... ]]`. Declare local variables with `local`; uninitialised variables are `nil`.
+Lua files use the `.lua` extension, and comments use `--` or `--[[ ... ]]`. Declare local variables with `local`; uninitialised variables evaluate to `nil`.
 
 ```lua
 -- One line
@@ -12,7 +12,7 @@ local playerName = "Hero"
 local level, alive, target = 1, true, nil
 ```
 
-Lua values include `nil`, booleans, numbers, strings, functions, tables, userdata and threads. `type(value)` returns one of these built-in categories. Application objects that are represented by tables or userdata still report the underlying category.
+Lua values belong to eight built-in categories: `nil`, booleans, numbers, strings, functions, tables, userdata and threads. `type(value)` returns that category name; application objects represented by tables or userdata report their underlying Lua category.
 
 ## Operators
 
@@ -24,7 +24,7 @@ Lua values include `nil`, booleans, numbers, strings, functions, tables, userdat
 | Strings | `..` for concatenation |
 | Length | `#value` |
 
-Lua treats only `nil` and `false` as false. Values such as `0`, an empty string and an empty table are true in a condition.
+Lua treats only `nil` and `false` as false. Values such as `0`, an empty string (`""`) and an empty table (`{}`) evaluate to `true` in a condition.
 
 ## Conditions
 
@@ -38,11 +38,11 @@ else
 end
 ```
 
-Use explicit `nil` comparisons when absence must differ from `false`, `0` or an empty value.
+Use explicit `nil` comparisons when absence must be distinguished from `false`, `0` or an empty value.
 
 ## Tables
 
-A table can act as an array, dictionary or record. Array indices start at 1.
+A table acts as an array, dictionary or record. Array indices start at 1.
 
 ```lua
 local items = { "Key", "Potion" }
@@ -69,11 +69,11 @@ for key, value in pairs(player) do
 end
 ```
 
-Use `ipairs` for dense arrays and `pairs` for dictionaries. Numeric loops use `for i = first, last, step do ... end` and include both endpoints when reached by the step; while loops use `while condition do ... end`.
+Use `ipairs` for dense arrays and `pairs` for dictionaries. Numeric loops (`for i = first, last, step do ... end`) include both endpoints when reached by `step`; `while` loops use `while condition do ... end`.
 
 ## Functions and methods
 
-Functions are values, and they may return multiple results. Define instance methods with colon syntax, which passes the receiver as `self`.
+Functions are first-class values and may return multiple results. Define instance methods with colon syntax, which passes the receiver as `self`.
 
 ```lua
 local function clampHealth(value, maximum)
@@ -89,11 +89,11 @@ end
 local value, found = findItem("Key")
 ```
 
-`object:method(value)` is equivalent to `object.method(object, value)`. Define and call instance methods with the colon form consistently.
+`object:method(value)` is equivalent to `object.method(object, value)`. Define and call instance methods with colon syntax consistently.
 
 ## Modules
 
-A module is a Lua file that returns its public value. Require it by its path below `Scripts`, using dots and no extension.
+A module is a Lua file that returns its public value. Require it by its path beneath `Scripts`, using dots and omitting the `.lua` extension.
 
 ```lua
 -- Scripts/Source/Score.lua
@@ -112,8 +112,8 @@ local Score = require("Source.Score")
 local total = Score.Add(10, 5)
 ```
 
-Project loading order and `require` conventions are in [Lua Runtime and Modules](<../Lua and Blueprint Scripting/Lua Runtime and Modules.md>).
+Project loading order and `require` conventions are documented in [Lua Runtime and Modules](<../Lua and Blueprint Scripting/Lua Runtime and Modules.md>).
 
 ## Errors
 
-Use `assert(condition, message)` for required conditions and `error(message)` for an explicit failure. Required project data must fail at its source rather than silently produce partial state.
+Use `assert(condition, message)` for required preconditions and `error(message)` for explicit failures. Required project data must fail at its source rather than silently producing partial state.

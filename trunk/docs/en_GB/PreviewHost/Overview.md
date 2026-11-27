@@ -1,6 +1,6 @@
 # PreviewHost
 
-PreviewHost supplies native rendering for editor previews of maps, worlds, Actors, UI, particles and subtitles. This chapter explains how to use these previews, prepare the preview runtime and understand how the editor obtains their frames.
+PreviewHost provides native rendering for editor previews of maps, worlds, Actors, UI, particles and subtitles. Use this section to work with each preview surface, prepare the preview runtime and understand how frames reach the editor.
 
 ## Choose a preview
 
@@ -14,11 +14,11 @@ PreviewHost supplies native rendering for editor previews of maps, worlds, Actor
 
 ## Preview and gameplay
 
-Editor previews display the content being authored. Map and Actor appearance previews resolve visual data without executing Actor creation, Tick or Blueprint gameplay events. The UI Designer displays authored assets without running their Lua Controllers. Particle and subtitle playback each have their own preview controls, described in the guides above.
+Editor previews display the content being authored. Map and Actor appearance previews resolve visual data without executing Actor creation, Tick or Blueprint gameplay events, and the UI Designer renders authored assets without running their Lua Controllers. Particle and subtitle editors each provide dedicated playback controls, documented in the guides above.
 
-Use **Play** to test gameplay. **Live Debug** inspects an already-running game and retains its own editing permissions; its map image follows the [map preview display rules](<Map and World Previews.md>). See [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>) for game execution and live editing.
+Use **Play** to test gameplay. **Live Debug** inspects a running game with its own editing permissions, and its map viewport follows the [map preview display rules](<Map and World Previews.md>). See [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>) for game execution and live editing.
 
 ## Prepare or develop PreviewHost
 
-- [Build, Publish and Troubleshooting](<Build Publish and Troubleshooting.md>) explains Source and Standalone preparation, runtime files, rebuilds and final-game packaging.
-- [Architecture and Data Flow](<Architecture and Data Flow.md>) explains shared rendering, scene updates, frame transport and diagnostics.
+- [Build, Publish and Troubleshooting](<Build Publish and Troubleshooting.md>) covers **C++ Source** and **Standalone** preparation, runtime artefacts, rebuilds and final-game packaging.
+- [Architecture and Data Flow](<Architecture and Data Flow.md>) covers shared rendering, scene updates, frame transport and diagnostics.

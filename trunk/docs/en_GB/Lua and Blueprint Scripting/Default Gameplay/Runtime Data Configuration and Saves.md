@@ -1,170 +1,128 @@
 # Runtime Data, Configuration and Saves
 
+This page documents Default Gameplay's configuration files, data-service bootstrap contract, runtime state and persistence model, composite-world save records and `.json`/`.ldc` save formats.
+
 ## Configuration
 
-Optional [remote account dictionaries](<../../Simple Server/Native Client API.md>) are a separate service. They do not automatically upload, download or replace the local saves described here; gameplay chooses which fields to read and write.
+`Data/Configs` stores project configuration JSON, while mutable user preferences live in the [platform game configuration](<../../Editor User Guide/Project Settings and Asset Layout.md#game-configuration>). Use the configuration APIs and editor controls so unknown sections and keys survive round trips.
 
-`Data/Configs` contains game configuration JSON. Mutable user settings use the [platform game configuration](<../../Editor User Guide/Project Settings and Asset Layout.md#game-configuration>). Use the configuration APIs and editor fields so unknown sections and keys survive a round trip.
+> **Note:** Optional [remote account dictionaries](<../../Simple Server/Native Client API.md>) are an independent service and do not automatically upload, download or overwrite local saves; gameplay code explicitly chooses what to read and write.
 
-Resource-valued Config `file` fields store complete `/Game/Assets/...` paths, while `base` and `ext` only constrain the selector. Data references remain separate. `System.json` keeps `startPlayerBlueprint` relative to `Data/Blueprints` with `root = "Data"` and converts it to `Data.Blueprints.*`. `startRegion` names the initial region. Both affect new games only, and saves retain their player class and region.
+### Paths, constants and keys
 
-Cell size is compiled into the engine (`32` by default). Read it with `Engine.GetCellSize()`; `System.json` does not configure it.
-
-Game Lua configuration modules live under `Scripts/Source/Configs` and are loaded through `Source.Configs.*`.
-
-`Source.Locale.Core.DEFAULT_LANGUAGE` is the shared initial and fallback language (`en_GB`); `Source.Configs.Main` uses the same value. `Source.Configs.MapConstants.WORLD_MANIFEST_FILE` defines the composite-world filename (`_world.json`). Data readers and saves use the suffixes from `Engine.ResourceFileConstants`.
-
-Initial data keys use paths relative to their category directory, with `/` separators and only the final extension removed. Dots in directory and file names are preserved: `folder.v1/item.v2.json` becomes `folder.v1/item.v2`. Animation keys remove the complete `.anim.json` cache suffix.
-
-`Engine.getUserDataPath(appNameOverride?)`, `Engine.getMainConfigPath(appNameOverride?)` and `Engine.getSavePath(appNameOverride?)` resolve the application user-data directory, configuration file and `Save/` directory. Entry calls `Engine.setAppName(APP_NAME)` before loading settings or saves. The optional override selects another application name for that lookup without changing the active name. All launch modes follow the same [directory rules](<../../Editor User Guide/Project Settings and Asset Layout.md#game-configuration>); `LUDORK_EDITOR` does not redirect these paths.
-
-`Source.Configs.Main.LoadOrCreate()` returns the user configuration path and its `ConfigParser`. It reads an existing file or creates the platform file with defaults when absent. An unreadable or malformed plist raises an error instead of being replaced by default settings. Startup selects its script independently of these preferences; see [Entry and module order](<../Lua Runtime and Modules.md#entry-and-module-order>).
-
-An Android package mirrors its immutable runtime assets into `filesDir/ludork/runtime/<runtime-hash>` before native startup. Mutable configuration and saves use `filesDir/ludork/user-data/<APP_NAME>`. They are never written back into that versioned runtime directory and do not require external-storage permission.
+- **Config resource vs. data references**: Resource-valued `file` fields store complete `/Game/Assets/...` paths (`base` and `ext` constrain only the editor selector). In `System.json`, `startPlayerBlueprint` is relative to `Data/Blueprints` (`root = "Data"`, resolving to `Data.Blueprints.*`) and `startRegion` names the starting region; both apply to new games only, as saves keep their stored player class and region.
+- **Engine constants and Lua config modules**: Grid cell size is compiled into the engine (`32` by default; read with `Engine.GetCellSize()`, not configured in `System.json`). Lua config modules live under `Scripts/Source/Configs` (`Source.Configs.*`). `Source.Locale.Core.DEFAULT_LANGUAGE` (`en_GB`) is the shared initial and fallback language (also used by `Source.Configs.Main`), `Source.Configs.MapConstants.WORLD_MANIFEST_FILE` is `"_world.json"`, and data readers/saves use suffixes from `Engine.ResourceFileConstants`.
+- **Initial data keys**: Keys are paths relative to their category directory using `/` separators with only the final extension stripped, preserving internal dots (e.g. `folder.v1/item.v2.json` becomes `folder.v1/item.v2`). Animation keys strip the full `.anim.json` cache suffix.
+- **User-data directories**: `Engine.getUserDataPath(appNameOverride?)`, `Engine.getMainConfigPath(appNameOverride?)` and `Engine.getSavePath(appNameOverride?)` resolve the user-data root, config file and `Save/` directory after `Entry` calls `Engine.setAppName(APP_NAME)`. Passing `appNameOverride` queries another application name without altering the active one. All launch modes obey the same [directory rules](<../../Editor User Guide/Project Settings and Asset Layout.md#game-configuration>); `LUDORK_EDITOR` does not redirect them.
+- **Loading user config**: `Source.Configs.Main.LoadOrCreate()` returns the user configuration path and `ConfigParser`, creating platform defaults if absent and raising an error on unreadable or malformed plist files rather than overwriting them. Entry script selection is independent of user preferences (see [Entry and module order](<../Lua Runtime and Modules.md#entry-and-module-order>)).
+- **Android paths**: Android mirrors immutable runtime assets into `filesDir/ludork/runtime/<runtime-hash>` before native startup and writes mutable configuration and saves to `filesDir/ludork/user-data/<APP_NAME>` without modifying the runtime directory or requiring external-storage permission.
 
 ### Shared Gameplay configuration
 
-`Data/Configs/Gameplay.json` stores project-wide overrides for the following shared script settings. Edit them through [Database → System Config → Gameplay](<../../Editor User Guide/Project Settings and Asset Layout.md#system-config>).
+`Data/Configs/Gameplay.json` stores project-wide overrides for shared script defaults. Edit them in [Database → System Config → Gameplay](<../../Editor User Guide/Project Settings and Asset Layout.md#system-config>).
 
 | Key | Type | Script default | Effect |
 |---|---|---|---|
-| `enemyDamageHintLevel` | `Enums.DamageHintLevel` | `BATTLE` (`1`) | Sets `EnemyDamageText.EnemyDamageHintLevel`: `NONE` (`0`) hides expected-damage hints, `BATTLE` shows enemy readouts, and `MAP` (`2`) also shows movement-danger cell totals. The required Item still gates hints; actual damage particles are unaffected. |
-| `enemyDefeatShatterEffectEnabled` | boolean | `true` | Sets `Enemy.DefeatShatterEffectEnabled`, controlling the [enemy-defeat shatter effect](<Resources Audio Video and Effects.md#shaders-fog-and-transitions>). |
+| `enemyDamageHintLevel` | `Enums.DamageHintLevel` | `BATTLE` (`1`) | Sets `EnemyDamageText.EnemyDamageHintLevel`: `NONE` (`0`) hides expected-damage hints, `BATTLE` shows enemy readouts, and `MAP` (`2`) also shows movement-danger cell totals. Owning the required Item gates hints; actual damage particles are unaffected. |
+| `enemyDefeatShatterEffectEnabled` | boolean | `true` | Sets `Enemy.DefeatShatterEffectEnabled`, toggling the [enemy-defeat shatter effect](<Resources Audio Video and Effects.md#shaders-fog-and-transitions>). |
 | `hideDisconnectedRegions` | boolean | `false` | Sets `GameMap.HideDisconnectedRegions`, enabling the [tile mask for disconnected regions](<../Global and Core Modules/Global APIs/GameMap.md#disconnected-regions>) on newly constructed ordinary maps. |
-| `enableShopRecord` | boolean | `true` | Sets `GameInstance.EnableShopRecord`. Disabling it stops new shop records and the [visited-shop shortcut](<Windows Menus Input and Controls.md#visited-shops>), while retaining saved records. |
-| `maxSaveSlots` | positive integer | `100` | Sets `WindowSaveSlot.MAX_SAVE_SLOTS` for the slot list and all quick-save, quick-load and latest-slot searches. Lowering it hides higher slots without deleting their files. |
-| `tutorialShrinkDuration` | finite positive number, seconds | `0.25` | Sets `WindowTutorial.SHRINK_DURATION`, the time taken for the tutorial mask to contract around its target. |
+| `enableShopRecord` | boolean | `true` | Sets `GameInstance.EnableShopRecord`. Disabling stops new shop records and the [visited-shop shortcut](<Windows Menus Input and Controls.md#visited-shops>) without deleting saved records. |
+| `maxSaveSlots` | positive integer | `100` | Sets `WindowSaveSlot.MAX_SAVE_SLOTS` for the slot list and quick-save, quick-load and latest-slot queries. Lowering it hides higher slots without deleting their files. |
+| `tutorialShrinkDuration` | finite positive number (seconds) | `0.25` | Sets `WindowTutorial.SHRINK_DURATION`, the tutorial mask contraction time. |
 
-Fields retain their existing string `type`, such as `"int"`, `"float"` or `"bool"`; `nullable: true` allows the script default, and `enum: "Enums.DamageHintLevel"` identifies the damage-hint choices. Each field stores its override under `value`, with no separate `useDefault` boolean. `null` means **Use default** and leaves the current script default in effect; it does not assign nil to the script field. Explicit `false` and `0` remain values, so `0` selects `NONE` for the damage-hint enum but is invalid for the two positive settings. New Gameplay data stores `null` for all overrides. Actor and map instance defaults, such as movement speed or `GameMap.MapViewRect`, remain with their existing class or Blueprint properties.
-
-Each nullable field requires `scriptDefault: { module, field }` to identify the editor's default source. `module` selects the Lua file under `Scripts`; `field` names its `table.field` assignment, such as `Controller.MAX_SAVE_SLOTS`. This stores a source reference, not a copy of the default value. The source must contain one unconditional top-level assignment using scalar literals, imported enum members or simple scalar arithmetic. The editor reads that expression without executing the module or its functions; missing sources and unsupported expressions leave Use default selected and report an error.
-
-`Source.System.Init()` calls `Source.Configs.Gameplay.Apply()` after applying the other system configuration. `Apply()` reads and validates the Gameplay data and applies its shared overrides before gameplay starts. Invalid types, enum values or numeric ranges fail startup instead of silently using defaults. Configuration edits take effect after saving and restarting the game; Lua hot reload does not reload this JSON or rerun startup.
-
-Scripts can change `GameInstance.EnableShopRecord` directly at runtime. This is the same shared class field used by Gameplay Config; changing it does not erase shop records.
+- **JSON override schema**: Fields use string `type` values (`"int"`, `"float"`, `"bool"`), `nullable: true` to permit script defaults, and `enum: "Enums.DamageHintLevel"` for enum choices. Overrides store under `value` with no separate `useDefault` flag; new Gameplay files default every override to `null`.
+- **`null` vs. concrete overrides**: `null` selects **Use default** (leaving the script default active without assigning `nil`), whereas explicit `false` and `0` are concrete overrides (`0` selects `NONE` for damage hints, but fails validation for positive numeric fields). Actor and map defaults (such as movement speed or `GameMap.MapViewRect`) stay on their class or Blueprint properties.
+- **`scriptDefault` source reference**: Every nullable field requires `scriptDefault: { module, field }` pointing to a Lua file under `Scripts` and a `table.field` assignment (such as `Controller.MAX_SAVE_SLOTS`). The editor parses one unconditional top-level assignment of scalar literals, imported enum members or simple scalar arithmetic without executing Lua; missing files or unsupported expressions keep **Use default** selected and report an error.
+- **Startup application and runtime overrides**: `Source.System.Init()` calls `Source.Configs.Gameplay.Apply()`, which validates every value and fails startup on invalid types, enum values or ranges. JSON edits take effect after saving and restarting (not via Lua hot reload). Scripts can toggle `GameInstance.EnableShopRecord` directly at runtime without erasing recorded shops.
 
 ## Data services
 
-`Global.Data` owns shared data loading, resource queries, Blueprint classes and graphs, Actor construction and static previews. Require it directly for these operations. `Source.Data` handles project startup and the default game's General Data queries, such as `GetGeneralPlayerData` and `GetGeneralItemData`, plus `CreateGeneralAttributeSet(typeName, memberID)`.
+`Global.Data` owns shared data loading, resource queries, Blueprint classes and graphs, Actor construction and static previews; require it directly. `Source.Data` owns project startup, default General Data queries (such as `GetGeneralPlayerData` and `GetGeneralItemData`) and `CreateGeneralAttributeSet(typeName, memberID)`.
 
-The default `Source.Data.InitializeRuntime()` calls `Global.Data.InitializeRuntime(options)` to create the shared services and install data and Blueprint providers before the first scene. Initialisation is required once per Lua session; a second call fails. Requiring either module does not initialise it. Custom projects supply all four fields of `Global.Data.RuntimeOptions` from their own startup:
+`Source.Data.InitializeRuntime()` invokes `Global.Data.InitializeRuntime(options)` once per Lua session (a second call raises an error; requiring either module never initialises it). Custom projects must pass all four `Global.Data.RuntimeOptions` fields from startup:
 
 | Required option | Type and purpose |
 |---|---|
-| `configResolver` | `(configName: string, settingName: string) -> string`; resolves configuration references for empty string overrides. |
-| `nodeModuleCandidates` | `(prefix: string) -> string[]`; supplies additional node module paths in search order. The unprefixed module path is tried first. |
-| `conditionalActorBase` | `Class.ClassType<Engine.Actor>`; the Actor base whose subclasses expose `conditionVariable`, `conditionOperator` and `conditionValue` in previews. |
-| `childActorComponentBase` | `Class.ClassType<Engine.Component>`; the component base whose subclasses supply `className` and `relativePosition` through `childActorComp` in previews. |
+| `configResolver` | `(configName: string, settingName: string) -> string`; resolves config references for empty string overrides. |
+| `nodeModuleCandidates` | `(prefix: string) -> string[]`; extra node module paths in search order (the unprefixed path is tried first). |
+| `conditionalActorBase` | `Class.ClassType<Engine.Actor>`; Actor base whose subclasses expose `conditionVariable`, `conditionOperator` and `conditionValue` in previews. |
+| `childActorComponentBase` | `Class.ClassType<Engine.Component>`; component base whose subclasses supply `className` and `relativePosition` through `childActorComp` in previews. |
 
-Pass finalised class objects for the two base options, not module-name strings or instances. They must satisfy `Class.isSubclass` against `Engine.Actor` and `Engine.Component`, respectively. The default project supplies `Source.System.GetConfigValue`, the ordered `Source.` and `Global.` node candidates, `Source.MapActors.ConditionalActor` and `Source.Components.ChildActorComponent`. These dependencies are supplied to Global; Global does not import Source. Configuration provider registration remains the separate `Source.System.InstallRuntimeProviders()` startup call.
+Pass finalised class objects (not module-name strings or instances) satisfying `Class.isSubclass` against `Engine.Actor` and `Engine.Component`. Default Gameplay supplies `Source.System.GetConfigValue`, the ordered `Source.` and `Global.` node candidates, `Source.MapActors.ConditionalActor` and `Source.Components.ChildActorComponent`, keeping `Global` independent of `Source`. Configuration provider registration is handled separately by `Source.System.InstallRuntimeProviders()`.
 
 ## Runtime state
 
-Keep immutable definitions in Blueprint, Config or General Data files, and keep mutable play-session state on the game instance, actors or components. Avoid writing transient state back into source JSON.
+Keep static definitions in Blueprint, Config and General Data files, and mutable session state on `GameInstance`, Actors and components — avoid writing transient state back to source JSON.
 
-`Global.Data.GetClassData(path)` exposes the shared session definition; see [Execution Flow, Events and Variables](<../Blueprint Scripting/Execution Flow Events and Variables.md#class-definitions-and-session-lifetime>).
-
-Construct General Data Attribute Sets with `Source.Configs.GeneralDataTypes.Create`. Load type keys from `Enums.GeneralDataKey` and member keys from `Enums.GeneralData.<TypeName>`, such as `Enums.GeneralData.Item`. The editor resolves these enums from live, possibly unsaved project data. Saving regenerates their runtime sources alongside `Enums.Animation` and `Enums.Particle`; runtime callers see the saved modules. The [General Data and Text Config](<../../Editor User Guide/General Data and Text Config.md>) page describes value conversion and defaults.
+- `Global.Data.GetClassData(path)` returns the shared session definition; see [Class definitions and session lifetime](<../Blueprint Scripting/Execution Flow Events and Variables.md#class-definitions-and-session-lifetime>).
+- Construct General Data Attribute Sets with `Source.Configs.GeneralDataTypes.Create`, using type keys from `Enums.GeneralDataKey` and member keys from `Enums.GeneralData.<TypeName>` (e.g. `Enums.GeneralData.Item`). The editor resolves these from live data and regenerates their Lua modules alongside `Enums.Animation` and `Enums.Particle` on save; see [General Data and Text Config](<../../Editor User Guide/General Data and Text Config.md>).
 
 ### Static Actor display data
 
-`Global.Data.GetActorPreviewData(classPath, classVarChanges?)` returns `Global.Data.ActorPreviewData`, or `nil` for an empty class path. Invalid class paths raise an error. It resolves inherited Blueprint and Script Mixin defaults, then applies declared display and condition overrides with their existing typed conversion. Unknown override names fail; unrelated gameplay values and `BlueprintOnly` overrides are not applied. A resolved class must derive from `Engine.Actor`.
+`Global.Data.GetActorPreviewData(classPath, classVarChanges?)` returns `Global.Data.ActorPreviewData` (or `nil` for an empty path; invalid paths and non-`Engine.Actor` classes raise an error):
 
-The record contains texture and material resource paths, the configured first-frame `rect`, `translation`, rotation in degrees, `scale`, `origin`, `visible`, `materialParameters`, condition fields, and optional recursive `child` with its `childOffset`. Declarative `childActorComp` supplies child class and offset; cyclic child references fail. Each call returns independent records and copies of the parameter dictionaries, mutable `sf` rectangles and vectors, so callers cannot alter shared class defaults or cached templates.
-
-Extraction does not construct gameplay Actors, instantiate event graphs, load the referenced textures, dispatch component or lifecycle callbacks, or initialise combat state. `Global.Data.ClearActorPreviewCache()` discards the class display templates without altering shared class definitions; clearing the floor-preview cache calls it automatically.
+- **Resolution**: Merges inherited Blueprint and Script Mixin defaults, then applies declared display and condition overrides using typed conversion. Unknown overrides fail; unrelated gameplay values and `BlueprintOnly` overrides are skipped.
+- **Returned record**: Contains texture and material paths, first-frame `rect`, `translation`, rotation (degrees), `scale`, `origin`, `visible`, `materialParameters`, condition fields and optional recursive `child` with `childOffset` (from declarative `childActorComp`; cycles raise an error). Every call returns independent copies of tables and mutable `sf` vectors/rectangles so shared templates cannot be mutated.
+- **No gameplay side effects**: Extraction neither constructs gameplay Actors, instantiates graphs, loads textures, runs component/lifecycle callbacks nor initialises combat state. Call `Global.Data.ClearActorPreviewCache()` to discard cached class display templates without affecting shared class definitions (clearing the floor-preview cache calls it automatically).
 
 ### Players
 
-`GameInstance` stores player order in `_playerKeys` and player objects in `_players`, keyed by the stable Player General Data key from `Player.ID`. Player keys must be non-empty and unique. `getPlayers()` returns the live keyed dictionary, while `getPlayerKeys()` returns the live ordered key array. Its first key identifies the primary player used by `getPlayer()`. `getPlayerByIndex()` resolves a zero-based index through the same order, `setPlayer(playerKey)` moves an existing key to the first position, and `setPlayerByClass(playerClass)` does the same after resolving the class path.
-
-Saves preserve the same structure as sibling `playerKeys` and `players` fields. `playerKeys` defines the order, and every key must have exactly one matching entry in `players` with the same restored `Player.ID`. `addPlayerByClass(playerClass, mapPath, position)` appends a party member and stores a required map path and cell for that key. `removePlayerByClass` also drops that key's stored map.
-
-Each Player saves every numeric Attribute Set Base under `attr` from `getNumericAttributeBases()`. Derived Current values are not saved, and non-numeric attributes are rebuilt from Player General Data. Values must be finite and follow the generated `int` or `float` schema. Missing keys in an older save keep the restored member's initial Base.
-
-Saves retain inventory/equipment counts, equipped IDs and State stacks. Loading restores all Base values first, then Item abilities, equipment Effects and State Effects without running initial-equipment or member graphs. Handles, derived Current values, transient Effects, ability specs and tags are not saved. Persistent additions need their own stable record and rebuild step.
-
-Player saves require a string `customName` alongside `attr`. `""` selects the localised General Data default. Non-empty values must already be trimmed and satisfy the rules in [Source.MapActors.Player](<../Source Classes/Player.md>).
+- **Party storage and order**: `GameInstance` keeps ordered keys in `_playerKeys` and objects in `_players`, keyed by the non-empty, unique Player General Data key (`Player.ID`). `getPlayers()` returns the live dictionary; `getPlayerKeys()` returns the live order (its first key is the primary player returned by `getPlayer()`). `getPlayerByIndex()` resolves 0-based indices; `setPlayer(playerKey)` and `setPlayerByClass(playerClass)` promote an existing member to primary; `addPlayerByClass(playerClass, mapPath, position)` appends a member with its required map/cell; `removePlayerByClass` also removes that key's stored map.
+- **Player serialisation**: Saves mirror `playerKeys` and `players` (every key must match exactly one entry with the same restored `Player.ID`), plus a required `customName` string alongside `attr` (`""` selects the localised General Data default; non-empty values must be pre-trimmed and satisfy [Source.MapActors.Player](<../Source Classes/Player.md>)).
+- **Persisted attributes and inventory**: Each Player saves finite numeric Attribute Set Base values under `attr` via `getNumericAttributeBases()` (matching the generated `int`/`float` schema; missing keys in older saves keep the initial Base, derived Current values are not saved, and non-numeric fields rebuild from Player General Data), along with inventory/equipment counts, equipped IDs and State stacks.
+- **Load rebuild order**: Loading restores Base values first, then Item abilities, equipment Effects and State Effects without running initial-equipment or member graphs. Handles, derived Current values, transient Effects, ability specs and tags are not saved — custom persistent additions require their own record and rebuild logic.
 
 ### Game variables
 
-The runtime reads initial values from the generated `Scripts/Source/Configs/GameVariables.lua`. Save the edits in [General Data](<../../Editor User Guide/General Data and Text Config.md#game-variable-manager>) before starting the runtime. List and dictionary initial values are ordinary Lua tables rather than Standard containers, and an empty table serialised through JSON is not guaranteed to retain its array or object shape.
+Initial game variables load from generated `Scripts/Source/Configs/GameVariables.lua` (save edits in the [Game Variable Manager](<../../Editor User Guide/General Data and Text Config.md#game-variable-manager>) before launching). List and dictionary initial values are ordinary Lua tables rather than Standard containers, and empty tables round-tripped through JSON may not preserve array-vs-object shape.
 
-`GameInstance:init` deep-copies the generated runtime map, so every new game receives independent mutable initial values. The Game project declares `MTExample = 0` and `ShopPrice = 20`. Runtime systems may still create dynamic names, but only editor-declared names appear in `InstVar` selectors.
-
-A loaded save replaces the newly constructed instance's variable table with the table stored in that save. Generated initial values therefore apply to new games only. Changing, adding or removing a declaration does not migrate or merge an existing slot. Changing a declaration's type also resets its project initial value, but not the values already stored in saves.
-
-Variable snapshots include the current logical values of monitored fields. `deepcopy` excludes monitor proxies and subscriptions, so ConditionalActor listeners stay within the live game instance. After restoring records, `onCreate` subscribes to the restored variables and recomputes visibility. No extra save fields are needed.
+- **New game vs. save load**: `GameInstance:init` deep-copies the generated map so each new game starts independently (Default Gameplay declares `MTExample = 0` and `ShopPrice = 20`; runtime code can add dynamic keys, though only editor-declared keys appear in `InstVar` selectors). Loading a save replaces the variable table wholesale — generated initial values apply to new games only, and adding, removing or retyping a declaration does not migrate existing saves (retyping resets only the project initial value).
+- **Monitored fields**: Snapshots capture logical values while `deepcopy` strips monitor proxies and subscriptions so `ConditionalActor` listeners stay local to the live session. On load, `onCreate` resubscribes and recomputes visibility without extra save fields.
 
 ### Map Actor identity
 
-The placement `tag` in map JSON becomes the Actor's map-persistence tag. `GameMap:getActorByTag` and `GameInstance` persistence records identify Actors only through `Actor:getMapTag()`, and `Actor.tag` remains independent. Actors without a map tag are not recorded, and map paths are normalised for these records with `Global.Utils.MapPath.Normalise`.
-
-Runtime-spawned Actors that must survive a map rebuild are stored through the added-Actor record using their own generated map-placement tag. When such an Actor is later destroyed, its destroyed record suppresses the stored addition. Reborn enemies use this existing pair of records rather than reusing the original placement tag.
-
-World runtime tags use `<child-file-stem>.runtime_default_<N>` in placements and `<world-directory>.runtime_default_<N>` in holes. All tags remain reserved for the world lifetime, and conflicts fail. Editor tags are unique world-wide and stable across map renames.
-
-Map `BPClassVarChanged` and persisted `classVarChanges` contain only values for declared class fields. The editor and runtime resolve their types through metadata, Script Mixins and Blueprint `attrDefs`; an instance cannot introduce a field or change its type. Unknown override names and values that do not match the resolved schema fail loading. Enum overrides store the underlying scalar, and declared vectors and records use their typed conversion when applied.
+- **Map tags**: Map JSON `tag` becomes the Actor's map-persistence tag read by `Actor:getMapTag()` — `GameMap:getActorByTag` and `GameInstance` persistence use only this tag, keeping `Actor.tag` independent. Untagged Actors are not persisted, and map paths normalise via `Global.Utils.MapPath.Normalise`.
+- **Added and destroyed pairs**: Runtime-spawned Actors that must survive map rebuilds save as added-Actor records with generated placement tags; destroying them writes a destroyed record that suppresses the addition (`Reborn` enemies use this same mechanism instead of reusing the original tag).
+- **Composite-world tags**: World runtime tags use `<child-file-stem>.runtime_default_<N>` inside placements and `<world-directory>.runtime_default_<N>` in holes; all tags stay reserved for the world's lifetime and conflicts raise errors. Editor tags are unique world-wide and survive map renames.
+- **Typed overrides**: Map `BPClassVarChanged` and persisted `classVarChanges` store values only for declared class fields resolved from metadata, Script Mixins and `attrDefs`. Unknown names or schema mismatches fail loading; enum overrides store scalar values, and vectors/records apply typed conversion.
 
 ### Composite-world persistence
 
-The primary player's `map` entry stores the manifest path even when entry used a child. Player, added, moved and destroyed records use that identity, world coordinates and global tags. Conflicting added or moved records fail loading.
-
-Added Actors restore at `actorPositions[tag]` when it is present, and otherwise at their original position. Destroyed tags are skipped. Placement Actors restore with their child payload without distant child I/O, while hole Actors may restore immediately.
-
-`worldMovedActors` owns authored roots outside their definition child, storing identity, owner, layer overrides and world position. They rebuild only at that owner. Returning or destruction removes the moved record.
-
-Destroying a tag removes its moved record and suppresses authored, added, resident and in-progress instances without loading absent children. Suppressed tags stay reserved, and invalid records and collisions fail.
-
-Terrain records use child paths and local coordinates. They apply when that child builds and update only its affected live layer. Holes cannot own terrain changes.
-
-A world save requires `worldMovedActors` when any stored player map is a world manifest. Moved snapshots preserve reconstruction identity, class-variable overrides, layer and position, but not arbitrary instance fields, private Lua state or timer progress. Persist those separately, or recover the time through `onWorldWake`.
+- **Manifest identity**: The primary player's `map` entry stores the `_world.json` manifest path even when entry targeted a child map. Player, added, moved and destroyed records use manifest identity, world coordinates and global tags; conflicting added or moved records fail loading.
+- **Restoring Actors**: Added Actors spawn at `actorPositions[tag]` if present (otherwise their original position); destroyed tags are skipped. Placement Actors restore with their child without distant child I/O, while hole Actors can restore immediately.
+- **Moved roots (`worldMovedActors`)**: Required in a save whenever any player's stored map is a world manifest. Tracks authored roots that left their definition child (identity, owner, layer overrides, world position), rebuilding them only at their current owner; returning home or destroying removes the record. Moved snapshots preserve reconstruction identity, `classVarChanges`, layer and position, but not arbitrary Lua fields or timer progress (persist those separately or recover elapsed time in `onWorldWake`).
+- **Suppression and terrain**: Destroying a tag removes its moved record and suppresses authored, added, resident and in-progress instances without loading absent children (tags stay reserved; invalid records/collisions fail). Terrain edits store child paths and local coordinates, applying when that child builds and updating only its live layer (holes cannot own terrain edits).
 
 ## Saves
 
-[Live Debug](<../../Editor User Guide/Run Debug and Package.md#live-debug>) does not write project documents and does not change the save schema, slots or persistence records. A save made during that run can retain gameplay state affected by live edits.
+The Default Gameplay save schema is version `1` (numeric `1`). `SaveCodec` accepts only the current structure and version, rejecting incompatible saves without migration. Schema versions are independent of application versions and the packaging dev checkbox: use `vN-dev` while developing a breaking format change and freeze it as `vN` before release.
 
-The Game project save schema remains v1, serialised as the number `1`. Only the current structure and version are supported. `SaveCodec` rejects incompatible saves without migration.
+> **Note:** [Live Debug](<../../Editor User Guide/Run Debug and Package.md#live-debug>) never edits project files or save schemas, though saving during a debug session persists gameplay state altered by live edits.
 
-Save schema versions are independent of application versions and the packaging dev checkbox. For a changed format, use `vN-dev` during development and freeze it as `vN` before release. Ordinary game releases do not advance the save version; the current format remains numeric `1`, with no migration.
+### Save data collections
 
-`telepoints` maps normalised map paths to ordered `{ position = {x, y}, tag = "raw tag" }` records. Runtime positions use `sf.Vector2u`, and tags remain unlocalised strings. `GameInstance:recordTelepoint(mapPath, position, tag)` preserves the first record for each map and position pair, and `getTelepoints(mapPath)` returns the records. World records use the manifest identity and world coordinates.
+- **`telepoints`**: Maps normalised map paths (manifest paths + world coordinates for worlds) to ordered `{ position = {x, y}, tag = "raw tag" }` records (`sf.Vector2u` at runtime; unlocalised string tags). `GameInstance:recordTelepoint(mapPath, position, tag)` preserves the first entry per `(map, position)`; `getTelepoints(mapPath)` returns records, `getVisitedMapPaths()` returns sorted paths (copy), and `getTelepointsForMap(key)` matches ignoring extensions (copy).
+- **`triggeredTutorials`**: Unique tutorial keys in display-start order (`list<string>` at runtime, JSON array in saves preserving `[]`). Loading validates the native reader's `n` count against array elements and rejects holes or invalid keys. `hasTriggeredTutorial(key)` queries history and `recordTriggeredTutorial(key)` appends once when mask contraction starts (not while queued). Legacy v1 saves missing this field load as empty.
+- **`shops` record format**: Shared array of `[mapPath, mapTag]` pairs using normalised map/manifest paths and `Actor:getMapTag()`. Entries are unique by full pair in first-visit order, saving empty as `[]` (legacy v1 saves missing `shops` load empty).
+- **`shops` API and events**: `GameInstance:getShops()` returns a copy; `recordShop(mapPath, tag)` adds a pair while `GameInstance.EnableShopRecord` is enabled (successful shop open records without requiring a purchase; see [Visited shops](<Windows Menus Input and Controls.md#visited-shops>)); `removeShop(mapPath, tag)` removes even when recording is disabled. Both return whether the list changed, publishing `Enums.EventKey.ShopRecordsChanged` (`Source.Configs.ShopRecordsChangePayload`, `{ instance = self }`) only on real changes so subscribers can match `instance`. Revisiting a removed shop can record it again.
+- **`map`**: Object keyed by `playerKeys` where every member has one non-empty normalised map path (extra keys fail loading). `GameInstance:getCurrentMapPath()` returns the primary player's map or `nil`; `applyMapInfo` writes it; `restoreFromData(data)` applies a validated save.
 
-`triggeredTutorials` contains unique tutorial keys in display-start order: a native `list<string>` at runtime and a JSON array in saves. Its empty array shape is preserved when writing. Loading accepts the native JSON reader's `n` length field, requires it to match the element count, and rejects holes or invalid keys. `hasTriggeredTutorial(key)` queries history; `recordTriggeredTutorial(key)` appends a non-empty key once. Guides record when contraction starts, not while queued, and persist through normal saves. Older v1 saves without this field load an empty list; the version stays `1`.
+### Save format, encryption and UI contract
 
-`shops` is an array of two-element arrays, `[[mapPath, mapTag], ...]`, shared by the players in that save. Each entry stores a normalised map path and the unlocalised map-placement tag from `Actor:getMapTag()`, not the Blueprint name or `Actor.tag`. Composite worlds use the manifest path. Records are unique by the complete pair and retain first-visit order. Empty records save as `[]`; older v1 saves without `shops` load an empty collection and can record subsequent visits without changing the save version.
+- **Format selection (`SAVE_AS_LDC`)**: `false` (default) writes plain `.json`; `true` writes compressed, obfuscated binary `.ldc`. **Encrypt save contents** sets the native default for C++ Source packages. Any project (including Standalone) can override it by setting `SAVE_AS_LDC = true` or `false` at the top of `Scripts/Entry.lua` before all `require` calls; `Source.Save` captures the setting on first load and ignores later writes.
+- **LDC codec and encryption**: `Source.Save` reads and writes through `Engine.saveData` and `Engine.loadData`, decoding `.ldc` directly into runtime data without intermediate JSON (legacy compressed-JSON `.ldc` saves are unsupported). Save encryption is independent of project JSON encryption, though Pack Options groups both under **Encrypt game data**.
+- **Loading and previews**: `GetSavePath(slot)` returns the 1-based slot path for the active format. Previews load asynchronously without constructing gameplay objects; confirming a load invokes `Save.LoadGame(filePath)`.
+- **Save/Load window**: `open` accepts `initialMode` as `Enums.SaveLoadMode.LOAD` (`"load"`, default) or `.SAVE` (`"save"`; load-only windows stay in load mode). `onClose(reason)` receives `Enums.SaveLoadCloseReason.CANCEL` (`"cancel"`), `.SAVED` (`"saved"`) or `.LOADED` (`"loaded"`) after closing. The window shows loading, empty and failed states, preselects the most recently modified slot (or slot 1 when none exists), and focuses it after the open animation. New screenshots preserve aspect ratio up to `224 × 168` pixels (larger existing screenshots stay readable).
 
-`GameInstance:getShops()` returns an independent copy. `recordShop(mapPath, tag)` adds a new pair only while `GameInstance.EnableShopRecord` is enabled; `removeShop(mapPath, tag)` removes that exact pair even when recording is disabled. Both methods return whether the collection changed. Only an actual addition or removal publishes `Enums.EventKey.ShopRecordsChanged` with `{ instance = self }`; duplicate visits, missing removals and disabled additions publish nothing. The payload is declared as `Source.Configs.ShopRecordsChangePayload`. Subscribers can compare `instance` with their bound game instance before refreshing. Visiting a removed shop can add it again. Successful shop opening records a visit without requiring a purchase; opening and revisiting rules are described under [Visited shops](<Windows Menus Input and Controls.md#visited-shops>).
-
-`map` is an object keyed by player key. Every `playerKeys` entry must have exactly one non-empty normalised map path, and extra keys fail loading. `GameInstance:getCurrentMapPath()` returns the primary player's stored map or `nil`. `applyMapInfo` writes that same entry. `getVisitedMapPaths()` returns sorted telepoint map paths, and `getTelepointsForMap(key)` ignores the extension when matching. Both collection queries return copies. `restoreFromData(data)` restores a validated save into the instance.
-
-`SAVE_AS_LDC` selects plain `.json` saves (`false`, the default) or compressed, obfuscated binary `.ldc` saves (`true`). **Encrypt save contents** sets the native default for C++ Source packages. Any project, including Standalone, can override it with the global assignment `SAVE_AS_LDC = true` or `false` at the top of `Scripts/Entry.lua`, before all `require` calls. `Source.Save` captures the format on first load, and later assignments have no effect.
-
-`Source.Save` uses `Engine.saveData` and `Engine.loadData`; LDC is decoded directly into runtime data without JSON text. Old LDC saves containing compressed JSON are unsupported; changing `SAVE_AS_LDC` does not migrate them.
-
-`GetSavePath(slot)` returns the save path for a 1-based slot number in the selected format.
-
-Save previews load asynchronously without creating gameplay objects. Confirming a load calls `Save.LoadGame(filePath)` to restore the full game.
-
-The save/load window accepts `Enums.SaveLoadMode.LOAD` (`"load"`, the default) or `SAVE` (`"save"`) as its `open` method's `initialMode`; a load-only window stays in load mode. The host's `onClose(reason)` callback receives `Enums.SaveLoadCloseReason.CANCEL` (`"cancel"`), `SAVED` (`"saved"`) or `LOADED` (`"loaded"`) after the window closes.
-
-The window shows loading, empty or failed states. Each opening selects the most recently modified save, or the first slot if none exists. The selected slot receives keyboard focus after the opening animation.
-
-New save screenshots preserve their aspect ratio and are no larger than 224 × 168 pixels. Existing larger screenshots remain readable.
-
-Save encryption is independent of project JSON encryption, although Pack Options groups both under **Encrypt game data**.
+> **Important:** Changing `SAVE_AS_LDC` does not rename or migrate existing slots — choose the format before release or write a migration. Save-version upgrades, atomic writes, backups, cloud synchronisation and custom tuple-key record formats are project responsibilities.
 
 ## Native containers at data boundaries
 
-Convert Standard `list`, `tuple` and `dict` values to Lua tables before saving them as JSON or LDC:
+Convert Standard `list`, `tuple` and `dict` values to ordinary Lua tables before writing JSON or LDC:
 
 ```lua
 local Engine = require("Engine")
 Engine.saveData("slot.ldc", payload:toTable())
 ```
 
-Decoding either format yields ordinary Lua tables. Arrays include their logical length in `n`; root null and null array slots become nil, while null object fields retain `cjson.null`. Tuple-key strings, `cjson.null` nil slots and record-array reconstruction are in [Ludork Lua Advanced](<../../Getting Started/Ludork Lua Advanced.md>). Never persist an internal tuple hash.
-
-## Limitations
-
-Changing the save format does not rename or migrate existing slots. Choose the format before release, or provide a migration. Save upgrades, atomic writes, backups, cloud synchronisation and tuple-key record formats remain project responsibilities.
+Decoding either format produces plain Lua tables: arrays carry logical length in `n`, root `null` and `null` array slots become `nil`, and `null` object fields keep `cjson.null`. See [Ludork Lua Advanced](<../../Getting Started/Ludork Lua Advanced.md>) for tuple-key strings, `cjson.null` handling and record-array reconstruction; never persist an internal tuple hash.

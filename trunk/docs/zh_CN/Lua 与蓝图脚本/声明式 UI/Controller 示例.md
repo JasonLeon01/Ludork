@@ -1,10 +1,10 @@
 # 声明式 UI Controller 示例
 
-以下示例使用已有 JSON 资产创建背包窗口。文件归属与导出步骤见[编写工作流](<编写工作流.md>)。
+本页通过一系列示例演示如何在已有 JSON UI 资产之上构建背包窗口。文件归属与导出步骤见[声明式 UI 编写工作流](<编写工作流.md>)。
 
 ## 从原始模板开始
 
-已有 `Inventory.json` 时，在 `Scripts/Source/Windows/WindowInventory.lua` 中写入：
+为已有的 `Inventory.json` 创建 `Scripts/Source/Windows/WindowInventory.lua`：
 
 ```lua
 local Ui = require("Internal.UIBase.Ui")
@@ -15,7 +15,7 @@ local Controller = {}
 return Ui.DefineWindow(InventoryView, Controller)
 ```
 
-Scene 负责创建并注册它：
+在所属场景中创建并挂载该窗口：
 
 ```lua
 local WindowInventory = require("Source.Windows.WindowInventory")
@@ -23,11 +23,11 @@ local WindowInventory = require("Source.Windows.WindowInventory")
 local window = WindowInventory.new():mount(uiManager)
 ```
 
-窗口显示模板原有的内容与尺寸。持有者保留该窗口，不再需要时调用 `window:dispose()`。
+窗口将按模板编排的内容与尺寸直接渲染。持有者应保留该引用，并在生命周期结束时调用 `window:dispose()`。
 
 ## 替换内容并响应字段变化
 
-假设 `Inventory.json` 包含 `WindowFrame`、`Content`、共用的 `WindowChrome` 与 `WindowPauseMark` 资产，以及名为 `Title` 和 `Count` 的 `Engine.PlainText` 节点。在同一个窗口模块中补充业务行为：
+假设 `Inventory.json` 包含 `WindowFrame`、`Content`、共享资产 `WindowChrome` 与 `WindowPauseMark`，以及名为 `Title` 和 `Count` 的 `Engine.PlainText` 节点。在同一窗口模块中补充业务逻辑：
 
 ```lua
 local LocaleCore = require("Source.Locale.Core")
@@ -57,7 +57,7 @@ end
 return Ui.DefineWindow(InventoryView, Controller, WindowBase)
 ```
 
-`watch` 会立即渲染当前数量，并在字段变化时更新它：
+`watch` 会立即渲染当前 `count`，并在字段变化时自动更新文本：
 
 ```lua
 local WindowInventory = require("Source.Windows.WindowInventory")
@@ -67,11 +67,11 @@ local window = WindowInventory.new(inventoryModel):mount(uiManager)
 inventoryModel.count = 4
 ```
 
-显示值随之变成 `4`，无需调用 `refresh`。若要跟随语言变化，把标题更新移入 `refresh`，并把语言事件加入 `refreshEvents`。
+无需手动调用 `refresh`，文本即更新为 `4`。若需响应运行时语言切换，请将标题更新移入 `refresh`，并在 `refreshEvents` 中注册语言变更事件。
 
 ### 业务成员只声明一次
 
-手写文件 `Scripts/stub/Source/Windows/WindowInventory.d.lua` 只包含 Controller 及其业务类型：
+手写 `Scripts/stub/Source/Windows/WindowInventory.d.lua`，仅声明私有 Controller 及其业务类型：
 
 ```lua
 ---@meta
@@ -94,11 +94,11 @@ function Controller:updateCount(count) end
 function Controller:onReturn() end
 ```
 
-运行 `ludork-assets ui-assets generate <project-root>` 生成公开窗口声明，再用 `require` 加载 `Source.Windows.WindowInventory`。`Source.Windows.WindowInventory.Controller` 是私有类型，不是模块。
+运行 `ludork-assets ui-assets generate <project-root>` 生成公开窗口声明。调用方直接 `require("Source.Windows.WindowInventory")`；`Source.Windows.WindowInventory.Controller` 仅为私有类型而非可导入模块。
 
 ## 绑定原生回调
 
-独立行 Controller 保留 `Ui.Define(RowView, RowController)` 与 `RowController.new(model, ui?)`。设置行可以绑定它已有的 DropBox：
+独立行 Controller 使用 `Ui.Define(RowView, RowController)` 与 `RowController.new(model, ui?)`，在 `bind` 中绑定原生控件回调：
 
 ```lua
 function SettingRowController:bind()
@@ -111,11 +111,11 @@ function SettingRowController:onSelectedIndexChanged(index)
 end
 ```
 
-传给 `bindCallback` 的是未绑定的类方法。绑定会自动提供 `self`，并在 Controller 释放后失效。回调契约见[声明式 UI 运行时契约](<运行时契约.md#观察模型字段与绑定回调>)。
+向 `bindCallback` 传入未绑定的类方法即可；包装器会自动注入 `self`，并在 Controller 释放后自动失效。参见[观察模型字段与绑定回调](<运行时契约.md#观察模型字段与绑定回调>)。
 
 ## 为已有子 View 添加行为
 
-父 JSON 包含 `DetailsAsset` 时，在父 Controller 中创建它的业务窗口：
+当父级 JSON 嵌入了名为 `DetailsAsset` 的子资产时，可在父 Controller 中用对应窗口类包装它：
 
 ```lua
 local WindowDetails = require("Source.Windows.WindowDetails")
@@ -125,9 +125,9 @@ function Controller:init(inventory)
 end
 ```
 
-`createChild` 复用 `self.ui.assets.DetailsAsset` 及其资产中的布局，子窗口由父 View 拥有。
+`createChild` 复用 `self.ui.assets.DetailsAsset` 及其编排好的布局，子窗口的释放由父 View 托管。
 
-独立的固定行沿用原有的 Controller 路径：
+独立的固定行则直接使用其独立 Controller 模块：
 
 ```lua
 local ItemRowController = require("Source.Windows.WindowInventory.ItemRow.Controller")
@@ -138,7 +138,7 @@ row:prepare()
 
 ## 填充依赖模型的行
 
-根据 `self.model.items` 填充 `ItemList`：
+将可变长度的 `ItemList` 绑定到 `self.model.items`：
 
 ```lua
 function Controller:init(model, ui)
@@ -155,8 +155,10 @@ function Controller:refresh()
 end
 ```
 
-本例使用独立的 `Ui.Define` Controller。对于 `Ui.DefineWindow` Controller，在业务 `init(...)` 中创建集合即可，不调用基类初始化，因为窗口工厂已经构造了 View。`ItemRowController` 要与其他依赖一起 `require`。集合替换预览子项，并在 `clear/add` 之间自动复用行，行 Controller 不调用 Pool。初始化、重新绑定与最终销毁的规则见[声明式 UI 运行时契约](<运行时契约.md#动态集合>)。
+上述代码演示的是独立的 `Ui.Define` Controller。在 `Ui.DefineWindow` 的 Controller 中，直接在业务 `init(...)` 中创建集合即可，无需调用 `super`（窗口工厂已在 `init` 前构造完 View）。`ItemRowController` 应放在模块顶层与其他依赖一并 `require`。
+
+集合会替换资产中的预览子项，并在 `clear` 与 `add` 之间自动池化复用行——行 Controller 绝不直接调用 `Pool`。复用与释放规则见[动态集合](<运行时契约.md#动态集合>)。
 
 ## 发布更新
 
-`WindowInventory.Publish(payload)` 通过资产的 EventBus 通道更新每一个存活且已准备好的 Controller。重写 `onViewUpdate(payload)` 可以在刷新与重新布局之前保存状态。需要时把语言变化一类的事件加入 `refreshEvents`。独立行 Controller 与 Scene Controller 通过 `Ui.Define` 暴露 `Publish`。没有 Controller 的 View 实例不会订阅。
+调用 `WindowInventory.Publish(payload)` 可通过资产的 `EventBus` 通道通知所有存活且已准备好的 Controller。重写 `onViewUpdate(payload)` 可在刷新与重排之前更新状态，必要时可将语言切换等事件加入 `refreshEvents`。独立行 Controller 与场景 Controller 通过 `Ui.Define` 暴露 `Publish`；未绑定 Controller 的 View 实例不会订阅该通道。

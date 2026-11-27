@@ -1,10 +1,10 @@
 # Declarative UI Controller Examples
 
-These examples build an inventory window from an existing JSON asset. See [Authoring Workflow](<Authoring Workflow.md>) for file ownership and export steps.
+These examples walk through building an inventory window on top of an existing JSON UI asset. See [Declarative UI Authoring Workflow](<Authoring Workflow.md>) for file ownership and export steps.
 
 ## Start with the unchanged template
 
-Put this in `Scripts/Source/Windows/WindowInventory.lua` for an existing `Inventory.json`:
+Create `Scripts/Source/Windows/WindowInventory.lua` for an existing `Inventory.json`:
 
 ```lua
 local Ui = require("Internal.UIBase.Ui")
@@ -15,7 +15,7 @@ local Controller = {}
 return Ui.DefineWindow(InventoryView, Controller)
 ```
 
-The Scene creates and registers it:
+Create and mount the window from its owning Scene:
 
 ```lua
 local WindowInventory = require("Source.Windows.WindowInventory")
@@ -23,11 +23,11 @@ local WindowInventory = require("Source.Windows.WindowInventory")
 local window = WindowInventory.new():mount(uiManager)
 ```
 
-The window displays the template's content and dimensions. The owner keeps the window and calls `window:dispose()` when it is no longer needed.
+The window renders the template's authored content and dimensions. Keep a reference on the owner and call `window:dispose()` when closing out its lifetime.
 
 ## Replace content and react to a field
 
-Assume `Inventory.json` contains `WindowFrame`, `Content`, the shared `WindowChrome` and `WindowPauseMark` assets, and `Engine.PlainText` nodes named `Title` and `Count`. Extend the same window module with its business behaviour:
+Assume `Inventory.json` contains `WindowFrame`, `Content`, the shared `WindowChrome` and `WindowPauseMark` assets, and `Engine.PlainText` nodes named `Title` and `Count`. Add business logic in the same window module:
 
 ```lua
 local LocaleCore = require("Source.Locale.Core")
@@ -57,7 +57,7 @@ end
 return Ui.DefineWindow(InventoryView, Controller, WindowBase)
 ```
 
-`watch` renders the current count immediately and updates it when the field changes:
+`watch` renders the current `count` immediately and updates the label whenever the field changes:
 
 ```lua
 local WindowInventory = require("Source.Windows.WindowInventory")
@@ -67,11 +67,11 @@ local window = WindowInventory.new(inventoryModel):mount(uiManager)
 inventoryModel.count = 4
 ```
 
-The display changes to `4` without calling `refresh`. To react to language changes, move the title update into `refresh` and add the locale event to `refreshEvents`.
+The text updates to `4` without manually calling `refresh`. To respond to runtime language switches, move the title update into `refresh` and register the locale event in `refreshEvents`.
 
 ### Declare business members once
 
-The handwritten `Scripts/stub/Source/Windows/WindowInventory.d.lua` contains only the Controller and its business types:
+Handwrite `Scripts/stub/Source/Windows/WindowInventory.d.lua` with only the private Controller and its business types:
 
 ```lua
 ---@meta
@@ -94,11 +94,11 @@ function Controller:updateCount(count) end
 function Controller:onReturn() end
 ```
 
-Run `ludork-assets ui-assets generate <project-root>` to derive the public window declaration. Require `Source.Windows.WindowInventory`. `Source.Windows.WindowInventory.Controller` is a private type, not a module.
+Run `ludork-assets ui-assets generate <project-root>` to generate the public window declaration. Callers require `Source.Windows.WindowInventory`; `Source.Windows.WindowInventory.Controller` is a private type rather than a module.
 
 ## Bind a native callback
 
-Independent row Controllers retain `Ui.Define(RowView, RowController)` and `RowController.new(model, ui?)`. A setting row can bind its existing DropBox:
+Independent row Controllers use `Ui.Define(RowView, RowController)` and `RowController.new(model, ui?)`. Bind native control callbacks in `bind`:
 
 ```lua
 function SettingRowController:bind()
@@ -111,11 +111,11 @@ function SettingRowController:onSelectedIndexChanged(index)
 end
 ```
 
-Pass the unbound class method to `bindCallback`. The binding supplies `self` and becomes inactive after Controller disposal. The callback contract is in [Declarative UI Runtime Contract](<Runtime Contract.md#observe-model-fields-and-bind-callbacks>).
+Pass the unbound class method to `bindCallback`; the wrapper supplies `self` and becomes inert after Controller disposal. See [Observe model fields and bind callbacks](<Runtime Contract.md#observe-model-fields-and-bind-callbacks>).
 
 ## Add behaviour to existing child Views
 
-If the parent JSON contains `DetailsAsset`, create its business window in the parent Controller:
+When the parent JSON embeds a child asset named `DetailsAsset`, wrap it in its window class from the parent Controller:
 
 ```lua
 local WindowDetails = require("Source.Windows.WindowDetails")
@@ -125,9 +125,9 @@ function Controller:init(inventory)
 end
 ```
 
-`createChild` reuses `self.ui.assets.DetailsAsset` and its authored layout. The parent View owns the child window.
+`createChild` reuses `self.ui.assets.DetailsAsset` and its authored layout, and the parent View owns the child window's disposal.
 
-Independent fixed rows keep their existing Controller path:
+Independent fixed rows use their standalone Controller module directly:
 
 ```lua
 local ItemRowController = require("Source.Windows.WindowInventory.ItemRow.Controller")
@@ -138,7 +138,7 @@ row:prepare()
 
 ## Populate model-dependent rows
 
-Populate `ItemList` from `self.model.items`:
+Bind a variable-length `ItemList` to `self.model.items`:
 
 ```lua
 function Controller:init(model, ui)
@@ -155,8 +155,10 @@ function Controller:refresh()
 end
 ```
 
-This example uses an independent `Ui.Define` Controller. For a `Ui.DefineWindow` Controller, create the collection in its business `init(...)` without calling the base initialiser, because the window factory has already constructed its View. Require `ItemRowController` alongside the other dependencies. The collection replaces preview children and automatically reuses rows across `clear/add`; row Controllers do not call Pool. See [Declarative UI Runtime Contract](<Runtime Contract.md#dynamic-collections>) for initialisation, rebinding and terminal disposal.
+This snippet shows an independent `Ui.Define` Controller. Inside a `Ui.DefineWindow` Controller, create the collection in business `init(...)` without calling `super`, because the window factory constructs the View before `init`. Require `ItemRowController` with the module's top-level imports.
+
+The collection replaces authored preview children and automatically pools rows across `clear` and `add` — row Controllers never call `Pool` directly. See [Dynamic collections](<Runtime Contract.md#dynamic-collections>) for reuse and disposal rules.
 
 ## Publish updates
 
-`WindowInventory.Publish(payload)` updates every live, prepared Controller through the asset's EventBus channel. Override `onViewUpdate(payload)` to store state before refresh and reflow. Add events such as locale changes to `refreshEvents` when needed. Independent row and Scene Controllers expose `Publish` through `Ui.Define`. View instances without Controllers do not subscribe.
+Call `WindowInventory.Publish(payload)` to notify every live, prepared Controller via the asset's `EventBus` channel. Override `onViewUpdate(payload)` to update state before refresh and reflow, and add events such as locale changes to `refreshEvents` when needed. Independent row and Scene Controllers expose `Publish` via `Ui.Define`; View instances without a Controller do not subscribe.

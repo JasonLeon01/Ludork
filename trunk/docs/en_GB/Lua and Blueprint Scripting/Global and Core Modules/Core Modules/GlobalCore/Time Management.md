@@ -1,12 +1,14 @@
 # GlobalCore: Time Management
 
+This page documents scene timer entries (`TimerEntry`) and the static global clock and time-scale service (`TimeManager`). Instance method tables omit the implicit `self` receiver exposed as the first Blueprint target pin; static methods take no receiver.
+
 ## TimerEntry
 
-`isReady()` indicates that the timer has elapsed or been cancelled; it does not mean the callback has finished. `cancel()` cancels the associated operation and prevents its expiry callback. To wait for completion, use the operation returned by [SceneBase.addTimer](<Scenes and System.md#scene-timers>).
+Represents a scheduled scene timer. `isReady()` indicates that the timer has elapsed or been cancelled, not that its callback has finished; `cancel()` cancels the associated operation and prevents its expiry callback. To await completion, use the `Engine.AsyncOperation` returned by [SceneBase.addTimer](<Scenes and System.md#scene-timers>).
 
 ### Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
 | `time` | `float` | — | — |
 | `params` | `any[]` | — | — |
@@ -14,22 +16,22 @@
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `task` | `function` | — | — | — |
-| `isReady` | `function` | self: { "GlobalCore", "TimerEntry" } = "self" | return: bool | — |
-| `isCancelled` | `function` | self: { "GlobalCore", "TimerEntry" } = "self" | return: bool | Pure |
-| `cancel` | `function` | self: { "GlobalCore", "TimerEntry" } = "self" | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `task` | — | — | Callback invoked on expiry. |
+| `isReady` | — | `bool` | — |
+| `isCancelled` | — | `bool` | Pure. |
+| `cancel` | — | — | — |
 
 ## TimeManager
 
-`getDeltaTime` returns the time delta with the current speed applied.
+Static time-scaling service. `getDeltaTime()` returns the frame delta with the current playback speed applied.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `getCurrentTime` | `function` | — | return: sf.Time | — |
-| `getDeltaTime` | `function` | — | return: sf.Time | — |
-| `getSpeed` | `function` | — | return: float | — |
-| `setSpeed` | `function` | speed: float | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `getCurrentTime` | — | `sf.Time` | Static. |
+| `getDeltaTime` | — | `sf.Time` | Static. |
+| `getSpeed` | — | `float` | Static. |
+| `setSpeed` | `speed: float` | — | Static. |

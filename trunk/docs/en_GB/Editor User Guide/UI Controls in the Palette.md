@@ -1,286 +1,292 @@
 # UI Controls in the Palette
 
-The Palette lists built-in controls and exposed project UI assets. Each entry below gives its purpose, child rules, key properties and a link to its runtime API.
+Browse every built-in control in the UI Asset Editor Palette, including its child and Slot rules, serialised properties and runtime API reference.
 
 ## How to read this page
 
-Entries are grouped by Palette category and headed by the exact `controlId` saved in the node. Tables list the child policy, Slot type and control-specific serialised properties.
+Entries are grouped by Palette category and titled with the exact `controlId` written to UI asset JSON. Tables show each control's child policy, Slot type and control-specific serialised property keys (the Inspector displays British English labels such as **Colour**, **Fill Colour**, **Outline Colour**, **Glow Colour** and **Background Colour**).
 
 ### Children and Slots
 
-`childPolicy` and `slotType` define which children a container accepts and how they are laid out:
+`childPolicy` and `slotType` determine what children a container accepts and how they are positioned:
 
-| childPolicy | slotType | Controls | What each child gets |
+| `childPolicy` | `slotType` | Controls | Child layout |
 |---|---|---|---|
-| `multiple` | `canvas` | Canvas | Anchors, offsets, alignment, auto-size and z-order |
-| `multiple` | `list` | ListView, ScrollBox | List placement owned by the parent |
-| `single` | `list` | WrapBox | List placement, for exactly one template child |
-| `none` | — | The other 19 controls | Nothing; they accept no children |
+| `multiple` | `canvas` | `Canvas` | Anchors, offsets, alignment, auto-size and z-order |
+| `multiple` | `list` | `ListView`, `ScrollBox` | List placement managed by the parent |
+| `single` | `list` | `WrapBox` | List placement for a single template child |
+| `none` | — | All other 19 controls | Accepts no children |
 
-A Canvas Slot positions the child's local bounds. A List Slot does not accept Canvas Slot fields. The full field contract is in [UI Asset Schema and Control Registry](<../Lua and Blueprint Scripting/Declarative UI/Asset Schema and Control Registry.md#slots-and-resource-keys>).
+Canvas Slots position a child's local bounds; List Slots reject Canvas Slot fields. See [Slots and resource keys](<../Lua and Blueprint Scripting/Declarative UI/Asset Schema and Control Registry.md#slots-and-resource-keys>).
 
 ### Properties every control shares
 
-`visible`, `rotation`, `scale` and `origin` are on all 23 controls and are left out of the entry tables.
-
-Six text-bearing controls — PlainText, RichText, FunctionalPlainText, FunctionalRichText, TextBox and DropBox — also carry an editor-only `previewText`. The Designer shows it so the layout stays readable before a Controller supplies real strings. It lives in the node's `editor` object.
+All 23 built-in controls share `visible`, `rotation`, `scale` and `origin`, omitted from the entry tables below. Six text-bearing controls (`PlainText`, `RichText`, `FunctionalPlainText`, `FunctionalRichText`, `TextBox` and `DropBox`) also store an editor-only `previewText` inside `editor` so layouts stay legible in the Designer before a Controller assigns runtime text.
 
 ### The inline text-style group
 
-Seven controls carry the same inline text-style properties: `textConfig`, `font`, `characterSize`, `bold`, `italic`, `underlined`, `strikeThrough`, `slantAngle`, `fillColor`, `letterSpacing`, `lineSpacing`, `lineAlignment`, `outlineColor`, `outlineThickness`, the four `glow*` fields and the three `gradient*` fields. They are CheckBox, DropBox, FunctionalPlainText, GamepadHintBar, PlainText, TabView and TextBox. Their entries below say *text style* rather than repeating that list. When `textConfig` is non-empty, the editor disables the inline fields and the runtime uses the TextConfig.
+Seven controls (`CheckBox`, `DropBox`, `FunctionalPlainText`, `GamepadHintBar`, `PlainText`, `TabView` and `TextBox`) share the same inline text-style properties: `textConfig`, `font`, `characterSize`, `bold`, `italic`, `underlined`, `strikeThrough`, `slantAngle`, `fillColor`, `letterSpacing`, `lineSpacing`, `lineAlignment`, `outlineColor`, `outlineThickness`, the four `glow*` fields and the three `gradient*` fields.
 
-RichText and FunctionalRichText take `textConfig` but none of the inline fields; they style named tags through the TextConfig.
+Entry tables abbreviate this group as *text style*. When `textConfig` is non-empty, inline fields are disabled in the editor and ignored in favour of the TextConfig at runtime.
+
+`RichText` and `FunctionalRichText` accept `textConfig` only and style named tags through that TextConfig.
 
 ### System controls and project assets
 
-The 23 controls below are built in. The Palette also lists project UI assets with **Exposed** enabled (`palette.exposed = true`). Add these as reusable units; edit their internal contents in the original asset.
+The 23 controls below are built in. Project UI assets with **Exposed** enabled (`palette.exposed = true`) also appear in the Palette as reusable units; edit their internals in the source asset.
 
 ## Layout controls
 
-Layout controls organise their children, and are the only controls that accept child nodes.
+Layout controls organise child nodes and are the only controls that accept children.
 
 ### Engine.Canvas
 
-The free-positioning container, and the normal root of a new screen. Children are placed by their own Canvas Slots rather than flowed by the parent.
+Free-positioning container and the standard root for a new screen. Children position themselves via Canvas Slots rather than flowing automatically.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
-| Layout | any number | canvas | `size` |
+| Layout | any number | `canvas` | `size` |
 
-Canvas sets the coordinate space and stacking order of its contents. See [Engine: Runtime Values and Functional Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Runtime Values and Functional Controls.md#canvas>).
+Defines the coordinate space and draw order of its contents. API: [Canvas](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Runtime Values and Functional Controls.md#canvas>).
 
 ### Engine.ListView
 
-A multi-child list that arranges children into rows and columns, and draws only the ones currently visible.
+Multi-child grid/list container that arranges children into rows and columns and draws only visible entries.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
-| Layout | any number | list | `size`, `columns`, `defaultItemHeight`, `fixItemHeight`, `childScrollingEnabled` |
+| Layout | any number | `list` | `size`, `columns`, `defaultItemHeight`, `fixItemHeight`, `childScrollingEnabled` |
 
-`columns` defaults to 1 and `defaultItemHeight` to 32; `fixItemHeight` keeps every row at that height. Enable `childScrollingEnabled` in the Inspector to scroll wide children within their columns; it is off by default. See [Engine: Layout and Image Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#listview>).
+Defaults: `columns = 1`, `defaultItemHeight = 32`, `childScrollingEnabled = false` (enable in Inspector to scroll wide children within columns). `fixItemHeight` enforces a uniform row height. API: [ListView](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#listview>).
 
 ### Engine.ScrollBox
 
-A clipped, scrollable viewport for more content than fits on screen. The native control owns scrolling, the overflow indicators and the clipping.
+Clipped scrollable viewport whose native control owns scrolling, clipping and window-skin overflow indicators.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
-| Layout | any number | list | `size`, `windowSkin` |
+| Layout | any number | `list` | `size`, `windowSkin` |
 
-An empty `windowSkin` loads the current system window skin. See [Engine: Layout and Image Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#scrollbox>), which also covers the window-skin overflow indicators.
+An empty `windowSkin` loads the current system window skin. API: [ScrollBox](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#scrollbox>).
 
 ### Engine.WrapBox
 
-Repeats one authored child template at equal spacing — status flames, an icon grid, cell backgrounds.
+Repeats one authored child template at equal spacing — ideal for status icons, grids and cell backgrounds.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
-| Layout | one template | list | `size`, `count`, `spacing` |
+| Layout | one template | `list` | `size`, `count`, `spacing` |
 
-Items flow left to right and wrap at the available width. Editing repetitions is described in [UI Asset Editor](<UI Asset Editor.md>); runtime access is in [Engine: Layout and Image Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#wrapbox>).
+Items flow left to right and wrap at the available width. See [UI Asset Editor](<UI Asset Editor.md>) for template editing and [WrapBox](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#wrapbox>) for runtime access.
 
 ## Visual controls
 
-Visual controls draw content without accepting input.
+Visual controls render content without accepting focus or input.
 
 ### Engine.CharacterView
 
-Renders frame-animated character and enemy sheets inside fixed bounds.
+Renders frame-animated character or enemy sprite sheets inside fixed bounds.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
 | Visual | none | — | `size`, `texture`, `textureRect`, `characterScale`, `animatable`, `switchInterval`, `material`, `materialParameters`, `colour` |
 
-`textureRect` selects the initial frame, and `characterScale` adjusts its size. Set `animatable` and a positive `switchInterval` to play equal-width horizontal frames. `material` accepts a complete `Data/Materials/...json` path or an empty string for the default material. `materialParameters` stores per-instance exposed-parameter overrides; changing the material clears them. The property panel uses the selected material's parameter controls. See [Engine: Layout and Image Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#characterview>).
+`textureRect` picks the initial frame, `characterScale` scales it, and `animatable` + positive `switchInterval` cycles equal-width horizontal frames.
+
+`material` accepts a full `Data/Materials/...json` path (empty uses default) with per-instance overrides in `materialParameters`, cleared on material change and edited via the material's Inspector controls. API: [CharacterView](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#characterview>).
 
 ### Engine.EmitterView
 
-Shows a GPU particle emitter inside the UI.
+Displays a GPU particle emitter inside a UI layout.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
 | Visual | none | — | `particle`, `size`, `anchor`, `autoPlay` |
 
-`particle` is an extensionless key under `Data/Particles`. Choose the effect and set its size, anchor and automatic playback. See [Common Particles](<Common Particles.md>) for authoring, and [EmitterView](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Time Rendering and Particles.md#emitterview>) for playback from code.
+`particle` is an extensionless key under `Data/Particles`. See [Common Particles](<Common Particles.md>) for authoring and [EmitterView](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Time Rendering and Particles.md#emitterview>) for runtime playback.
 
 ### Engine.Image
 
-A static picture, stretched or tiled.
+Static picture rendered stretched or tiled.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
 | Visual | none | — | `drawAs`, `texture`, `textureRect`, `colour` |
 
-**Draw As** is an enum selector in the Inspector: **Image** stretches the picture, while **Tile** repeats its texture region to fill the layout area and crops the partial final tile. Global UI Scale scales the complete result either way. An optional `textureRect` defines the tile. See [Engine: Layout and Image Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#image>).
+Set **Draw As** in the Inspector to **Image** (stretch) or **Tile** (repeat `textureRect` across the layout area, cropping the final partial tile); global UI Scale applies to the combined output. API: [Image](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#image>).
 
 ### Engine.ProgressBar
 
-A background layer with a fill revealed from left to right.
+Background layer paired with a fill revealed from left to right.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
 | Visual | none | — | `size`, `progress`, `backgroundTexture`, `fillTexture`, `backgroundTextureRect`, `fillTextureRect`, `backgroundColor`, `fillColor` |
 
-`progress` runs from 0 to 1; values outside that range are clamped and non-finite values become 0. Each texture defaults to empty for a solid-colour layer, and a non-empty value uses a canonical `/Game/Assets/...` path. The fill is cropped to the current progress rather than compressed into it. Colours tint their own layer, so `[255,255,255,255]` preserves image colours. See [Engine: Interactive and Declarative UI Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#progressbar>).
+`progress` clamps to `[0, 1]` (non-finite values become `0`), cropping the fill rather than squashing it. Empty textures draw solid-colour layers; non-empty values use canonical `/Game/Assets/...` paths. Each colour tints its layer (`[255, 255, 255, 255]` leaves textures untinted). API: [ProgressBar](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#progressbar>).
 
 ### Engine.Rect
 
-A rectangle drawn from a window skin — panels, frames and selection highlights.
+Skinned rectangle drawn from a window skin for panels, frames and selection highlights.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
 | Visual | none | — | `size`, `windowSkin`, `opacityCurve` |
 
-`opacityCurve` is relative to `Data/Curves`, with no directory prefix or extension, and resolves to a scalar curve. See [Engine: Layout and Image Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#rect>).
+`opacityCurve` is an extensionless scalar curve key relative to `Data/Curves`. API: [Rect](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#rect>).
 
 ### Engine.SolidRect
 
-A rectangle filled with one colour, with an optional outline.
+Solid-colour rectangle with an optional outline.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
 | Visual | none | — | `size`, `fillColor`, `outlineColor`, `outlineThickness` |
 
-`outlineThickness` defaults to 0 and `outlineColor` to fully transparent, so an unedited SolidRect is a plain fill. See [Engine: Layout and Image Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#solidrect>).
+Defaults to `outlineThickness = 0` and transparent `outlineColor`, drawing a plain fill until configured. API: [SolidRect](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#solidrect>).
 
 ### Engine.Window
 
-A skinned window frame — the standard background for dialogs, menus and message boxes.
+Skinned 9-slice window frame — the standard backdrop for dialogs, menus and message boxes.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
 | Visual | none | — | `size`, `windowSkin`, `repeated`, `colour` |
 
-`repeated` selects texture repetition for the background when true and stretching when false; borders always tile between the corners. `colour` is an RGBA tint defaulting to `[255,255,255,255]`, so set its alpha in JSON for a translucent frame. See [Engine: Text and Windows](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Text and Windows.md#window>).
+`repeated` tiles (`true`) or stretches (`false`) the background while borders always tile between corners. `colour` defaults to `[255, 255, 255, 255]`; lower its alpha for a translucent frame. API: [Window](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Text and Windows.md#window>).
 
 ## Input controls
 
-Input controls accept focus and player input. Each one is a `FunctionalBase` and accepts focus and input only while it and every `FunctionalBase` ancestor are active, and while it and every `ControlBase` ancestor are visible.
+Input controls derive from `FunctionalBase` and respond to focus and player input only while both the control and every `FunctionalBase` ancestor are active and every `ControlBase` ancestor is visible.
 
 ### Engine.Button
 
-A clickable button with hover and pressed tints and an optional gamepad binding.
+Clickable button with hover/pressed tints and optional gamepad prompt binding.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
 | Input | none | — | `texture`, `textureRect`, `colour`, `hoverColour`, `pressedColour`, `gamepadButton`, `gamepadLongPress` |
 
-An empty `texture` uses the current window skin's selection-Rect image. Default and custom backgrounds remain visible for every input device. The bound gamepad glyph is shown when `Engine.Input.getInputHintDevice()` selects Gamepad; size, global bounds, hit area and separate text controls stay unchanged. `gamepadButton` is a logical name such as `"X"` and defaults to empty; `gamepadLongPress` defaults to false. A Button accepts no children, so its label is a separate text control. See [Engine: Runtime Values and Functional Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Runtime Values and Functional Controls.md#button>).
+An empty `texture` falls back to the active window skin's selection-Rect image; backgrounds stay visible across all input devices. Buttons take no children — place labels as separate text controls.
+
+When `Engine.Input.getInputHintDevice()` selects Gamepad, the bound `gamepadButton` glyph (logical name such as `"X"`, default `""`; `gamepadLongPress` defaults to `false`) renders without altering size, bounds, hit area or sibling text controls. API: [Button](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Runtime Values and Functional Controls.md#button>).
 
 ### Engine.CheckBox
 
-A two-state toggle that draws its own label and reports changes.
+Two-state toggle that renders its own label and notifies state changes.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
 | Input | none | — | `size`, `checked`, `windowSkin`, *text style* |
 
-The label uses the inline text-style group or a `textConfig`. `toggle()` flips the state from code, and `setOnCheckedChanged` receives the result. See [Engine: Interactive and Declarative UI Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#checkbox>).
+Call `toggle()` from code and bind `setOnCheckedChanged` for updates. API: [CheckBox](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#checkbox>).
 
 ### Engine.DropBox
 
-A collapsed single-choice list that opens into a popup.
+Collapsed single-choice selector that expands into a popup list.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
 | Input | none | — | `size`, `windowSkin`, *text style* |
 
-Populate the options from the Controller with `setItems`; they are not saved as asset properties. See [Engine: Interactive and Declarative UI Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#dropbox>) for selection and sound callbacks.
+Populate choices at runtime from the Controller via `setItems` (options are not serialised in the asset). API: [DropBox](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#dropbox>).
 
 ### Engine.FunctionalImage
 
-An Image that also accepts focus and input, and the base of CharacterView.
+Focusable, clickable `Image` and the base class of `CharacterView`.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
 | Input | none | — | `drawAs`, `texture`, `textureRect`, `colour` |
 
-It serialises the same properties as Image and inherits its `drawAs` API. Choose Image when nothing needs to click the picture. See [Engine: Runtime Values and Functional Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Runtime Values and Functional Controls.md#functionalimage>).
+Shares `Image` serialisation and `drawAs` behaviour; use `Engine.Image` when click/focus input is unneeded. API: [FunctionalImage](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Runtime Values and Functional Controls.md#functionalimage>).
 
 ### Engine.FunctionalPlainText
 
-A PlainText that also accepts focus and input.
+Focusable, clickable `PlainText`.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
 | Input | none | — | `text`, `colour`, *text style* |
 
-See [Engine: Runtime Values and Functional Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Runtime Values and Functional Controls.md#functionalplaintext>).
+API: [FunctionalPlainText](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Runtime Values and Functional Controls.md#functionalplaintext>).
 
 ### Engine.FunctionalRichText
 
-A RichText that also accepts focus and input.
+Focusable, clickable `RichText`.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
 | Input | none | — | `textConfig`, `text`, `colour` |
 
-See [Engine: Runtime Values and Functional Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Runtime Values and Functional Controls.md#functionalrichtext>).
+API: [FunctionalRichText](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Runtime Values and Functional Controls.md#functionalrichtext>).
 
 ### Engine.GamepadHintBar
 
-Shows up to three gamepad hints, centred in its size.
+Displays up to three centred `Engine.GamepadHint` entries supplied by the Controller while a gamepad is connected.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
 | Input | none | — | `size`, *text style* |
 
-The hints appear only while a gamepad is connected. The Controller supplies up to three `Engine.GamepadHint` entries. See [Engine: Interactive and Declarative UI Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#gamepadhintbar>).
+API: [GamepadHintBar](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#gamepadhintbar>).
 
 ### Engine.Slider
 
-A draggable numeric value within a range.
+Draggable integer range input supporting pointer, keyboard and touch editing.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
 | Input | none | — | `size`, `minValue`, `maxValue`, `value`, `lineTexture`, `handleTexture` |
 
-`minValue` and `maxValue` are integers defaulting to 0 and 100, and the two textures default to `/Game/Assets/System/SliderLine.png` and `/Game/Assets/System/SliderHandle.png`. Editing accepts pointer, keyboard and touch input, and changes are reported through `setOnValueChanged`. See [Engine: Interactive and Declarative UI Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#slider>).
+Defaults: `minValue = 0`, `maxValue = 100`, `lineTexture = "/Game/Assets/System/SliderLine.png"`, `handleTexture = "/Game/Assets/System/SliderHandle.png"`. Bind `setOnValueChanged` for updates. API: [Slider](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#slider>).
 
 ### Engine.TabView
 
-A row of selectable tabs.
+Horizontal row of selectable tabs.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
 | Input | none | — | `size`, `windowSkin`, `items`, *text style* |
 
-`items` is a construction-only, non-empty `string[]`. Before the first visible frame the Controller supplies localised labels and binds selection behaviour. `selectedIndex` and key-hint tables exist only at runtime and `tabCount` is not an asset property ([serialisation contract](<../Lua and Blueprint Scripting/Declarative UI/Asset Schema and Control Registry.md#control-serialisation-contract>), [runtime behaviour](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#tabview>)). See [Engine: Interactive and Declarative UI Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#tabview>).
+`items` is a construction-only non-empty `string[]`; the Controller supplies localised labels and selection handlers before the first visible frame. `selectedIndex` and key-hint tables exist only at runtime, and `tabCount` is not an asset property.
+
+See [Control serialisation contract](<../Lua and Blueprint Scripting/Declarative UI/Asset Schema and Control Registry.md#control-serialisation-contract>) and [TabView](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#tabview>).
 
 ### Engine.TextBox
 
-An editable single-field text input.
+Editable single-field text input.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
 | Input | none | — | `size`, `windowSkin`, `text`, *text style* |
 
-Set `text` for the initial runtime value; `previewText` affects the Designer only. See [Engine: Interactive and Declarative UI Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#textbox>) for editing and callbacks.
+`text` sets the initial runtime value; `previewText` appears in the Designer only. API: [TextBox](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#textbox>).
 
 ## Text controls
 
-Text controls draw strings and take no input. Use the Functional variants when the text itself must be focusable or clickable.
+Text controls render text without accepting focus or input (use the Functional variants when text must be interactive).
 
 ### Engine.PlainText
 
-Static text styled directly on the node.
+Static text styled directly on the node or via a TextConfig.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
 | Text | none | — | `text`, `colour`, *text style* |
 
-See [Engine: Text and Windows](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Text and Windows.md#plaintext>).
+API: [PlainText](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Text and Windows.md#plaintext>).
 
 ### Engine.RichText
 
-Static text with named tag styles resolved through a TextConfig.
+Static text using named rich-text tags resolved through a TextConfig.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
 | Text | none | — | `textConfig`, `text`, `colour` |
 
-See [Engine: Text and Windows](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Text and Windows.md#richtext>).
+API: [RichText](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Text and Windows.md#richtext>).
 
 ## Runtime-only types
 
-`Engine.SectorShape` and `Engine.AssetInstance` are available to code but are not built-in Palette controls. See the [interactive control reference](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md>) for their APIs. Exposed project assets appear in the Palette by their own names, and their generated View exposes the runtime asset through `.instance`.
+`Engine.SectorShape` and `Engine.AssetInstance` are available in code only and do not appear as built-in Palette entries (see [Interactive and Declarative UI Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md>)). Exposed project UI assets appear in the Palette under their own names, and their generated Views expose the underlying runtime asset on `.instance`.

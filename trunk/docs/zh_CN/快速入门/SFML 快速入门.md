@@ -1,20 +1,20 @@
 # SFML 快速入门
 
-SFML 提供 Ludork 的图形、音频、窗口、输入和几何类型。LuaSF 将它暴露为全局 `sf` 表，项目脚本无需 `require` 即可使用。
+SFML 提供 Ludork 的图形、音频、窗口、输入与几何类型。LuaSF 将其暴露为全局 `sf` 表，项目脚本无需调用 `require` 即可直接使用。
 
 ## 官方文档
 
-成员细节见 [SFML 3.1.0 API 参考](<https://www.sfml-dev.org/documentation/3.1.0/>)，图形与音频概念见 [3.1 教程](<https://www.sfml-dev.org/tutorials/3.1/>)。Ludork 内置 **SFML 3.1.0**，SFML 2 的构造方式与之不同。
+有关成员详情，请参阅 [SFML 3.1.0 API 参考](<https://www.sfml-dev.org/documentation/3.1.0/>)；有关图形与音频概念，请参阅 [SFML 3.1 教程](<https://www.sfml-dev.org/tutorials/3.1/>)。Ludork 内置 **SFML 3.1.0**，其构造方式与 SFML 2 不同。
 
 ## Ludork 与 SFML 的分工
 
-图形值与资源使用 `sf`；地图、Actor、蓝图、场景、UI 和项目数据使用 `Engine`、`GlobalCore` 或 `GlobalFunctions`。窗口、帧循环和 UI 树由运行时管理，项目通常通过 Engine 控件与场景绘制，无需另建 `sf.RenderWindow`。
+图形数值与资源使用 `sf`；地图、Actor、蓝图、场景、UI 与项目数据则使用 `Engine`、`GlobalCore` 与 `GlobalFunctions`。运行时接管窗口、帧循环与 UI 树，因此项目绘制通常通过 Engine 控件与场景完成，无需另行创建 `sf.RenderWindow`。
 
 ## sf 表
 
-`sf` 包含类、枚举和辅助函数：
+`sf` 包含以下类、枚举与辅助函数：
 
-| sf 分组 | 成员 |
+| `sf` 分组 | 成员 |
 |---|---|
 | 向量与矩阵 | `sf.Vector2i`、`sf.Vector2u`、`sf.Vector2f`、`sf.Vector2b`、`sf.Vector3i`、`sf.Vector3u`、`sf.Vector3f`、`sf.Vector3b`、`sf.Vector4i`、`sf.Vector4f`、`sf.Vector4b`、`sf.Mat3`、`sf.Mat4`，以及 GLSL 别名 `sf.Vec2`、`sf.Vec3`、`sf.Vec4`、`sf.Ivec2`、`sf.Ivec3`、`sf.Ivec4`、`sf.Bvec2`、`sf.Bvec3`、`sf.Bvec4` |
 | 几何 | `sf.Color`、`sf.IntRect`、`sf.FloatRect`、`sf.Angle`、`sf.Time`、`sf.Transform` |
@@ -24,13 +24,13 @@ SFML 提供 Ludork 的图形、音频、窗口、输入和几何类型。LuaSF �
 | 系统 | `sf.Clock`、`sf.sleep`、`sf.Version`、`sf.InputStream`、`sf.FileInputStream`、`sf.MemoryInputStream` |
 | 网络 | `sf.IpAddress`、`sf.Dns`、`sf.Http`、`sf.Ftp`、`sf.Sftp`、`sf.TcpSocket`、`sf.TcpListener`、`sf.UdpSocket`、`sf.SocketSelector`、`sf.Packet` |
 
-一些辅助函数直接挂在 `sf` 上：`sf.seconds`、`sf.milliseconds` 与 `sf.microseconds` 构造 `sf.Time`，`sf.degrees` 与 `sf.radians` 构造 `sf.Angle`。`sf.BlendAlpha`、`sf.BlendAdd` 之类的混合模式也是 `sf` 的字段。
+常用辅助函数直接位于 `sf` 下：`sf.seconds`、`sf.milliseconds` 与 `sf.microseconds` 用于构造 `sf.Time`，`sf.degrees` 与 `sf.radians` 用于构造 `sf.Angle`。`sf.BlendAlpha`、`sf.BlendAdd` 等命名混合模式也作为 `sf` 的字段提供。
 
 ## 值类型
 
-几何值是原生 userdata，与 Lua table 和 Standard 容器不同。
+几何值为原生 userdata，区别于 Lua table 与 Standard 容器。
 
-用 `new` 构造：
+通过 `new` 构造实例：
 
 ```lua
 local cell = sf.Vector2i.new(4, 7)
@@ -40,7 +40,7 @@ local tint = sf.Color.new(255, 255, 255, 128)
 local area = sf.IntRect.new(0, 0, 32, 32)
 ```
 
-`x` 与 `y` 是可读可写的字段，`Vector3*` 与 `Vector4*` 另加 `z` 和 `w`：
+`x` 与 `y` 为可读写字段，`Vector3*` 与 `Vector4*` 另提供 `z` 与 `w`：
 
 ```lua
 local position = sf.Vector2i.new(0, 0)
@@ -61,9 +61,10 @@ local moved = start + step * 2.0   -- Vector2f(96, 64)
 local isSame = moved == sf.Vector2f.new(96.0, 64.0) -- true
 ```
 
-可用的运算符是 `+`、`-`、一元 `-`、与标量数字的 `*` 和 `/`，以及 `==`。比较运算符只有 `==`，`<` 之类的排序比较不能用于向量。两个向量相乘是方法而不是运算符。三种 `Vector2` 都提供 `lengthSquared`、`perpendicular`、`dot`、`cross`、`componentWiseMul`、`componentWiseDiv` 与 `unpack`，其中 `unpack` 把各分量作为多个返回值返回。浮点类型另有 `length`、`normalized`、`angle`、`angleTo`、`rotatedBy` 与 `projectedOnto`，它们使用 `sf.Angle` 而不是度数。
+- **运算符**：二维向量支持 `+`、`-`、一元 `-` 与 `==`，以及与标量数字的 `*` 和 `/`。未定义 `<` 等大小排序比较，向量间乘法通过方法而非运算符执行。
+- **方法**：三种 `Vector2` 类型均提供 `lengthSquared`、`perpendicular`、`dot`、`cross`、`componentWiseMul`、`componentWiseDiv` 及 `unpack`（将各分量作为多个返回值返回）。`sf.Vector2f` 额外提供 `length`、`normalized`、`angle`、`angleTo`、`rotatedBy` 与 `projectedOnto`，均以 `sf.Angle`（而非度数）为角度单位。
 
-`sf.Vector2f.new` 还接受一个长度和一个 `sf.Angle`，用于按极坐标构造向量：
+`sf.Vector2f.new` 也接受长度与 `sf.Angle` 参数，按极坐标构造向量：
 
 ```lua
 local forward = sf.Vector2f.new(1.0, sf.degrees(90)) -- Vector2f(0, 1)
@@ -71,16 +72,16 @@ local forward = sf.Vector2f.new(1.0, sf.degrees(90)) -- Vector2f(0, 1)
 
 ### 颜色、矩形与时间
 
-`sf.Color` 的 `r`、`g`、`b`、`a` 取值范围是 0 到 255。四参数构造函数依次接收红、绿、蓝、透明度，参数更少的写法中，未给出的分量取默认值：
+`sf.Color` 包含取值范围为 0–255 的 `r`、`g`、`b` 与 `a` 分量。四参数构造函数依次接收红、绿、蓝与透明度，较短形式对省略分量采用默认值：
 
 ```lua
 local solid = sf.Color.new(32, 96, 160)
 local veil = sf.Color.new(0, 0, 0, 160)
 ```
 
-预设颜色是 `sf.Color` 的字段：`Black`、`White`、`Red`、`Green`、`Blue`、`Yellow`、`Cyan`、`Magenta` 与 `Transparent`。`toInteger` 返回打包后的 32 位整数。`sf.Color` 没有任何运算符，不能相加也不能比较；需要时应读取并比较它的各个分量。
+预设颜色作为 `sf.Color` 的字段提供：`Black`、`White`、`Red`、`Green`、`Blue`、`Yellow`、`Cyan`、`Magenta` 与 `Transparent`。`toInteger` 返回打包的 32 位整数。`sf.Color` 未定义运算符，不可直接相加或比较，需要时应读取并比较各个分量。
 
-`sf.IntRect.new` 与 `sf.FloatRect.new` 接收一个位置和一个尺寸，也接受四个数字。后两个数字是宽和高，不是右下角坐标：
+`sf.IntRect.new` 与 `sf.FloatRect.new` 接受“位置 + 尺寸”或四个数字。后两个数字表示宽度与高度，而非右下角坐标：
 
 ```lua
 local tile = sf.IntRect.new(sf.Vector2i.new(0, 0), sf.Vector2i.new(32, 32))
@@ -90,10 +91,10 @@ local sub = sf.IntRect.new(32, 0, 32, 32)
 local origin = tile.position      -- Vector2i(0, 0)
 local height = tile.size.y        -- 32
 local inside = tile.contains(sf.Vector2i.new(16, 16)) -- true
-local overlap = tile.findIntersection(sub) -- 一个 sf.IntRect；不相交时为 nil
+local overlap = tile.findIntersection(sub) -- 返回 sf.IntRect；不相交时为 nil
 ```
 
-`sf.Angle` 表示旋转角度。它不是数字，因此角度值必须经 `sf.degrees` 或 `sf.radians` 构造，不能直接传入度数。
+`sf.Angle` 表示旋转角度而非原始数字，必须通过 `sf.degrees` 或 `sf.radians` 构造：
 
 ```lua
 local facing = sf.degrees(90)
@@ -103,9 +104,9 @@ local degrees = facing.asDegrees()
 local wrapped = sf.degrees(450).wrapSigned().asDegrees() -- 90
 ```
 
-`wrapSigned` 将角度归一化到 `[-180°, 180°)`，`wrapUnsigned` 归一化到 `[0°, 360°)`；其他角度仍然有效。`sf.Angle.new()` 与 `sf.Angle.Zero` 都是零。
+`wrapSigned` 将角度归一化至 `[-180°, 180°)`，`wrapUnsigned` 归一化至 `[0°, 360°)`；未归一化的角度同样有效。`sf.Angle.new()` 与 `sf.Angle.Zero` 均表示零度。
 
-`sf.Time` 表示时长，由 `sf.seconds`、`sf.milliseconds` 与 `sf.microseconds` 构造：
+`sf.Time` 表示时长，通过 `sf.seconds`、`sf.milliseconds` 或 `sf.microseconds` 构造：
 
 ```lua
 local cooldown = sf.seconds(0.75)
@@ -113,11 +114,11 @@ local cooldown = sf.seconds(0.75)
 local milliseconds = cooldown.asMilliseconds() -- 750
 ```
 
-`sf.Time.new()` 同样是零值；`sf.sleep` 会让当前线程暂停指定时长。
+`sf.Time.new()` 为零值；`sf.sleep` 将当前调用线程暂停指定时长。
 
 ## 对象类型
 
-图形对象遵循 SFML 的继承结构，Lua 中看到的也是同一套关系：
+Lua 中的图形对象完整对应 SFML 的继承层次：
 
 ```text
 sf.Drawable
@@ -128,7 +129,7 @@ sf.Sprite : sf.Drawable, sf.Transformable
 sf.Text : sf.Drawable, sf.Transformable
 ```
 
-所有 `sf.Transformable` 都提供：`setPosition`、`getPosition`（`sf.Vector2f`）、`setRotation`、`getRotation`（`sf.Angle`）、`setScale`、`getScale`、`setOrigin`、`getOrigin`（`sf.Vector2f`），以及 `move`、`rotate`、`scale` 和 `getTransform`。
+所有 `sf.Transformable` 均提供 `setPosition`、`getPosition`（`sf.Vector2f`）、`setRotation`、`getRotation`（`sf.Angle`）、`setScale`、`getScale`、`setOrigin`、`getOrigin`（`sf.Vector2f`），以及 `move`、`rotate`、`scale` 与 `getTransform`。
 
 ```lua
 local cell = sf.RectangleShape.new(sf.Vector2f.new(32.0, 32.0))
@@ -142,15 +143,17 @@ cell:move(sf.Vector2f.new(8.0, 0.0))
 local bounds = cell:getGlobalBounds()
 ```
 
-`sf.RectangleShape.new` 接收尺寸，`sf.CircleShape.new` 接收半径与顶点数，`sf.ConvexShape.new` 接收顶点数，`sf.Text.new` 接收字体、字符串与字号。Shape 还提供 `setFillColor` 与 `setOutlineColor`（接收 `sf.Color`）以及 `setOutlineThickness`（接收数字）。
+`sf.RectangleShape.new` 接收尺寸，`sf.CircleShape.new` 接收半径与顶点数，`sf.ConvexShape.new` 接收顶点数，`sf.Text.new` 接收字体、字符串与字号。形状类还提供 `setFillColor`、`setOutlineColor`（`sf.Color`）与 `setOutlineThickness`（数字）。
 
-上面列出的抽象基类都以表的形式存在，但没有 `new`：`sf.Drawable`、`sf.Shape`、`sf.RenderTarget`、`sf.InputStream`、`sf.SoundSource`、`sf.SoundStream`、`sf.SoundRecorder`、`sf.SoundFileReader`、`sf.SoundFileWriter` 与 `sf.Socket` 都无法构造。请改为构造具体的子类，并把基类当作参数或返回值所声明的类型来用。唯一的例外是 `sf.Drawable`：Lua 可以通过 `sf.LuaDrawable.new(drawCallback)` 实现它，`draw` 会在 Lua 中执行。
+抽象基类（`sf.Drawable`、`sf.Shape`、`sf.RenderTarget`、`sf.InputStream`、`sf.SoundSource`、`sf.SoundStream`、`sf.SoundRecorder`、`sf.SoundFileReader`、`sf.SoundFileWriter` 与 `sf.Socket`）以表的形式存在但不含 `new`，无法直接构造。请改为构造具体子类，仅将基类用作参数或返回值类型。
 
-事件则是同一模式的反向：`sf.Event_Closed`、`sf.Event_Resized` 这类载荷类型可以构造，而 `sf.Event.new` 要求传入其中一个作为参数。项目代码通常接收事件，而不是自行构造。
+`sf.Drawable` 是唯一可由 Lua 直接实现的基类：调用 `sf.LuaDrawable.new(drawCallback)` 可创建在 Lua 中执行 `draw` 的可绘制对象。
+
+事件遵循反向模式：`sf.Event_Closed`、`sf.Event_Resized` 等载荷类型可直接构造，而 `sf.Event.new` 需接收其中之一作为参数。项目代码通常只需接收事件，无需自行构造。
 
 ## 在项目中使用 SFML
 
-位置、尺寸与矩形在 Engine API 中都以 `sf` 值传递，因此格子坐标与世界坐标之间的换算就是普通的向量运算：
+位置、尺寸与矩形在 Engine API 中均以 `sf` 值传递，因此格子坐标与世界坐标之间的换算可直接使用常规向量运算：
 
 ```lua
 local Engine = require("Engine")
@@ -172,10 +175,10 @@ if player ~= nil then
 end
 ```
 
-传值之前先确认声明的类型。声明为 `sf.Vector2f` 的接口不接受 `sf.Vector2i`、Standard 的 `tuple` 或普通 table，也不会自动转换。
+传参前请确认声明类型：要求 `sf.Vector2f` 的 API 会拒绝 `sf.Vector2i`、Standard `tuple` 或普通 table，不会隐式转换。
 
-JSON 与 metadata 只保存纯数据，而 `sf` 值是原生 userdata，因此两种形式之间的转换是显式的。Game 项目的存档编解码器把 `sf.Vector2i` 写成 `{ x, y }`，读取时再重建；它的记录归一化会把 `sf.Vector2i`、`sf.Vector3i`、`sf.IntRect`、`sf.FloatRect` 与 `sf.Color` 转成数字数组。只要目标是数据，就存分量，用到时再构造 `sf` 值。
+JSON 与元数据仅存储纯数据，而 `sf` 值为原生 userdata，两者之间需显式转换。Game 项目的存档编解码器将 `sf.Vector2i` 写为 `{ x, y }` 并在加载时重建，其记录归一化器则将 `sf.Vector2i`、`sf.Vector3i`、`sf.IntRect`、`sf.FloatRect` 与 `sf.Color` 转为数字数组。向数据目标写入时应存储原始分量，使用时再重新构造 `sf` 值。
 
 ## 延伸阅读
 
-`Scripts/stub/LuaSF.d.lua` 包含完整 Lua 声明与 SFML 注释，EmmyLua 会索引它以提供补全和悬浮提示。上文链接的官方 C++ 参考，其成员名和参数顺序与 Lua 接口基本一致。
+`Scripts/stub/LuaSF.d.lua` 包含完整的 Lua 声明与 SFML 注释，可供 EmmyLua 索引以提供代码补全与悬浮提示。各成员名称与参数顺序与上文链接的 SFML 官方 C++ 参考基本一致。

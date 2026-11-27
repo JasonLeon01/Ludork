@@ -1,22 +1,21 @@
 # Item
 
-Source: `Data/General/Item.json`
+Defines inventory items, their usability, shop pricing, icon presentation and drop/use ability graphs.
 
-| Property | Value |
-|---|---|
-| Member events | `onDrop`, `onUse` |
+**Source:** `Data/General/Item.json` · **Member events:** `onDrop`, `onUse`
 
 ## Schema
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `name` | `string` | `""` | The display name of this item. |
-| `desc` | `string` | `""` | The display description of this item. |
+| `name` | `string` | `""` | Display name of this item. |
+| `desc` | `string` | `""` | Display description of this item. |
 | `usable` | `bool` | `false` | Whether the item can be activated from the inventory to trigger `onUse`. |
-| `price` | `int` | `0` | The buy price in shops. Selling grants `floor(price / 2)` gold. Items whose resulting sell price is zero are not listed for sale. |
-| `icon` | `file` | `""` | Full logical icon path. The selector root is `/Game/Assets/Icons`. |
+| `price` | `int` | `0` | Shop buy price. Selling grants `floor(price / 2)` gold; items whose sell price is `0` are not listed for sale. |
+| `icon` | `file` | `""` | Canonical logical icon path (picker root: `/Game/Assets/Icons`). |
 | `cost` | `bool` | `true` | Whether the inventory displays this item's stack count. |
 
 ## Editing notes
 
-The inventory activates `onUse` with the Player as `GameplayEventData.target`. Enemy drops activate `onDrop` once, with the spawned Item as the target. State-removal nodes act on the Player, so place them in `onUse`. The Item schema declares no `onGet` event.
+- **`onUse`:** Activated by the inventory with the Player as `GameplayEventData.target`. Place state-removal nodes here because they act on the Player.
+- **`onDrop`:** Activated once by enemy drops with the spawned Item Actor as `GameplayEventData.target`. The `Item` schema declares no `onGet` event.

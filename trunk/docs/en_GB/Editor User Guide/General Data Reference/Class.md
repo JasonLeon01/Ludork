@@ -1,15 +1,13 @@
 # Class
 
-Source: `Data/General/Class.json`
+Defines player class presets, including their display metadata, available equipment slot names and initially equipped items.
 
-| Property | Value |
-|---|---|
-| Member events | — |
+**Source:** `Data/General/Class.json` · **Member events:** None
 
 ## Schema
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `name` | `string` | `""` | The display name of this class. |
-| `desc` | `string` | `""` | The display description of this class. |
-| `slot` | `Dict[string, string]` | `{}` | Equipment slot names mapped to the equipment initially equipped in that slot. An empty value leaves the slot unequipped. |
+| `name` | `string` | `""` | Display name of this class. |
+| `desc` | `string` | `""` | Display description of this class. |
+| `slot` | `Dict[string, string]` | `{}` | Equipment slot names mapped to the equipment ID initially equipped in each slot (an empty string leaves the slot unequipped). |

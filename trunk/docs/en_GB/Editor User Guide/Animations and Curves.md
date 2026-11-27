@@ -1,47 +1,41 @@
 # Animations and Curves
 
+Author frame-based 2D animations under `Data/Animations` and scalar interpolation curves under `Data/Curves` for combat effects, UI transitions and particle tracks.
+
 ## Animations
 
-Open **Database → Animation Overview** (`F5`) to browse animation data. **Game → New Animation** creates a JSON asset beneath `Data/Animations`. The editor exposes the animation format's frames, timing, visual resources and event data.
+Open **Database → Animation Overview** (`F5`) to browse project animations, or choose **Game → New Animation** to create a JSON asset under `Data/Animations`. The editor exposes frame timing, visual tracks, audio segments and event time tags.
 
-Keep source images under `Assets/Animations` or another asset folder. Non-empty image and sound entries store complete `/Game/Assets/...` paths.
+Store source images under `Assets/Animations` (or another asset subdirectory); non-empty image and sound fields save canonical `/Game/Assets/...` paths.
 
 ![Animation editor showing frame timing and preview controls](../../../images/editor/animation.png)
 
 ### Exporting MP4 locally
 
-Save the animation before exporting. From the repository root on Windows, run
-`tools\animation_to_mp4.bat` to export all current `Game/Data/Animations` JSON
-files to `Game/EditorCache/AnimationMp4`. Use `sh tools/animation_to_mp4.sh` on macOS.
-The tool requires a rebuilt Toolchain with Pillow and a separate FFmpeg executable
-with `libx264` and AAC; see [tool setup and options](https://github.com/JasonLeon01/Ludork/blob/main/tools/README.md#animation-mp4-export).
+Save the animation before exporting. From the repository root, run `tools\animation_to_mp4.bat` (Windows) or `sh tools/animation_to_mp4.sh` (macOS) to export all `Game/Data/Animations` JSON files to `Game/EditorCache/AnimationMp4`. This requires a rebuilt Toolchain with Pillow and a standalone FFmpeg binary supporting `libx264` and AAC; see [tool setup and options](https://github.com/JasonLeon01/Ludork/blob/main/tools/README.md#animation-mp4-export).
 
 ```bat
 tools\animation_to_mp4.bat Game --input Game/Data/Animations/attack.json --output Game/EditorCache/attack.mp4
 ```
 
-Exports retain frame rate, track order, position/rotation/scale interpolation,
-horizontal flips and sound timing/trimming. Each video plays a single pass
-ending at the last image or sound segment, with the duration rounded up to whole
-frames. After visual segments end, only the background remains. The canvas
-automatically fits all sampled frames around the animation origin;
-`--size 512x512` fixes an even-sized canvas
-and crops overflowing content without rescaling. MP4 uses an opaque background:
-black by default, or `--background "#202020"`. `--mute` removes audio without
-shortening the timeline, and `--overwrite` replaces existing output after a
-successful export. Directory inputs are scanned recursively and retain their
-subdirectories.
-Time tags are not encoded as video events. Inputs are saved source JSON and loose
-assets, not compressed animation caches or `.ldpak` packages.
+| Option | Effect |
+|---|---|
+| `--input`, `--output` | Target a single JSON file or a directory (directories scan recursively and preserve subdirectory structure). |
+| `--size 512x512` | Fix an even-sized canvas and crop overflowing content without rescaling (by default the canvas auto-fits all sampled frames around the animation origin). |
+| `--background "#202020"` | Set an opaque background colour (defaults to black). |
+| `--mute` | Omit audio without shortening the timeline. |
+| `--overwrite` | Replace existing output files only after export succeeds. |
+
+Exports preserve frame rate, track order, position/rotation/scale interpolation, horizontal flips and sound timing/trimming. Each clip plays one pass up to the last image or sound segment (rounded up to whole frames; only the background shows after visual tracks end). Time tags are not encoded as video events, and inputs must be saved source JSON with loose assets rather than compressed caches or `.ldpak` archives.
 
 ## Curves
 
-**Game → New Curve** creates a curve beneath `Data/Curves`. A curve has a name, a default value, pre/post infinity behaviour and ordered keys. Each key contains time, value, interpolation and arrive/leave tangents.
+Choose **Game → New Curve** to create a curve under `Data/Curves`. Each curve defines a name, default value, pre-/post-infinity behaviour and ordered keys (time, value, interpolation and arrive/leave tangents).
 
-Use the curve editor to add, move and remove keys. Keep key times ordered. Avoid duplicate times unless the intended interpolation explicitly supports the discontinuity.
+Add, drag and delete keys in the curve editor while keeping key times ordered; avoid duplicate timestamps unless the chosen interpolation explicitly supports discontinuities.
 
 ![Curve editor showing ordered keys and interpolation](../../../images/editor/curve.png)
 
 ## Referencing data
 
-Metadata-driven selectors can reference animation and curve keys from Blueprints or General Data. Renaming the JSON file changes the logical key derived from its path, so inspect the reference tree first.
+Metadata-driven selectors reference animation and curve keys from Blueprints and General Data. Because renaming a JSON file changes its path-derived logical key, inspect the reference tree before renaming.

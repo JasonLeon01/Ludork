@@ -1,41 +1,35 @@
 # Official Resource Cleanup
 
-Review project resources for which no static reference can be found, protect resources loaded through dynamic paths, and move confirmed candidates to the operating-system Recycle Bin or Trash.
+Official Resource Cleanup (`Plugins/OfficialResourceCleanup`) scans a saved project for resources with no detected static references, lets you protect dynamically loaded paths and moves confirmed candidates to the operating-system Recycle Bin or Trash.
 
-## Prerequisites
+## Workflow
 
-- Install Official Resource Cleanup with the editor's official plug-ins. Its repository source is `Plugins/OfficialResourceCleanup`.
-- Open a project, stop the game and save current edits before scanning.
+Install Official Resource Cleanup via [Official release plug-ins](<../Installing and Managing Plug-ins.md#official-release-plug-ins>), then open a project, stop the game and save all pending edits before scanning.
 
-## Steps
+1. Select **Plug-ins → Resource Cleanup**. The window separates the read-only built-in protected list from the project's additional keep paths.
+2. Review the built-in protected list, which includes the editor's [fixed resource directories](<../../Editor User Guide/Project Settings and Asset Layout.md#fixed-resource-directories>) plus plug-in entries for UI defaults, application icons and asset licences. Assets referenced by files in protected directories are also kept.
+3. Add project-relative files or directories loaded via dynamic Lua paths to the additional keep list, one per line (for example, `Assets/Characters/Dynamic` or `Data/Animations/GeneratedEffect.json`). Listing a directory protects everything inside it.
+4. Select **Scan**. Scanning runs in the background displaying stage, progress and current path; **Cancel** stops scanning without recycling anything.
+5. Inspect the **Data** and **Assets** tabs, each showing per-file project-relative paths, sizes, counts and totals. Listing a candidate means no supported static reference was found — not that runtime usage has been disproved.
+6. To protect a listed file, select its row and choose **Keep selected and rescan**, or edit the keep list and rescan. Modifying the keep list invalidates the previous report, and any scan issues must be resolved before recycling unlocks.
+7. Select **Move to Trash**, confirm the final file count and total size, and proceed. Recycling applies to every candidate in the current report after the host revalidates it against current project files.
+8. Review moved files, any error and unprocessed files. Cancellation or errors stop further moves while already-moved files stay in the system Trash; run a fresh scan before cleaning up again.
 
-1. Choose **Plugins → Resource Cleanup**. The window shows the built-in protected resource list and the project's additional keep paths separately.
-2. Review the built-in list. It includes the editor's [fixed resource directories](<../../Editor User Guide/Project Settings and Asset Layout.md#fixed-resource-directories>) and the plug-in's additional keep entries for UI defaults, application icons and asset licences. These entries are read-only in the window. Cleanup also retains assets referenced by files in a protected directory.
-3. Add files or directories needed by dynamic Lua paths to the additional keep list, one project-relative path per line. For example, keep `Assets/Characters/Dynamic` or `Data/Animations/GeneratedEffect.json`. A directory protects its contents. Static scanning cannot identify concatenated or runtime-calculated paths; add those paths yourself.
-4. Select **Scan**. The scan runs in the background and shows its stage, progress and current path. **Cancel** stops the operation without starting a cleanup.
-5. Review the **Data** and **Assets** tabs. Each candidate shows its complete project-relative path and size; each tab also shows its file count and total size. A candidate means no supported static reference was found; it does not mean that runtime use has been disproved.
-6. To retain a candidate, select its row and choose **Keep selected and rescan**, or edit the keep list and scan again. A changed keep list invalidates the previous report. Scan issues must be resolved before recycling is enabled.
-7. Choose **Move to Trash**, review the final file count and total size, and confirm. This applies to every candidate in the current report. The host rechecks the report against current project files before moving anything.
-8. Review the results: moved files, the failure if one occurred, and files not processed. Cancellation or a failure stops further work; files already moved remain in the system Trash. Scan again before another cleanup.
-
-The host saves additional keep paths in the project's `EditorCache/ResourceCleanupKeep.list` when scanning, saving the list or closing the window. Opening with an empty list does not create the file. Clearing and saving the additions removes it. Built-in entries are never copied into this file. If saving fails, the window stays open and shows the error.
+Additional keep paths are saved to `EditorCache/ResourceCleanupKeep.list` when scanning, saving the list or closing the window. Opening with an empty list creates no file, clearing and saving deletes the file, and built-in entries are never copied into it. If saving fails, the window stays open and displays the error.
 
 ## Scan boundaries
 
-The scan reads every ordinary map and world child map, Lua source and the supported structured Data references. It follows references through Data before deciding which Assets remain needed. Unreferenced Data does not keep its own asset dependencies alive. Blueprint fields and map-instance overrides are scanned recursively using their metadata, including resource references inside components and typed containers.
+> **Important:** Resource Cleanup performs static analysis only — it never executes Lua, traces gameplay or infers concatenated or runtime-computed paths. Add dynamic resource paths to the keep list and review every candidate even when scanning reports zero issues.
 
-Maps, `Data/General`, `Data/UI`, `Data/Configs` and `Data/Locale` remain protected; their supported references also remain protected. Data candidates are limited to Materials, Tilesets, AutoTiles, Blueprints, CommonFunctions, Animations, Particles, Curves and TextConfigs. Unknown Data formats are not cleanup candidates. Lua scripts are scanned for references, not deleted. Generated UI mirrors and declaration stubs do not establish independent usage. Material caches belong to the game's user data directory and are maintained by [runtime preparation](<../../Editor User Guide/Materials.md#runtime-generation>).
-
-Known resource API arguments can use string literals, parentheses, constant aliases and `and`/`or` conditional branches. The scanner conservatively retains the constant paths from every branch and follows their Data dependencies.
-
-Links, broken links, reparse points and inaccessible paths are scan issues and prevent recycling. Checks include the project root and are repeated before recycling. Keep entries may refer to resources that have not been created yet, but cannot bypass checks on their existing ancestors.
-
-This is static analysis only. It does not run Lua, trace gameplay or infer values assembled at runtime. The keep list is the explicit protection mechanism for those resources. Review the report even when scanning completed without errors.
+- **Scanned sources:** Reads every ordinary map and world child map, all Lua sources and all supported structured Data files. Data dependencies are traced before evaluating Assets, so an unreferenced Data file does not keep its own Asset dependencies alive. Blueprint fields and map-instance overrides are traversed recursively using metadata, including resource references inside components and typed containers.
+- **Protected vs candidate types:** Maps, `Data/General`, `Data/UI`, `Data/Configs`, `Data/Locale` and their supported references stay protected. Data candidates are restricted to Materials, Tilesets, AutoTiles, Blueprints, CommonFunctions, Animations, Particles, Curves and TextConfigs (unknown Data formats are never candidates). Lua scripts are scanned for references but never deleted, generated UI mirrors and declaration stubs do not count as independent usage, and material caches live in the user data directory managed by [runtime generation](<../../Editor User Guide/Materials.md#runtime-generation>).
+- **Lua expression support:** Recognises string literals, parentheses, constant aliases and `and`/`or` conditional branches in known resource API arguments, conservatively retaining constant paths from every branch and following their Data dependencies.
+- **Filesystem safety checks:** Symbolic links, broken links, reparse points and inaccessible paths (including the project root) produce scan issues and block recycling; checks repeat before moving files. Keep entries may name paths that do not exist yet, but cannot bypass safety checks on existing ancestor directories.
 
 ## Recycling and editor state
 
-Recycling uses the same system Trash, failure handling and recovery rules as [resource deletion in the editor](<../../Editor User Guide/Start Page Workspace and Shortcuts.md#file-explorer-and-reference-tree>). The cleanup workflow requires a saved project. A report cannot be reused after recycling, and changed project inputs require a new scan.
+Recycling follows the same Trash, failure and recovery rules as [resource deletion in the editor](<../../Editor User Guide/Start Page Workspace and Shortcuts.md#file-explorer-and-reference-tree>). The project must be saved before scanning, reports cannot be reused after recycling, and any modified project input invalidates the current report.
 
 ## Plug-in contract
 
-The plug-in registers one ordinary menu command and owns its Avalonia window, built-in resource list and translations. `PluginMenuContext.ResourceCleanupHost` supplies the narrow `IResourceCleanupHost` boundary: reading and saving additional keep paths, scanning with progress and cancellation, and recycling a previously returned report by ID. It does not expose mutable editor documents or arbitrary file deletion.
+Official Resource Cleanup registers one ordinary menu command and owns its Avalonia window, built-in protected list and translations. `PluginMenuContext.ResourceCleanupHost` supplies the narrow `IResourceCleanupHost` bridge for reading/saving project keep paths, scanning with progress and cancellation, and recycling a report by ID without exposing mutable editor documents or arbitrary file deletion.

@@ -1,8 +1,8 @@
 # Ludork Documentation
 
-This guide covers Ludork. Downloads and project information are on the [Ludork website](https://jasonleon01.github.io/Ludork/?lang=en_GB); its footer also links to the [third-party notices](../THIRD_PARTY_NOTICES.md).
+Ludork combines a visual editor, Blueprint graphs, Lua scripts and an extensible C++20 runtime for map-driven 2D games. Use this manual to configure projects, author maps, Actors, data, animations and user interfaces, and run or package your game.
 
-Ludork combines a visual editor, Blueprint graphs, Lua scripts and an extensible C++20 runtime for map-driven 2D games. Use the editor to configure projects and create maps, Actors, data, animation and user interfaces, then run and package the game.
+Downloads and project information are available on the [Ludork website](https://jasonleon01.github.io/Ludork/?lang=en_GB); its footer also links to the [third-party notices](../THIRD_PARTY_NOTICES.md).
 
 ## Choose a learning path
 
@@ -39,7 +39,7 @@ Ludork combines a visual editor, Blueprint graphs, Lua scripts and an extensible
 | Windows | Windows 10, x64 | |
 | macOS | Apple Silicon, macOS 13.3 | |
 | iOS | iOS 16.3, arm64 | C++ Source project required. |
-| HarmonyOS | HarmonyOS 6.0.2 / API 22, arm64-v8a | Phones, tablets and 2in1 devices. Requires a C++ Source project. |
+| HarmonyOS | HarmonyOS 6.0.2 / API 22, arm64-v8a | Phones, tablets and 2-in-1 devices. C++ Source project required. |
 | Android | Android 7.0 / API 24, arm64-v8a | C++ Source project required. |
 | Web | WebGL 2 | C++ Source project required. |
 
@@ -48,8 +48,10 @@ Mobile packages are produced on Apple Silicon macOS. A Standalone project uses t
 ## Documentation conventions
 
 - Paths are relative to the project root unless a page states otherwise.
-- Menu commands and field labels are written as they appear in the English editor.
+- Menu commands and field labels match the English editor interface.
 
 ## Product and content licences
 
-Ludork's software licence, third-party notices and Game project asset terms are separate. Review all three before redistributing an editor package or a game made from Game project content. Installing a plug-in also runs trusted code with the permissions of the editor process. Inspect the source and origin of a plug-in before importing it.
+Ludork's software licence, third-party notices and Game project asset terms are separate. Review all three before redistributing an editor package or a game made from Game project content.
+
+> **Warning:** Installing a plug-in runs trusted code with the permissions of the editor process. Inspect the source and origin of a plug-in before importing it.

@@ -1,6 +1,6 @@
 # Declarative UI Runtime Contract
 
-Generated Views create and own the complete UI object tree. Controllers add business behaviour when it is needed.
+Generated Views construct and own the native UI object tree, while Controllers layer business behaviour, data observation and dynamic collections on top. This page defines the runtime lifecycle, ownership and disposal guarantees across Views, windows and controls.
 
 ## Create a View
 
@@ -11,100 +11,103 @@ local inventory = InventoryView.new()
 inventory:mount(uiManager, logicalSize)
 ```
 
-`View.new()` instantiates the JSON asset, wraps every nested asset in its generated View class, and fills all typed references recursively. It does not need a Controller. Creating a View does not mount it on screen, so call `mount` or `attachTo` explicitly.
+`View.new()` instantiates the JSON asset, wraps nested assets in their generated View classes and populates all typed references recursively without requiring a Controller. Construction does not mount the tree on screen — call `mount` or `attachTo` explicitly.
 
-Each View exposes `assetKey`, `designSize: sf.Vector2f`, the native `instance: Engine.AssetInstance`, its typed `root`, `controls` holding the native system controls, and `assets` holding the typed child Views. Use `inventory.assets.ItemRow.controls.Label` to access a child's named control. Names remain exact asset-local keys, so use brackets for names that are not Lua identifiers.
-
-Repeated references within one top-level View reuse the loaded asset definition and source texture. Each nested node still has its own View, native controls, texture rectangle and animation state. Pass that child View to its Controller. A `WrapBox` uses the same resources when its count grows later. Creating a new top-level View or rebuilding a preview snapshot starts a fresh set of resources.
+- **View members**: Each View exposes `assetKey`, `designSize: sf.Vector2f`, the native `instance: Engine.AssetInstance`, its typed `root`, `controls` (native system controls) and `assets` (typed child Views). Access a child control as `inventory.assets.ItemRow.controls.Label`; keys match exact asset-local names, so use bracket indexing for names that are not Lua identifiers.
+- **Resource sharing**: Repeated references within one top-level View share the loaded asset definition and source texture, while each nested instance owns an independent View, native controls, texture rectangle and animation state (pass that child View to its Controller). A `WrapBox` shares the same resources when its count grows. Creating a new top-level View or rebuilding a preview snapshot allocates fresh resources.
 
 ## Bind business behaviour
 
-A window module contains a private Controller and returns `Ui.DefineWindow(viewClass, Controller, nativeBase?)`. The default `nativeBase` is `Engine.Canvas`. The returned UI inherits that native base. The Controller is a separate `UiController` object, and the generated View is independent of both. `Window.new(...businessArgs):mount(uiManager)` creates and registers the complete window. An empty Controller needs no `init`; the window displays the template's original content and size.
+A window module defines a private Controller and returns `Ui.DefineWindow(viewClass, Controller, nativeBase?)` (default `nativeBase`: `Engine.Canvas`). The returned UI inherits `nativeBase`, while the Controller (`UiController`) and generated View stay separate objects. Call `Window.new(...businessArgs):mount(uiManager)` to create and register the window; an empty Controller needs no `init` and displays the template as authored.
 
-Construction creates the native host and generated View, binds them to the Controller, and attaches the View before calling the optional business `init(...)`. At that point `self.ui` is the typed generated tree, `self.view` is its native `Engine.AssetInstance`, `self.root` is the native root, and `self.host` is the UI. The UI exposes that same View as `window.ui` and keeps the Controller private. After `init`, the framework calls `prepare` to bind, refresh and reflow. It then calls the optional `ready` and applies the configured initial hidden state. `ready` is for business work that needs the initial prepared layout.
+### Construction lifecycle
 
-The factory exposes Controller instance methods (`camelCase`), static helpers (`PascalCase`), `SCREAMING_SNAKE_CASE` constants and `Publish` on the window API. Construction hooks remain private. Declaration layout is covered in [Declarative UI Authoring Workflow](<Authoring Workflow.md#file-layout>).
+1. Create the native host and generated View, bind both to the Controller, and attach the View.
+2. Call optional business `init(...)`. At this point `self.ui` is the typed View, `self.view` is `Engine.AssetInstance`, `self.root` is the native root and `self.host` is the window UI (which exposes `window.ui` and keeps the Controller private).
+3. Run `prepare` to invoke `bind`, `refresh` and reflow.
+4. Call optional `ready` (for business logic that depends on prepared layout) and apply the configured initial hidden state.
 
-`Controller.windowOptions` supplies optional host behaviour. Its `position`, `centered` and `screen` fields control root placement or full-screen extent. Its `hidden`, `returnButton` and `focusable` fields control initial interaction. Window bases use `frame` and `content` node names, defaulting to `WindowFrame` and `Content`. Selectable bases use `list` and `scroll` node names; selection and hit bounds come from the ListView's native item layout. `transitionTarget` selects a node animation target. The host size comes from the generated template unless full-screen behaviour is requested. These options do not reproduce the JSON hierarchy or run business expressions.
+`Ui.DefineWindow` forwards Controller instance methods (`camelCase`), static helpers (`PascalCase`), `SCREAMING_SNAKE_CASE` constants and `Publish` onto the public window class while keeping construction hooks private (see [File layout](<Authoring Workflow.md#file-layout>)). Independent row and Scene Controllers use `Ui.Define(viewClass, definition, baseClass?)` and `Controller.new(model, ui?)`, where a supplied View must match the generated class and accepts at most one Controller.
 
-Independent row and Scene Controllers use `Ui.Define(viewClass, definition, baseClass?)` and `Controller.new(model, ui?)`. A supplied View must match the generated type and accepts one Controller.
+### `Controller.windowOptions`
+
+| Option group | Fields and behaviour |
+|---|---|
+| Placement and sizing | `position`, `centered`, `screen` (full-screen extent). Host size comes from the template unless full-screen behaviour is requested. |
+| Initial interaction | `hidden`, `returnButton`, `focusable`. |
+| Window bases | `frame` (default `"WindowFrame"`), `content` (default `"Content"`). |
+| Selectable bases | `list`, `scroll`. Selection and hit bounds come from the ListView's native item layout. |
+| Transitions | `transitionTarget` selects an animation target node. |
+
+`windowOptions` configures host behaviour only; it never reproduces JSON hierarchy or evaluates business expressions.
 
 ## Observe model fields and bind callbacks
 
-`Controller:watch(target, field, method, immediate?)` observes a table or userdata field through native `Class.monitor`. Pass an unbound Controller method. It receives `(controller, newValue, oldValue)`. By default it also runs immediately, receiving the current value and `Class.MISSING` as the old value. Pass `false` for `immediate` to wait for a change. The returned `stop()` cancels this one subscription. Controller disposal or collection-row recycling cancels every owned watch automatically.
-
-Monitoring is shallow, so changes inside a table-valued field need separate watches or an explicit refresh event. Equality, `nil` assignments and notification errors follow [Ludork Lua Advanced](<../../Getting Started/Ludork Lua Advanced.md#class-utilities>).
-
-`Controller:bindCallback(method)` binds a class method such as `self:bindCallback(Controller.confirm)` through a weak reference. The callback supplies `self` and preserves incoming arguments and returned values. Calls stop after Controller disposal, garbage collection or row recycling; an old callback remains inert when its Controller is reused. Input interpretation and actions stay in the Controller.
+- **`Controller:watch(target, field, method, immediate?)`**: Monitors a table or userdata field via native `Class.monitor`. Pass an unbound Controller method, which receives `(controller, newValue, oldValue)`. By default (`immediate = true`), it runs immediately with `Class.MISSING` as `oldValue`; pass `false` to wait for the first change. The returned `stop()` cancels that subscription, and Controller disposal or row recycling cancels all owned watches automatically.
+- **Shallow monitoring semantics**: `watch` observes only direct field writes, so mutations inside a table-valued field need separate watches or an explicit refresh event. Equality, `nil` writes and error propagation follow [Class utilities](<../../Getting Started/Ludork Lua Advanced.md#class-utilities>).
+- **`Controller:bindCallback(method)`**: Wraps an unbound class method (e.g. `self:bindCallback(Controller.confirm)`) with a weak reference, supplying `self` and forwarding arguments and return values. Calls stop after Controller disposal, garbage collection or row recycling, and stale callbacks stay inert after row reuse.
 
 ## Preparation, child windows and mounting
 
-Attaching an existing View to a window host preserves the frame's asset-defined `windowSkin` and `repeated` properties. Host defaults do not override them; explicit `applyWindowSkin()` calls still apply the host's skin and repetition settings.
+- **Window skins**: Attaching a View to a window host preserves the frame's asset-defined `windowSkin` and `repeated` properties rather than overriding them with host defaults; explicit `applyWindowSkin()` calls apply the host's settings.
+- **Window mounting**: `Window.new(...)` prepares and attaches its View automatically. `window:mount(uiManager)` registers the host once, `window:unmount()` detaches it while keeping the window reusable, and `window:dispose()` performs terminal release.
+- **Child windows**: `self:createChild("AssetName", ChildWindow, ...businessArgs)` calls `ChildWindow.FromView(self.ui.assets.AssetName, ...)` (which also accepts an explicit child View). Both reuse the child View's controls and authored parent, bind an input host and prepare the child Controller. Position, size and stacking follow the generated layout, moving the child host updates its pane, and parent View disposal releases the child window automatically. The framework never discovers Controllers from JSON or resolves business dependencies implicitly.
+- **Input-host ordering**: The input host is inserted immediately before its View in native child-update order so selectable hosts can capture list gestures before individual rows while keeping visual sibling order intact. Other touches (such as the return button and native child controls) pass through to the View.
+- **Direct View vs. Controller mounting**: On a raw View, `View:prepare(logicalSize?)` reflows and returns the root, `View:mount(uiManager, logicalSize?)` prepares and registers once, and `View:attachTo(parent, logicalSize?)` prepares and reparents (without running Controller preparation). `Controller:attachTo` and `Controller:mount` prepare the Controller once and then call `View:attachPreparedTo(parent)` or `View:mountPrepared(uiManager)` so post-preparation geometry is preserved.
+- **`Controller:prepare(logicalSize?)`**: Calls `bind` once per binding lifetime, subscribes declared `refreshEvents`, registers on the shared asset update channel (created on first preparation; requiring a module or creating a View alone does not subscribe), calls `refresh`, and prepares the View. Subsequent calls repeat `refresh` and reflow. Omitting `logicalSize` reuses the previous size from the same binding lifetime (used by row Controllers for dynamic layout and locale refreshes). Row reuse begins a new binding lifetime.
 
-`Window.new(...)` automatically prepares and attaches its View to the host. `window:mount(uiManager)` registers the host once, and `window:unmount()` removes that registration while preserving the reusable window. Call `window:dispose()` for terminal release.
-
-`self:createChild("AssetName", ChildWindow, ...businessArgs)` calls the child class's `FromView` with `self.ui.assets.AssetName`. `ChildWindow.FromView(ui, ...)` also accepts an explicitly supplied child View. Both forms reuse the child View's existing controls and authored parent, bind a separate input host, and prepare the child Controller. Position, size and stacking follow the generated layout, and moving the child host updates its pane. Parent View disposal releases the child window automatically. The framework does not discover Controller modules from JSON or construct business dependencies implicitly.
-
-The input host is inserted immediately before its View in the native child-update order, so it can capture list gestures before individual rows. Existing visual siblings keep their relative order and parent. A selectable host captures list gestures in Lua and leaves other touches, including the return button and native child controls, to the View.
-
-For direct View use, `View:prepare(logicalSize?)` reflows the existing tree and returns its root. `View:mount(uiManager, logicalSize?)` prepares and registers that root once. `View:attachTo(parent, logicalSize?)` prepares and attaches the root to a Canvas or ListView, removing its previous attachment when needed. Direct View mounting does not run a Controller's business preparation.
-
-`Controller:attachTo` and `Controller:mount` prepare the Controller once, then attach with `View:attachPreparedTo(parent)` or `View:mountPrepared(uiManager)` so geometry applied after the Controller's base preparation is kept.
-
-`Controller:prepare(logicalSize?)` calls `bind` once per binding lifetime, subscribes declared refresh events, registers the asset update channel, calls `refresh`, then prepares the View. Later preparations repeat refresh and reflow. Reusing a collection row starts a new binding lifetime. Omitting `logicalSize` reuses the size supplied by the owner on the previous preparation within that lifetime. Row Controllers use that supplied size for dynamic layout and locale refreshes. Controllers for the same asset share an update channel, created on first preparation. Loading a module or creating a View alone does not subscribe to that channel.
-
-For content-dependent layout, use [`AssetInstance:reflowControl`](<../Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#assetinstance>). Controllers handle content measurement and mode changes; fixed layout remains in JSON.
+For content-driven resizing, call [`AssetInstance:reflowControl`](<../Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#assetinstance>). Keep fixed layout in JSON and reserve Controllers for content measurement and mode switches.
 
 ## Create optional windows on first use
 
-`Internal.UIBase.LazyWindow` is a generic owner for an optional window. `LazyWindow.new(factory)` stores the factory without creating UI. `handle:get()` calls it on first use, caches the complete window and returns that same instance on later calls. `handle:peek()` returns the existing window or `nil` without invoking the factory.
+`Internal.UIBase.LazyWindow` defers creating optional popups until first display:
 
-The factory requires its window module, calls `Window.new(...)`, configures callbacks and focus, then mounts the window on the existing UI manager. Keeping the `require` inside the factory also defers loading the window's class definitions until first use. The display entry calls `handle:get():open(...)` afterwards. Factories read the current player, game instance and configuration when they run. Owners may establish empty focus groups and their neighbours beforehand; they add the actual controls before mounting and activating the new window. Visibility, input blocking, closing, language refresh and player rebinding use `peek()` so they do not create unused UI.
+- **`LazyWindow.new(factory)`**: Stores `factory` without creating UI.
+- **`handle:get()`**: Runs `factory` on first call, caches the window and returns that same instance afterwards.
+- **`handle:peek()`**: Returns the cached window or `nil` without invoking `factory`. Use `peek()` for visibility checks, input blocking, closing, locale refreshes and player rebinding so unused UI is never created.
+- **`handle:dispose()`**: Releases the created window (if any) and drops `factory`. Disposal is terminal and never triggers `factory`.
 
-Each independent popup owns a separate handle, including windows opened from a menu. Its authored child Views are still constructed together with the parent. Both `Window.new(...)` and generated `View.new()` always construct their complete trees; lazy ownership only delays that call. Reopening keeps the existing window, Controller and View, with the window's normal refresh and animation behaviour.
+Inside `factory`, require the window module (which also defers loading its class definitions), call `Window.new(...)`, configure callbacks and focus, and mount onto the existing `UIManager`; the caller then invokes `handle:get():open(...)`. Factories read the current player, game instance and configuration when invoked. Owners may pre-create empty focus groups and neighbours, populating controls before mounting and activating the window.
 
-At the end of the owner's lifetime, `handle:dispose()` releases the created window and the factory. Disposing an unused handle only releases its factory. Disposal is terminal and never invokes the factory.
+Give each independent popup — including menu sub-windows — its own `LazyWindow` handle. `Window.new(...)` and `View.new()` always construct their complete trees (including authored child Views); lazy ownership only defers that call. Reopening reuses the existing window, Controller and View with normal refresh and animation behaviour.
 
 ## Dynamic collections
 
-`view:createCollection(container, RowControllerClass)` creates one owned `UiCollection` for a Canvas or ListView. Controllers expose the same method through `self:createCollection(...)`. Creating the collection detaches authored preview children from that container.
+Use collections for model-dependent row counts, and bind fixed JSON children through `assets`.
 
-`collection:add(model, logicalSize?)` takes an idle row or creates one, binds the new model, prepares and attaches its generated root, and returns the Controller. `collection.items` contains only active Controllers in insertion order. Call `collection:layout()` after a batch to recompute ListView positions.
-
-`collection:clear()` empties `items`, hides and detaches the roots, clears native callbacks and animations, cancels watches and event subscriptions, and drops the old models and supplied logical sizes. Each collection retains up to 64 idle Controller/View/native-control trees; excess rows are disposed. Pools are not shared across containers or windows. Repeated clearing is safe. `collection:dispose()` terminally releases both active and idle rows, as does disposal of the owning View. Do not retain row references across `clear()` or dispose collection-owned rows directly.
-
-Row `init()` runs once per instance: capture template colours, fixed dimensions and static references there, and create any owned collections there. `bind()` runs for each new model: validate its data and establish its callbacks, watches and subscriptions. `refresh()` must overwrite model-dependent text, characters, colours, visibility and dimensions, including transitions from populated to empty content. Do not cache model-owned objects in instance-lifetime fields. Business Controllers keep using `clear/add/layout`; only the foundation calls `releaseForReuse()` and `reuse(model)`.
-
-Authored child Views keep their parents and regain their previous root visibility and activity before refresh. A bound child Controller also loses its old model and bindings when the row is recycled. Its owner assigns the child's new `model` and calls `prepare()` in the parent's `bind()`. Nested dynamic collections are cleared and reused with their owner. Windows themselves retain their existing lifetime and are not pooled.
-
-Bind fixed JSON children through `assets`. Use collections for model-dependent row counts.
+- **Collection operations**: `view:createCollection(container, RowControllerClass)` (or `self:createCollection(...)` on a Controller) attaches one owned `UiCollection` to a Canvas or ListView and detaches authored preview children. `collection:add(model, logicalSize?)` pops an idle row or creates one, binds `model`, prepares and attaches its root, and returns the Controller. `collection.items` lists active Controllers in insertion order; call `collection:layout()` after a batch to update ListView positions.
+- **Clearing, pooling and disposal**: `collection:clear()` empties `items`, hides and detaches roots, clears native callbacks and animations, cancels watches and subscriptions, and drops models and cached logical sizes. Each collection pools up to 64 idle Controller/View/control trees (not shared across containers or windows) and disposes excess rows. Repeated `clear()` calls are safe. `collection:dispose()` and parent View disposal terminally release active and idle rows. Never keep row references across `clear()` or dispose pooled rows directly.
+- **Row Controller lifecycle**:
+  - `init()` runs once per instance: capture template colours, fixed dimensions, static references and owned collections here; do not cache model-owned objects.
+  - `bind()` runs for each bound model: validate data and register callbacks, watches and subscriptions.
+  - `refresh()` must overwrite all model-dependent text, characters, colours, visibility and dimensions, including populated-to-empty transitions.
+  - Business code calls only `clear`, `add` and `layout`; `releaseForReuse()` and `reuse(model)` are internal to the foundation.
+- **Nested children**: Authored child Views keep their parents and restore root visibility/activity before refresh. Bound child Controllers lose their previous model and bindings on recycle — assign the child's new `model` and call `prepare()` inside the parent's `bind()`. Nested dynamic collections clear and recycle with their owner. Top-level windows keep their normal lifetime and are not pooled.
 
 ## Repeated template controls
 
-An authored `Engine.WrapBox` owns one template and creates `count` independent native subtrees. The generated View exposes the WrapBox in `controls`, without flattening its template descendants into the enclosing View's `controls` or `assets`. Use `wrapBox:get(i)` for the 1-based native root of an instance, then its normal child APIs. Check the concrete native class with `Class.isInstance` before narrowing an `Engine.ControlBase` reference.
+An authored `Engine.WrapBox` owns one template and instantiates `count` independent native subtrees without flattening template descendants into the enclosing View's `controls` or `assets`. Access the 1-based root of each instance via `wrapBox:get(i)` (invalid indices raise an error) and verify concrete native types with `Class.isInstance` before narrowing `Engine.ControlBase`.
 
-`getCount()` and `setCount(count)` control the non-negative repetition count. Count zero or no template leaves the control empty; `get(i)` raises on an invalid index. Reflow and changes to size or spacing keep existing instances. Count growth appends instances, and shrinking releases only the removed tail. Each subtree has independent runtime state; the WrapBox owns its updates, input and disposal. Do not create a `UiCollection` for its fixed visual repetitions.
+`getCount()` and `setCount(count)` update the non-negative instance count (`0` or an empty template leaves the control empty). Reflow, resize and spacing updates preserve existing instances; increasing `count` appends new instances, and decreasing releases only the removed tail. Each subtree maintains independent state, with `WrapBox` owning updates, input and disposal. Do not wrap a `WrapBox` in a `UiCollection`.
 
 ## Namespace and property values
 
-Generated references follow the local `controls` and child `assets` boundaries described under [Create a View](<#create-a-view>). `Controller:requireAsset(name)` returns a generated child View. Native `instance:requireControl(name)` and `instance:requireAsset(name)` return local native objects. `instance:getNodeByName(name)` searches the actual subtree and rejects ambiguous names.
+Generated references respect the local `controls` and child `assets` boundaries described under [Create a View](<#create-a-view>). `Controller:requireAsset(name)` returns a generated child View, native `instance:requireControl(name)` and `instance:requireAsset(name)` return local native objects, and `instance:getNodeByName(name)` searches the subtree and rejects ambiguous names.
 
-`AssetInstance:setProperty(name, propertyId, value)` and `UiController:setProperty` accept the property's declared runtime type. Property types and the clearing of optional values are described in [Engine: Interactive and Declarative UI Controls](<../Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#assetinstance>). Nesting JSON cannot override a child's internal properties or hierarchy.
+`AssetInstance:setProperty(name, propertyId, value)` and `UiController:setProperty` require the property's declared runtime type; see [AssetInstance](<../Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#assetinstance>) for types and clearing optional values. Nesting JSON cannot override a child asset's internal properties or hierarchy.
 
 ## Animation playback
 
-`hasAnimation(name, target?)`, `playAnimation(name, target?, onFinished?)` and `stopAnimation(name, target?)` are available on native instances, generated Views and Controllers. They operate on Global or asset-local node animations. Playback is linear and applies time zero immediately. Natural completion holds the final frame and invokes the completion callback once.
+`hasAnimation(name, target?)`, `playAnimation(name, target?, onFinished?)` and `stopAnimation(name, target?)` exist on native instances, generated Views and Controllers for Global or asset-local node animations:
 
-Targets run independently. Replacement on the same target clears the old effect and callback, then starts at zero. `stopAnimation` clears only the matching animation's effect and pending callback, including a completed animation's held final frame. Root hiding and disposal clear animation effects and pending callbacks.
-
-A missing animation warns with its asset, target and name, returns `false` and invokes the completion callback synchronously. A nested asset exports only Global animations on its boundary and subtree. A same-name parent animation targeted at that node overrides only that instance. A parent Global animation does not start the override, and child node animations are not exported.
+- **Playback**: Interpolation is linear and applies time `0` immediately. Natural completion holds the final frame and calls `onFinished` once.
+- **Concurrency and stopping**: Independent targets play concurrently. Starting a new animation on the same target clears the previous effect and callback before starting at time `0`. `stopAnimation` clears only the matching animation's effect and pending callback (including a held final frame). Hiding or disposing the root clears all active effects and pending callbacks.
+- **Missing animations and nesting**: A missing animation logs a warning with asset, target and name, returns `false` and invokes `onFinished` synchronously. Nested assets export only Global animations; a same-name parent animation targeting that nested node overrides only that instance (parent Global animations do not trigger the override, and child node animations are never exported).
 
 ## Disposal
 
-`View:dispose()` releases its bound Controller, nested Views and dynamic collections, stops animations, and unmounts and detaches the root. `View:own(child)` adopts an additional object with a `dispose` method.
+- `View:dispose()` releases its bound Controller, nested Views and dynamic collections, stops animations, and unmounts/detaches the root. Use `View:own(child)` to attach an extra object exposing `dispose()`.
+- `window:dispose()` and `Controller:dispose()` release the owned UI tree, clear update subscriptions, watches and native callbacks on generated controls, and are safe to call repeatedly. Controllers only need extra cleanup for external resources or callbacks.
+- `UIManager` destruction clears callbacks bound to its lifetime (including on detached controls). `removeUI` preserves callbacks for a later `loadUI`, and loading or reparenting transfers ownership — removing a root from `UIManager` does not replace `dispose()`.
 
-`window:dispose()` and `Controller:dispose()` also release the owned UI tree. Disposal is safe to repeat and clears update subscriptions, owned watches and native callbacks on generated controls. Controllers only need extra cleanup for resources or callbacks outside that tree.
-
-`UIManager` destruction clears callbacks registered to its lifetime, including on detached controls. `removeUI` preserves them for a later `loadUI`, and loading or reparenting a subtree transfers callback ownership. Removing a root from the manager therefore does not replace View or Controller disposal.
-
-Disposed UI is terminal and must not be reused. Hot reload, described in [Lua Runtime and Modules](<../Lua Runtime and Modules.md#lua-hot-reload>), updates compatible methods while preserving UI state and subscriptions. It does not rerun `bind`, remount controls or rebuild the JSON tree.
+Disposed UI is terminal and must not be reused. [Lua hot reload](<../Lua Runtime and Modules.md#lua-hot-reload>) updates compatible Controller methods while keeping live UI state and subscriptions intact; it does not rerun `bind`, remount controls or rebuild the JSON tree.

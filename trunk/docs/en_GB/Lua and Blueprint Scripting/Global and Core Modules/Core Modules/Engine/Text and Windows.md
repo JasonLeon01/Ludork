@@ -1,44 +1,48 @@
 # Engine: Text and Windows
 
+This page documents text configuration builders and measurement helpers (`Engine.TextConfig`, `Engine.TextLayout`), text styling records (`TextOutlineConfig`, `TextGlowConfig`, `TextGradientConfig`, `TextStyle`, `PlainTextConfig`, `RichTextConfig`), text controls (`PlainText`, `RichText`) and nine-slice windows (`Window`). Instance method tables omit the implicit `self` receiver exposed as the first Blueprint target pin; free functions take no receiver.
+
 ## Engine.TextConfig
 
-`Engine.TextConfig` builds validated plain and rich text configurations for `Global.Data` and Declarative UI. Input tables must be JSON-compatible, and functions, native objects and cycles are rejected. See [Text Config](<../../../../Editor User Guide/General Data and Text Config.md#text-config>) for editor usage.
+Builds validated plain and rich text configurations for `Global.Data` and Declarative UI. Input tables must be JSON-compatible; functions, native objects and cycles are rejected. For editor authoring, see [Text Config](<../../../../Editor User Guide/General Data and Text Config.md#text-config>).
 
-| Name | Parameters | Returns |
-|---|---|---|
-| `buildPlain` | data: table; sourceName: string | `Engine.PlainTextConfig` |
-| `buildRich` | data: table; sourceName: string | `Engine.RichTextConfig` |
+| Function | Parameters | Returns | Notes |
+|---|---|---|---|
+| `buildPlain` | `data: table`, `sourceName: string` | `Engine.PlainTextConfig` | — |
+| `buildRich` | `data: table`, `sourceName: string` | `Engine.RichTextConfig` | — |
 
 ## Engine.TextLayout
 
-`Engine.TextLayout` measures, truncates and wraps UTF-8 text without mutating the control; `maxWidth` must be positive and finite.
+Measures, truncates and wraps UTF-8 text without mutating the supplied text control; `maxWidth` must be positive and finite.
 
-| Name | Parameters | Returns |
-|---|---|---|
-| `measurePlainText` | control: `Engine.PlainText`; text: string | number |
-| `measureRichText` | source: `Engine.RichText`; text: string | number |
-| `fitPlainText` | text: string; maxWidth: number; control: `Engine.PlainText` | string |
-| `wrapPlainText` | text: string; maxWidth: number; control: `Engine.PlainText` | string |
-| `wrapRichText` | text: string; maxWidth: number; source: `Engine.RichText` | string |
+| Function | Parameters | Returns | Notes |
+|---|---|---|---|
+| `measurePlainText` | `control: Engine.PlainText`, `text: string` | `number` | — |
+| `measureRichText` | `source: Engine.RichText`, `text: string` | `number` | — |
+| `fitPlainText` | `text: string`, `maxWidth: number`, `control: Engine.PlainText` | `string` | Returns `text` unchanged if it fits; otherwise truncates at grapheme boundaries and appends `.` within `maxWidth` (or returns `""` if even `.` does not fit). |
+| `wrapPlainText` | `text: string`, `maxWidth: number`, `control: Engine.PlainText` | `string` | — |
+| `wrapRichText` | `text: string`, `maxWidth: number`, `source: Engine.RichText` | `string` | — |
 
-`fitPlainText` returns the original text if it fits. Otherwise it truncates at grapheme boundaries and appends `.` within `maxWidth`. It returns an empty string if even `.` does not fit.
-
-Rich-text measurement and wrapping use the supplied control's authored configuration, including named tag styles, without changing its text or playback state.
+Rich-text measurement and wrapping apply the supplied control's authored configuration (including named tag styles) without altering its text or playback state.
 
 ## TextOutlineConfig
 
+Configures outline stroke colour and thickness for plain text.
+
 ### Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
 | `color` | `sf.Color` | — | — |
 | `thickness` | `float` | `0` | — |
 
 ## TextGlowConfig
 
+Configures soft glow rendering around plain or rich text.
+
 ### Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
 | `enabled` | `bool` | `false` | — |
 | `color` | `sf.Color` | — | — |
@@ -47,21 +51,23 @@ Rich-text measurement and wrapping use the supplied control's authored configura
 
 ## TextGradientConfig
 
-Use the read-only strings `Engine.TextGradientConfig.HORIZONTAL` (`"horizontal"`) and `VERTICAL` (`"vertical"`) for `direction`. The default is `VERTICAL`.
+Configures colour-curve gradient shading across text glyphs. Use the read-only constants `Engine.TextGradientConfig.HORIZONTAL` (`"horizontal"`) and `VERTICAL` (`"vertical"`) for `direction` (default `VERTICAL`).
 
 ### Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
 | `enabled` | `bool` | `false` | — |
-| `direction` | `string` | `"vertical"` | — |
-| `curve` | `{ "Engine", "Vector4Curve" }` | — | — |
+| `direction` | `string` | `"vertical"` | `"horizontal"` or `"vertical"`. |
+| `curve` | `Engine.Vector4Curve` | — | — |
 
 ## TextStyle
 
+Defines character typography, spacing, fill and outline attributes for a rich-text style span.
+
 ### Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
 | `characterSize` | `int` | — | — |
 | `bold` | `bool` | — | — |
@@ -76,16 +82,18 @@ Use the read-only strings `Engine.TextGradientConfig.HORIZONTAL` (`"horizontal"`
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `enableStyle` | `function` | self: { "Engine", "TextStyle" } = "self"; text: sf.Text | — | — |
-| `adaptStyle` | `function` | self: { "Engine", "TextStyle" } = "self"; inStyle: { "Engine", "TextStyle" } | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `enableStyle` | `text: sf.Text` | — | — |
+| `adaptStyle` | `inStyle: Engine.TextStyle` | — | — |
 
 ## PlainTextConfig
 
+Validated configuration record for `Engine.PlainText` controls and `Engine.TextParticle` instances.
+
 ### Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
 | `type` | `string` | `"plainTextConfig"` | — |
 | `name` | `string` | — | — |
@@ -97,77 +105,83 @@ Use the read-only strings `Engine.TextGradientConfig.HORIZONTAL` (`"horizontal"`
 | `letterSpacing` | `float` | `1` | — |
 | `lineSpacing` | `float` | `1` | — |
 | `lineAlignment` | `sf.Text.LineAlignment` | — | — |
-| `outline` | `{ "Engine", "TextOutlineConfig" }` | — | — |
-| `glow` | `{ "Engine", "TextGlowConfig" }` | — | — |
-| `gradient` | `{ "Engine", "TextGradientConfig" }` | — | — |
+| `outline` | `Engine.TextOutlineConfig` | — | — |
+| `glow` | `Engine.TextGlowConfig` | — | — |
+| `gradient` | `Engine.TextGradientConfig` | — | — |
 
 ## RichTextConfig
 
+Validated configuration record for `Engine.RichText` controls, including named tag styles.
+
 ### Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
 | `type` | `string` | `"richTextConfig"` | — |
 | `name` | `string` | — | — |
 | `font` | `sf.Font` | — | — |
 | `lineAlignment` | `sf.Text.LineAlignment` | — | — |
-| `defaultStyle` | `{ "Engine", "TextStyle" }` | — | — |
+| `defaultStyle` | `Engine.TextStyle` | — | — |
 | `styleOrder` | `string[]` | — | — |
 | `styles` | `any` | — | — |
-| `glow` | `{ "Engine", "TextGlowConfig" }` | — | — |
-| `gradient` | `{ "Engine", "TextGradientConfig" }` | — | — |
+| `glow` | `Engine.TextGlowConfig` | — | — |
+| `gradient` | `Engine.TextGradientConfig` | — | — |
 
 ## PlainText
 
-Direct metadata bases: `{ "Engine", "ControlBase" }`
+**Inherits:** `Engine.ControlBase`
+
+Single-style UTF-8 text control backed by `Engine.PlainTextConfig`.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `getConfig` | `function` | self: { "Engine", "PlainText" } = "self" | return: { "Engine", "PlainTextConfig" } | Pure |
-| `getCharacterSize` | `function` | self: { "Engine", "PlainText" } = "self" | return: int | Pure |
-| `setString` | `function` | self: { "Engine", "PlainText" } = "self"; text: string | — | — |
-| `getString` | `function` | self: { "Engine", "PlainText" } = "self" | return: string | Pure |
-| `getLocalBounds` | `function` | self: { "Engine", "PlainText" } = "self" | return: sf.FloatRect | Pure |
-| `getGlobalBounds` | `function` | self: { "Engine", "PlainText" } = "self" | return: sf.FloatRect | Pure |
-| `getSize` | `function` | self: { "Engine", "PlainText" } = "self" | return: sf.Vector2f | Pure |
-| `getOrigin` | `function` | self: { "Engine", "PlainText" } = "self" | return: sf.Vector2f | Pure |
-| `setOrigin` | `function` | self: { "Engine", "PlainText" } = "self"; origin: sf.Vector2f | — | — |
-| `getColour` | `function` | self: { "Engine", "PlainText" } = "self" | return: sf.Color | Pure |
-| `setColour` | `function` | self: { "Engine", "PlainText" } = "self"; colour: sf.Color | — | — |
-| `draw` | `function` | self: { "Engine", "PlainText" } = "self"; target: sf.RenderTarget; states: sf.RenderStates | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `getConfig` | — | `Engine.PlainTextConfig` | Pure. |
+| `getCharacterSize` | — | `int` | Pure. |
+| `setString` | `text: string` | — | — |
+| `getString` | — | `string` | Pure. |
+| `getLocalBounds` | — | `sf.FloatRect` | Pure. |
+| `getGlobalBounds` | — | `sf.FloatRect` | Pure. |
+| `getSize` | — | `sf.Vector2f` | Pure. |
+| `getOrigin` | — | `sf.Vector2f` | Pure. |
+| `setOrigin` | `origin: sf.Vector2f` | — | — |
+| `getColour` | — | `sf.Color` | Pure. |
+| `setColour` | `colour: sf.Color` | — | — |
+| `draw` | `target: sf.RenderTarget`, `states: sf.RenderStates` | — | — |
 
 ## RichText
 
-Direct metadata bases: `{ "Engine", "ControlBase" }`
+**Inherits:** `Engine.ControlBase`
+
+Tagged multi-style text control backed by `Engine.RichTextConfig`.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `getConfig` | `function` | self: { "Engine", "RichText" } = "self" | return: { "Engine", "RichTextConfig" } | Pure |
-| `setString` | `function` | self: { "Engine", "RichText" } = "self"; text: string | — | — |
-| `getString` | `function` | self: { "Engine", "RichText" } = "self" | return: string | Pure |
-| `setColour` | `function` | self: { "Engine", "RichText" } = "self"; colour: sf.Color | — | — |
-| `getColour` | `function` | self: { "Engine", "RichText" } = "self" | return: sf.Color | Pure |
-| `getLocalBounds` | `function` | self: { "Engine", "RichText" } = "self" | return: sf.FloatRect | Pure |
-| `getGlobalBounds` | `function` | self: { "Engine", "RichText" } = "self" | return: sf.FloatRect | Pure |
-| `getSize` | `function` | self: { "Engine", "RichText" } = "self" | return: sf.Vector2f | Pure |
-| `getOrigin` | `function` | self: { "Engine", "RichText" } = "self" | return: sf.Vector2f | Pure |
-| `setOrigin` | `function` | self: { "Engine", "RichText" } = "self"; origin: sf.Vector2f | — | — |
-| `draw` | `function` | self: { "Engine", "RichText" } = "self"; target: sf.RenderTarget; states: sf.RenderStates | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `getConfig` | — | `Engine.RichTextConfig` | Pure. |
+| `setString` | `text: string` | — | — |
+| `getString` | — | `string` | Pure. |
+| `setColour` | `colour: sf.Color` | — | — |
+| `getColour` | — | `sf.Color` | Pure. |
+| `getLocalBounds` | — | `sf.FloatRect` | Pure. |
+| `getGlobalBounds` | — | `sf.FloatRect` | Pure. |
+| `getSize` | — | `sf.Vector2f` | Pure. |
+| `getOrigin` | — | `sf.Vector2f` | Pure. |
+| `setOrigin` | `origin: sf.Vector2f` | — | — |
+| `draw` | `target: sf.RenderTarget`, `states: sf.RenderStates` | — | — |
 
 ## Window
 
-Direct metadata bases: `{ "Engine", "SpriteBase" }`
+**Inherits:** `Engine.SpriteBase`
 
-`repeated` tiles the background when true and stretches it when false. Borders always tile between the corners. DropBox popups use the same window-skin rules.
+Nine-slice window-skin visual control. `repeated` tiles the background when `true` and stretches it when `false`; borders always tile between corners. `DropBox` popups use the same window-skin rules.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `getSize` | `function` | self: { "Engine", "Window" } = "self" | return: sf.Vector2u | Pure |
-| `resize` | `function` | self: { "Engine", "Window" } = "self"; size: sf.Vector2u | — | — |
-| `setWindowSkin` | `function` | self: { "Engine", "Window" } = "self"; windowSkin: sf.Image; repeated: bool | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `getSize` | — | `sf.Vector2u` | Pure. |
+| `resize` | `size: sf.Vector2u` | — | — |
+| `setWindowSkin` | `windowSkin: sf.Image`, `repeated: bool` | — | — |

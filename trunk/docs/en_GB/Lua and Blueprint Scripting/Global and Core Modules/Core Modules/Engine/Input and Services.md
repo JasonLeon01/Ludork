@@ -1,54 +1,55 @@
 # Engine: Input and Services
 
+This page documents logical gamepad buttons (`JoystickButton`), WebGL input rules, input records (`InputActionKey`, `InjectedInputEvent`, `JoystickAxisEvent`), input hint tracking, touch/WebView/text-session capture, and the `Input` singleton and `Service` class. `Engine.Service` instance method tables omit the implicit `self` receiver exposed as the first Blueprint target pin; `Engine.Input` exposes matching static singleton wrappers with no receiver.
+
 ## JoystickButton
 
-`Engine.JoystickButton` creates logical button values through `getA()`, `getB()`, `getX()`, `getY()`, `getLB()`, `getRB()`, `getView()`, `getMenu()`, `getLS()`, `getRS()`, `getXBox()` and `getShare()`. Pass the complete `Engine.InputNamedValue` to Input queries and UI bindings. Ludork resolves it separately for each connected controller when input is read; cached bindings therefore survive hot-plugging and mixed Xbox/PlayStation connections. Its `value` field is the platform's default token number, not the connected PlayStation controller's raw button number.
+`Engine.JoystickButton` returns logical button tokens (`Engine.InputNamedValue`) via `getA()`, `getB()`, `getX()`, `getY()`, `getLB()`, `getRB()`, `getView()`, `getMenu()`, `getLS()`, `getRS()`, `getXBox()` and `getShare()`.
 
-Integer Input queries and `sf.Joystick` retain raw SFML button numbers. `Input.isJoystickButtonDown(id, button)` and `Input.isAnyJoystickButtonDown(button)` accept either a logical getter value or a raw integer, and respect input blocking and focus. Getter availability does not guarantee that a device has the physical button; unsupported buttons produce no input. `getShare()` is unavailable on Android, HarmonyOS and Web.
+- **Device-specific resolution:** Pass the complete `Engine.InputNamedValue` to Input queries and UI bindings. Ludork resolves it per connected controller when reading input, so cached bindings survive hot-plugging and mixed Xbox/PlayStation connections. Its `value` field stores the platform's default token number rather than a connected PlayStation controller's raw button index.
+- **Raw vs logical queries:** Integer Input queries and `sf.Joystick` keep raw SFML button numbers. `Input.isJoystickButtonDown(id, button)` and `Input.isAnyJoystickButtonDown(button)` accept either a logical getter value or a raw integer and respect input blocking and focus. Getter availability does not guarantee a physical button on every controller; `getShare()` is unavailable on Android, HarmonyOS and Web.
 
-| Platform/device | A/B/X/Y | LB/RB | View/Menu | LS/RS | XBox/Share |
+Raw backend button indices by platform and controller family:
+
+| Platform / device | A / B / X / Y | LB / RB | View / Menu | LS / RS | XBox / Share |
 |---|---|---|---|---|---|
 | Windows Xbox | `0/1/2/3` | `4/5` | `6/7` | `8/9` | `10/11` |
 | macOS Xbox | `0/1/3/4` | `6/7` | `10/11` | `13/14` | `12/15` |
-| Windows/macOS PlayStation | `1/2/0/3` | `4/5` | `8/9` | `10/11` | `12/unavailable` |
-| Android, HarmonyOS | `0/1/3/4` | `6/7` | `13/12` | `10/11` | `14/unavailable` |
-| iOS | `0/1/3/4` | `6/7` | `13/12` | `10/11` | `14/15` for Xbox; Share unavailable for PlayStation |
-| Web standard gamepad | `0/1/2/3` | `4/5` | `8/9` | `10/11` | `16/unavailable` |
+| Windows / macOS PlayStation | `1/2/0/3` | `4/5` | `8/9` | `10/11` | `12` / unavailable |
+| Android, HarmonyOS | `0/1/3/4` | `6/7` | `13/12` | `10/11` | `14` / unavailable |
+| iOS | `0/1/3/4` | `6/7` | `13/12` | `10/11` | `14/15` (Xbox); Share unavailable (PlayStation) |
+| Web standard gamepad | `0/1/2/3` | `4/5` | `8/9` | `10/11` | `16` / unavailable |
 
-The table lists raw backend numbers. First-party PlayStation support is DUALSHOCK 4, DualSense and DualSense Edge. Unidentified devices keep the platform default layout; there are no third-party profiles. Each SFML joystick slot keeps its own identity and held/repeat state.
+Controller mapping and UI hint details:
 
-On PlayStation, A/B/X/Y mean Cross/Circle/Square/Triangle, LB/RB mean L1/R1, LS/RS mean L3/R3, Menu means Options and XBox means PS. View means Share on DUALSHOCK 4 and Create on DualSense/Edge. Xbox Share has no PlayStation equivalent.
-
-Android, HarmonyOS and iOS already normalise supported controllers through their native backends, so they do not use the desktop PlayStation raw table. Left-stick `X/Y` and D-pad `PovX/PovY` retain the default direction rules below; other axes stay raw SFML axes.
-
-Button, GamepadHintBar and TabView hints follow the most recently active controller, or the lowest connected slot before any activity. Logical names in assets and scripts stay unchanged. Changing or disconnecting a controller clears unfinished long-press progress; a one-second hold must come from one controller.
-
-The iOS SFML backend uses Apple's [GCExtendedGamepad](https://developer.apple.com/documentation/gamecontroller/gcextendedgamepad) profile to report connections, disconnections, buttons and axes through the standard joystick APIs and events. Its fixed button layout follows the table above, with left and right trigger presses at `8/9`. Slots `2/5` remain unused. Optional stick-click, View, Home/XBox and [GCXboxGamepad](https://developer.apple.com/documentation/gamecontroller/gcxboxgamepad) Share inputs depend on the device and system version. Home and Share retain their system gestures, so the game is not guaranteed to receive system-reserved gestures.
+- **PlayStation support:** First-party support covers DUALSHOCK 4, DualSense and DualSense Edge. Unidentified devices use the platform default layout (no third-party profiles). Each SFML joystick slot tracks its own identity and held/repeat state. On PlayStation: A/B/X/Y map to Cross/Circle/Square/Triangle, LB/RB to L1/R1, LS/RS to L3/R3, Menu to Options, XBox to PS, and View to Share (DUALSHOCK 4) or Create (DualSense/Edge); Xbox Share has no equivalent.
+- **Mobile normalisation:** Android, HarmonyOS and iOS normalise supported controllers natively rather than using the desktop PlayStation raw table. Left-stick `X/Y` and D-pad `PovX/PovY` follow the direction rules below; other axes stay raw SFML axes.
+- **UI hints and long press:** `Button`, `GamepadHintBar` and `TabView` hints track the most recently active controller (or lowest connected slot before activity). Switching or disconnecting a controller clears unfinished long-press progress; a one-second hold must come from a single controller.
+- **iOS `GCExtendedGamepad`:** Uses Apple's [GCExtendedGamepad](https://developer.apple.com/documentation/gamecontroller/gcextendedgamepad) profile with left/right trigger presses at `8/9` and unused slots `2/5`. Optional stick-click, View, Home/XBox and [GCXboxGamepad](https://developer.apple.com/documentation/gamecontroller/gcxboxgamepad) Share inputs depend on device and OS version; system-reserved Home/Share gestures may not reach the game.
+- **iOS axis signs:** Both stick Y axes are inverted from Apple's profile while D-pad Y keeps Apple's sign. The SFML backend does not assign Confirm, Cancel or movement actions.
 
 | iOS / Web input | SFML axes | Values and direction |
 |---|---|---|
-| Left stick | `X/Y` | `-100..100`; right is positive X, down is positive Y |
-| Right stick | `Z/R` | `-100..100`; right is positive Z, down is positive R |
-| Left/right triggers | `U/V` | `0..100`; released is `0`, fully pressed is `100` |
-| D-pad | `PovX/PovY` | `-100..100`; right is positive PovX, up is positive PovY |
-
-On iOS, both stick Y values are inverted from Apple's profile, while D-pad Y keeps Apple's sign. The SFML backend does not assign Confirm, Cancel or movement actions.
+| Left stick | `X/Y` | `-100` to `100`; right is positive `X`, down is positive `Y` |
+| Right stick | `Z/R` | `-100` to `100`; right is positive `Z`, down is positive `R` |
+| Left / right triggers | `U/V` | `0` to `100`; released is `0`, fully pressed is `100` |
+| D-pad | `PovX/PovY` | `-100` to `100`; right is positive `PovX`, up is positive `PovY` |
 
 ## Web input
 
-One WebGL package accepts keyboard, mouse and touch on both desktop and mobile browsers. It reports `PLATFORM == "web"`; game code does not need a second mobile package. Touch uses the existing capture, tap, drag, long-press and two-finger cancel rules. Coordinates follow the canvas drawing buffer and its current scale. Browser touch cancellation, focus loss and page hiding release captures without confirming an item or leaving a held button. Touch does not produce a duplicate compatibility mouse click. Input hints continue to follow the most recently used input device.
+A single WebGL package handles keyboard, mouse and touch on desktop and mobile browsers, reporting `PLATFORM == "web"`:
 
-Text boxes open a modal browser input field using their existing title, prompt, placeholder and confirmation/cancellation labels. Tap the field to open the software keyboard when the browser does not focus it automatically. The field supports composition and text selection, including Chinese and emoji; Enter does not submit an unfinished composition. Cancel or Escape restores the original value, and hiding the page cancels the session. Keyboard input stays with the field while the dialog is active.
-
-Gamepads use the browser's `standard` mapping and the button/axis tables above. Connecting or disconnecting a supported controller uses the existing SFML events and Ludork logical bindings; held and repeat states are cleared on disconnect. Unmapped controllers and browsers that do not expose Gamepad data report no supported device and do not prevent game startup. Browser/system-reserved controls may not reach the game.
+- **Touch:** Uses standard capture, tap, drag, long-press and two-finger cancel rules mapped to the canvas drawing buffer and current scale. Browser touch cancellation, focus loss and page hiding release captures without confirming items or leaving held buttons, and touch does not emit duplicate compatibility mouse clicks. Input hints follow the most recently used device.
+- **Text input:** Text boxes open a modal browser input field with their configured title, prompt, placeholder and confirm/cancel labels (tap the field if the browser does not auto-focus the software keyboard). Composition and selection work for Chinese and emoji; Enter does not submit unfinished composition, Cancel or Escape restores the original text, hiding the page cancels the session, and keyboard input stays captured while the dialog is open.
+- **Gamepads:** Uses the browser's `standard` mapping and the tables above, clearing held and repeat states on disconnect. Unmapped controllers or browsers without Gamepad support report no device without blocking startup; browser- or system-reserved controls may not reach the game.
 
 ## InputActionKey
 
-A JoystickButton action with a logical `name` uses that name and its getter token `code` for device-specific resolution. Use an empty `name` with a numeric `code` for a raw button binding. Default Confirm and Cancel actions retain their logical A/B bindings.
+Binds a keyboard, mouse or gamepad input to an action. A `JoystickButton` action with a logical `name` resolves its getter token `code` per device; use an empty `name` with a numeric `code` for a raw button binding. Default Confirm and Cancel actions use logical A and B bindings.
 
 ### Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
 | `kind` | `InputActionKind` | — | — |
 | `name` | `string` | — | — |
@@ -57,7 +58,7 @@ A JoystickButton action with a logical `name` uses that name and its getter toke
 
 ## InjectedInputEvent
 
-Use the following read-only class constants for `type` and `button`; the properties and injected protocol retain their string values.
+Describes a synthetic input event passed to `Service.injectEvent`. Use the read-only class constants on `Engine.InjectedInputEvent` for `type` and `button`; the underlying properties and protocol retain their string values.
 
 | `Engine.InjectedInputEvent` constants | String values |
 |---|---|
@@ -73,7 +74,7 @@ Use the following read-only class constants for `type` and `button`; the propert
 
 ### Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
 | `type` | `string` | — | — |
 | `key` | `string` | — | — |
@@ -86,166 +87,167 @@ Use the following read-only class constants for `type` and `button`; the propert
 | `control` | `bool` | `false` | — |
 | `shift` | `bool` | `false` | — |
 | `system` | `bool` | `false` | — |
-| `session` | `string` | — | — |
-| `unicode` | `int` | `0` | — |
-| `text` | `string` | — | — |
-| `preeditCaret` | `int` | `0` | — |
-| `composing` | `bool` | `false` | — |
+| `session` | `string` | — | Active text-editing session ID (decimal string). |
+| `unicode` | `int` | `0` | Unicode scalar for `TextEntered`. |
+| `text` | `string` | — | UTF-8 pre-edit string for `TextPreedit`. |
+| `preeditCaret` | `int` | `0` | UTF-8 byte offset for `TextPreedit`. |
+| `composing` | `bool` | `false` | Composition state for `TextComposition`. |
 
-Text injection uses `TextEntered` with a Unicode scalar in `unicode`, `TextPreedit` with UTF-8 `text` and a UTF-8 byte offset in `preeditCaret`, and `TextComposition` with `composing`. Text editing requires the active session ID as a decimal string in `session`, and stale sessions are ignored. A `TextEntered` event without a session reaches gameplay only when editing is not blocking input. Text, composition, key and focus events retain injection order.
+Text editing requires the active session ID in `session` (stale sessions are ignored). A `TextEntered` event without a session reaches gameplay only when editing is not blocking input. Text, composition, key and focus events preserve injection order.
 
 ## JoystickAxisEvent
 
+Payload returned by `Service.getJoystickAxisMoved`.
+
 ### Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
 | `axis` | `sf.Joystick.Axis` | — | — |
 | `position` | `float` | `0` | — |
 
 ## Input hint device
 
-`Engine.Input.getInputHintDevice()` returns `Engine.InputHintDevice.KeyboardMouse`, `Gamepad` or `Touch`. This presentation state is independent of `isMouseInputMode()`, which still distinguishes pointer interaction from keyboard/gamepad navigation.
+`Engine.Input.getInputHintDevice()` returns `Engine.InputHintDevice.KeyboardMouse`, `Gamepad` or `Touch`. This presentation state is independent of `isMouseInputMode()`, which distinguishes pointer interaction from keyboard/gamepad navigation.
 
-An already connected controller selects Gamepad at startup. Connecting a controller selects Gamepad immediately. Disconnecting a controller keeps Gamepad while another remains; disconnecting the last restores the platform default: Touch on mobile, KeyboardMouse on desktop, including desktop HarmonyOS. Valid keyboard/mouse, controller or touch activity then selects its own device. The latest valid activity wins over connection changes within the same frame. Stick motion inside the dead zone, touch-generated mouse cancellation, and events from disconnected controllers do not switch the hint device.
+- **Initial and connection updates:** A connected controller selects `Gamepad` on startup, and connecting a controller switches to `Gamepad` immediately. Disconnecting keeps `Gamepad` while another controller remains; disconnecting the last restores the platform default (`Touch` on mobile; `KeyboardMouse` on desktop, including desktop HarmonyOS).
+- **Activity precedence:** Valid keyboard/mouse, controller or touch input switches to its device and takes precedence over connection changes in the same frame. Stick motion inside the dead zone, touch-generated mouse cancellation and events from disconnected controllers never change the hint device.
 
-Read this value when resolving Tutorial text, help lists or other input instructions, and refresh visible text when it changes. Connecting a controller does not permanently lock presentation to it.
+Read this value when resolving Tutorial text, help lists or other input prompts, and refresh visible text when it changes. Connecting a controller does not permanently lock presentation to `Gamepad`.
 
 ## Raw touch ownership
 
-The input service does not assume that the platform's first finger has raw ID `0`. When no accepted raw touches are being tracked, the first `TouchBegan` inside the current pointer viewport becomes the primary finger. Only that finger drives the single-touch began, moved, ended, active, dragged, tap, position and delta APIs. If the primary finger ends while another tracked finger remains down, the secondary finger is not promoted. A new primary can be chosen only after every tracked finger has ended, and only when a later valid `TouchBegan` starts another gesture.
-
-Beginning a second accepted finger uses the two-finger cancel protocol. It immediately suppresses and cancels the active single-touch gesture, and emits the synthetic right-mouse press and release used by menu cancellation. Movement or release from a secondary finger cannot resume the cancelled gesture, become the primary finger or produce a tap.
-
-`cancelTouchGesture` is the explicit teardown path for a gesture owner that becomes unable to finish an accepted primary gesture. It cancels that single-touch gesture and suppresses its remaining began, moved, ended and tap state until all raw touches belonging to the physical gesture have ended. Those held fingers are not promoted or re-accepted. Once every held finger has been released, the next valid `TouchBegan` starts a new gesture normally.
-
-`isTouchLongPressed(handled = false)` reports a primary touch held for at least 600 ms without exceeding the existing eight logical-pixel drag tolerance. It is emitted in one input frame only and cannot fire again until a new physical gesture begins. `getTouchLongPressPosition()` returns the position in the same window-view coordinates as `getTouchTapPosition()`, or nil outside the long-press frame. Passing `true` consumes the event and suppresses the later release tap; observing without consuming preserves the normal tap contract. Dragging, a second finger, focus loss, input capture, touch blocking, window recreation or `cancelTouchGesture()` cancels recognition.
+- **Primary finger selection:** The service never assumes raw touch ID `0`. When no accepted touches are tracked, the first `TouchBegan` inside the pointer viewport becomes the primary finger and drives all single-touch state, tap, position and delta queries. If the primary finger ends while another finger stays down, the secondary finger is not promoted; a new primary begins only after every tracked finger ends and a later valid `TouchBegan` arrives.
+- **Two-finger cancel:** Starting a second accepted finger immediately cancels the active single-touch gesture and emits the synthetic right-mouse press and release used for menu cancellation. Secondary-finger movement or release cannot resume the cancelled gesture, become primary or emit a tap.
+- **Explicit teardown (`cancelTouchGesture`):** Cancels the primary gesture and suppresses its remaining began, moved, ended and tap state until every finger in the physical gesture is released, after which the next valid `TouchBegan` starts normally.
+- **Long press (`isTouchLongPressed`):** `isTouchLongPressed(handled = false)` fires once when a primary touch is held for at least `600` ms within the `8`-logical-pixel drag tolerance, and cannot fire again until a new physical gesture starts. `getTouchLongPressPosition()` returns the position in window-view coordinates (matching `getTouchTapPosition()`) or `nil` outside that frame.
+- **Long-press consumption and cancellation:** Passing `true` to `isTouchLongPressed` consumes the event and suppresses the release tap; observing without consuming preserves the normal tap. Dragging, a second finger, focus loss, input capture, touch blocking, window recreation or `cancelTouchGesture()` cancels recognition.
 
 ## WebView input capture
 
-An accepted `Engine.OpenWebView(url)` request captures game input independently of `blockInput()` and the device locks. Input queries, actions, native UI and injected events stay suppressed while updates and rendering continue. `unblockInput()` cannot dismiss this capture. After closing, held controls must be released before they can drive gameplay again.
+An accepted `Engine.OpenWebView(url)` request captures game input independently of `blockInput()` and device locks. Input queries, actions, native UI and injected events stay suppressed while updates and rendering continue, and `unblockInput()` cannot dismiss it. After closing the WebView, held controls must be released before driving gameplay again.
 
 ## Platform Back cancellation
 
-On Android and HarmonyOS, the system Back action, whether a button press or a gesture, cancels the active touch gesture and emits one Escape press and release pulse in the next input frame. Requests received before that frame are coalesced. The pulse matches `getCancelKeys()`, so existing UI Cancel handling runs without exiting or backgrounding the runtime. Two-finger cancellation remains distinct and emits synthetic right-mouse input.
+On Android and HarmonyOS, the system Back button or gesture cancels any active touch gesture and queues one Escape press-and-release pulse for the next input frame (multiple requests before that frame coalesce). Because the pulse matches `getCancelKeys()`, UI Cancel handling runs without exiting or backgrounding the runtime. Two-finger cancellation remains distinct and emits synthetic right-mouse input.
 
 ## Keyboard edge and repeat semantics
 
-Known keyboard keys and scancodes produce press and release events only when their held state changes. Repeated delivery of the same physical Down, including native auto-repeat or duplicate native and injected delivery, does not produce another press, and an unmatched or repeated Up does not produce a release. Unknown values do not enter held state. An injected event uses its valid scancode, derives a missing scancode from a known key, or derives a missing key from a known scancode.
-
-On HarmonyOS, an external physical keyboard forwards every ordinary key covered by SFML's Harmony key-code mapping as a keyboard edge. Each edge carries a scancode and, where SFML can resolve one, a logical key, together with the current Alt, Control, Shift and System modifier state. Duplicate Down and Up deliveries follow the same edge rules above. Losing focus, entering the background or destroying the host releases every host-held key, so input cannot remain stuck after resuming. Physical-key forwarding remains separate from text entry. Ordinary Surface keys can produce both keyboard edges and text, while IME-focused input stays on the text path. Unsupported key codes remain available to the host.
-
-`getConfirmKeys()` includes Enter and Space, while `getCancelKeys()` includes Escape. Held-key repeat applies to `isKeyTriggered` and `isActionTriggered` outside text editing.
+- **Edge deduplication:** Known keys and scancodes emit press and release events only when held state transitions. Repeated physical Down events (native auto-repeat or duplicate native/injected delivery) emit no extra press, unmatched or repeated Up events emit no release, and unknown keys never enter held state. Injected events use their valid scancode or derive missing scancode/key from whichever known field is supplied.
+- **HarmonyOS external keyboards:** Physical keyboards forward every ordinary key mapped by SFML's Harmony key-code table as edges carrying scancode, resolved logical key and Alt/Control/Shift/System modifiers, following the same deduplication rules. Focus loss, backgrounding or host destruction releases all host-held keys. Physical-key forwarding is separate from text entry: ordinary Surface keys can emit both edges and text, IME-focused input uses the text path, and unsupported key codes stay with the host.
+- **Default keys and repeat:** `getConfirmKeys()` includes Enter and Space; `getCancelKeys()` includes Escape. Held-key repeat applies to `isKeyTriggered` and `isActionTriggered` outside text editing.
 
 ## Default controller directions
 
-The default Up, Down, Left and Right actions consider only the left-stick `X` and `Y` axes and the D-pad `PovX` and `PovY` axes. For both `isActionTriggered` and `isActionHeld`, `|X| >= |Y|` selects the horizontal direction and `|Y| > |X|` selects the vertical direction, so an exact 45-degree boundary is horizontal. The left-stick dead zone is `10` and the D-pad threshold is `50`. Right-stick and trigger axes do not compete for this dominant direction. Custom joystick-axis action mappings continue to evaluate their configured axis independently.
+Default Up, Down, Left and Right actions read only left-stick `X`/`Y` (dead zone `10`) and D-pad `PovX`/`PovY` (threshold `50`). For both `isActionTriggered` and `isActionHeld`, `|X| >= |Y|` selects horizontal and `|Y| > |X|` selects vertical (an exact 45-degree diagonal resolves as horizontal). Right-stick and trigger axes do not compete for this dominant direction, while custom joystick-axis action mappings evaluate their configured axis independently.
 
 ## Text editing sessions
 
-An editing [TextBox](<Interactive and Declarative UI Controls.md#textbox>) consumes text, shortcuts and keyboard or gamepad actions, so `getEnteredText()` is empty for gameplay. Desktop pointer input remains available. Closing keystrokes are not forwarded to gameplay, and held keys remain blocked until they are released.
+An editing [TextBox](<Interactive and Declarative UI Controls.md#textbox>) consumes text, shortcuts and keyboard/gamepad actions so `getEnteredText()` stays empty for gameplay. Desktop pointer input stays available. Closing keystrokes do not forward to gameplay, and held keys remain blocked until released.
 
 ## InputCapture
 
-`Engine.Input.captureInput()` returns a handle that blocks normal input and UI interaction while updates, rendering and latent scheduling continue. `Engine.Input.isInputCaptured()` includes all captures and the wait for held controls to be released.
+`Engine.Input.captureInput()` returns a capture handle blocking normal input and UI interaction while updates, rendering and latent scheduling continue. `Engine.Input.isInputCaptured()` reports active captures as well as the post-release wait for held controls to be released.
 
-Confirmation is disabled initially. Enable it with `handle:setConfirmEnabled(true)` and read it through `handle:consumeConfirm()`. Only fresh Enter/Space, left-mouse or logical A/Cross presses and single-finger taps confirm. A tap must begin inside the pointer viewport after enabling and finish on the same active handle; dragging and multiple fingers cancel it. Changing the enabled state discards pending confirmation and in-progress taps.
-
-Call `handle:release()` on cancellation or disposal; it is safe to repeat, and handle destruction also releases capture. Only the newest active handle receives confirmation, with WebView taking priority. Releasing one handle preserves other captures and blocks the closing frame and held controls until release, preventing input from passing through.
+- **Confirmation:** Disabled initially; enable with `handle:setConfirmEnabled(true)` and read with `handle:consumeConfirm()`. Only fresh Enter/Space, left-mouse or logical A/Cross presses and single-finger taps confirm (taps must start inside the pointer viewport after enabling and end on the same active handle; dragging or multi-touch cancels). Toggling enabled discards pending confirmation and in-progress taps.
+- **Stacking and release:** Call `handle:release()` on cancellation or disposal (idempotent; handle destruction also releases). Only the newest active handle receives confirmation, with WebView taking priority. Releasing one handle keeps remaining captures active and blocks the closing frame and held controls until release.
 
 ## Input
 
-`Engine.Input` exposes bound singleton wrappers for the public Service methods listed below. Their Blueprint nodes take the same business parameters and defaults, with no `self` input. For example, `Engine.Input.getKeyDown(key)` uses the current input service directly; `Engine.Service.getKeyDown(self, key)` accepts an explicit Service receiver.
+`Engine.Input` exposes bound static singleton wrappers for the public `Engine.Service` methods below. Their Blueprint nodes take the same parameters and defaults with no `self` input — for example, `Engine.Input.getKeyDown(key)` uses the active input service directly, whereas `Engine.Service.getKeyDown(self, key)` takes an explicit `Service` receiver.
 
 ## Service
 
-`update(window)` requires an `sf.RenderWindow`. Mouse and touch positions use that window's current view to map pixels to world coordinates, and `setMousePosition(position)` maps world coordinates back to pixels. Native `onWindowRecreated(window)` also requires an `sf::RenderWindow&` and resets the active input window after recreation. The native `setMousePosition(position, sf::WindowBase&)` overload accepts pixel coordinates.
+Manages per-frame polling, event injection, device blocking and action queries for an `sf.RenderWindow`.
+
+- `update(window)` requires an `sf.RenderWindow`. Mouse and touch positions map pixels to world coordinates using that window's current view, and `setMousePosition(position)` maps world coordinates back to pixels.
+- Native `onWindowRecreated(window)` requires an `sf::RenderWindow&` and resets the active input window after recreation. The native `setMousePosition(position, sf::WindowBase&)` overload accepts pixel coordinates directly.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `update` | `function` | self: { "Engine", "Service" } = "self"; window: sf.RenderWindow | — | — |
-| `injectEvent` | `function` | self: { "Engine", "Service" } = "self"; event: { "Engine", "InjectedInputEvent" } | — | — |
-| `setUseInjectedMouseOnly` | `function` | self: { "Engine", "Service" } = "self"; value: bool | — | — |
-| `getInputHintDevice` | `function` | self: { "Engine", "Service" } = "self" | return: { enum = "Enums.Engine.InputHintDevice" } | Pure |
-| `isFocused` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `isFocusLost` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `isFocusGained` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `isKeyPressed` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `isKeyReleased` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `getKeyPressed` | `function` | self: { "Engine", "Service" } = "self"; key: sf.Keyboard.Key; handled: bool; alt: bool; ctrl: bool; shift: bool; system: bool | return: bool | — |
-| `getScanPressed` | `function` | self: { "Engine", "Service" } = "self"; scan: sf.Keyboard.Scancode; handled: bool; alt: bool; ctrl: bool; shift: bool; system: bool | return: bool | — |
-| `getKeyReleased` | `function` | self: { "Engine", "Service" } = "self"; key: sf.Keyboard.Key; handled: bool; alt: bool; ctrl: bool; shift: bool; system: bool | return: bool | — |
-| `getScanReleased` | `function` | self: { "Engine", "Service" } = "self"; scan: sf.Keyboard.Scancode; handled: bool; alt: bool; ctrl: bool; shift: bool; system: bool | return: bool | — |
-| `isMouseWheelScrolled` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `getMouseScrolledWheel` | `function` | self: { "Engine", "Service" } = "self" | return: sf.Mouse.Wheel | Pure |
-| `getMouseScrolledWheelDelta` | `function` | self: { "Engine", "Service" } = "self" | return: float | Pure |
-| `isMouseWheelPrecise` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `getMouseScrolledWheelPosition` | `function` | self: { "Engine", "Service" } = "self" | return: sf.Vector2i | Pure |
-| `isMouseButtonPressed` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `isMouseButtonReleased` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `getMouseButtonPressed` | `function` | self: { "Engine", "Service" } = "self"; button: sf.Mouse.Button; handled: bool | return: bool | — |
-| `getMouseButtonReleased` | `function` | self: { "Engine", "Service" } = "self"; button: sf.Mouse.Button; handled: bool | return: bool | — |
-| `isMouseMoved` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `getMousePosition` | `function` | self: { "Engine", "Service" } = "self" | return: sf.Vector2i | Pure |
-| `getMouseMovedDelta` | `function` | self: { "Engine", "Service" } = "self" | return: sf.Vector2i | Pure |
-| `setMousePosition` | `function` | self: { "Engine", "Service" } = "self"; position: sf.Vector2i | — | — |
-| `isMouseEntered` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `isMouseLeft` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `isTouchBegan` | `function` | self: { "Engine", "Service" } = "self"; handled: bool | return: bool | — |
-| `isTouchTap` | `function` | self: { "Engine", "Service" } = "self"; handled: bool | return: bool | — |
-| `isTouchLongPressed` | `function` | self: { "Engine", "Service" } = "self"; handled: bool = false | return: bool | — |
-| `getTouchLongPressPosition` | `function` | self: { "Engine", "Service" } = "self" | return: sf.Vector2i | Pure |
-| `isTouchEnded` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `isTouchMoved` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `isTouchActive` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `isTouchDragged` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `getTouchPosition` | `function` | self: { "Engine", "Service" } = "self" | return: sf.Vector2i | Pure |
-| `getTouchBeganPosition` | `function` | self: { "Engine", "Service" } = "self" | return: sf.Vector2i | Pure |
-| `getTouchTapPosition` | `function` | self: { "Engine", "Service" } = "self" | return: sf.Vector2i | Pure |
-| `getTouchEndedPosition` | `function` | self: { "Engine", "Service" } = "self" | return: sf.Vector2i | Pure |
-| `getTouchMovedDelta` | `function` | self: { "Engine", "Service" } = "self" | return: sf.Vector2i | Pure |
-| `isTouchTriggered` | `function` | self: { "Engine", "Service" } = "self"; handled: bool | return: bool | — |
-| `isTouchBlocked` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `cancelTouchGesture` | `function` | self: { "Engine", "Service" } = "self" | — | — |
-| `blockTouch` | `function` | self: { "Engine", "Service" } = "self" | — | — |
-| `unblockTouch` | `function` | self: { "Engine", "Service" } = "self" | — | — |
-| `isJoystickButtonPressed` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `isJoystickButtonReleased` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `isMouseInputMode` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `getJoystickButtonPressed` | `function` | self: { "Engine", "Service" } = "self"; joystickId: int; button: int; handled: bool | return: bool | — |
-| `getJoystickButtonReleased` | `function` | self: { "Engine", "Service" } = "self"; joystickId: int; button: int; handled: bool | return: bool | — |
-| `isJoystickAxisMoved` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `getJoystickAxisMoved` | `function` | self: { "Engine", "Service" } = "self"; joystickId: int; handled: bool | return: { "Engine", "JoystickAxisEvent" } | — |
-| `isJoystickConnected` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `isJoystickDisconnected` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `isKeyTriggered` | `function` | self: { "Engine", "Service" } = "self"; key: sf.Keyboard.Key; alt: bool; ctrl: bool; shift: bool; system: bool; handled: bool; repeatDelay: float; repeatInterval: float | return: bool | — |
-| `isJoystickButtonDown` | `function` | self: { "Engine", "Service" } = "self"; joystickId: int; button: int | return: bool | Pure |
-| `isAnyJoystickButtonDown` | `function` | self: { "Engine", "Service" } = "self"; button: int | return: bool | Pure |
-| `isAnyJoystickButtonTriggered` | `function` | self: { "Engine", "Service" } = "self"; button: int; handled: bool; repeatDelay: float; repeatInterval: float | return: bool | — |
-| `isActionTriggered` | `function` | self: { "Engine", "Service" } = "self"; actionKeys: { "Engine", "InputActionKey[]" }; handled: bool; repeatDelay: float; repeatInterval: float | return: bool | — |
-| `isActionHeld` | `function` | self: { "Engine", "Service" } = "self"; actionKeys: { "Engine", "InputActionKey[]" } | return: bool | Pure |
-| `isMouseButtonTriggered` | `function` | self: { "Engine", "Service" } = "self"; button: sf.Mouse.Button; handled: bool | return: bool | — |
-| `isMouseButtonDown` | `function` | self: { "Engine", "Service" } = "self"; button: sf.Mouse.Button | return: bool | Pure |
-| `getEnteredText` | `function` | self: { "Engine", "Service" } = "self" | return: string | Pure |
-| `isTextEntered` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `isKeyboardBlocked` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `isMouseBlocked` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `isJoystickBlocked` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
-| `blockKeyboard` | `function` | self: { "Engine", "Service" } = "self" | — | — |
-| `blockMouse` | `function` | self: { "Engine", "Service" } = "self" | — | — |
-| `blockJoystick` | `function` | self: { "Engine", "Service" } = "self" | — | — |
-| `unblockKeyboard` | `function` | self: { "Engine", "Service" } = "self" | — | — |
-| `unblockMouse` | `function` | self: { "Engine", "Service" } = "self" | — | — |
-| `unblockJoystick` | `function` | self: { "Engine", "Service" } = "self" | — | — |
-| `blockInput` | `function` | self: { "Engine", "Service" } = "self" | — | — |
-| `unblockInput` | `function` | self: { "Engine", "Service" } = "self" | — | — |
-| `getConfirmKeys` | `function` | self: { "Engine", "Service" } = "self" | return: { "Engine", "InputActionKey[]" } | Pure |
-| `getCancelKeys` | `function` | self: { "Engine", "Service" } = "self" | return: { "Engine", "InputActionKey[]" } | Pure |
-| `getUpKeys` | `function` | self: { "Engine", "Service" } = "self" | return: { "Engine", "InputActionKey[]" } | Pure |
-| `getDownKeys` | `function` | self: { "Engine", "Service" } = "self" | return: { "Engine", "InputActionKey[]" } | Pure |
-| `getLeftKeys` | `function` | self: { "Engine", "Service" } = "self" | return: { "Engine", "InputActionKey[]" } | Pure |
-| `getRightKeys` | `function` | self: { "Engine", "Service" } = "self" | return: { "Engine", "InputActionKey[]" } | Pure |
-| `registerActionMapping` | `function` | self: { "Engine", "Service" } = "self"; object: any; actionName: string; actionKeys: { "Engine", "InputActionKey[]" }; callback: function; triggerOnHold: bool | — | — |
-| `unregisterActionMapping` | `function` | self: { "Engine", "Service" } = "self"; object: any; actionName: string | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `update` | `window: sf.RenderWindow` | — | — |
+| `injectEvent` | `event: Engine.InjectedInputEvent` | — | — |
+| `setUseInjectedMouseOnly` | `value: bool` | — | — |
+| `getInputHintDevice` | — | `Engine.InputHintDevice` | Pure. Blueprint enum: `Enums.Engine.InputHintDevice`. |
+| `isFocused` | — | `bool` | Pure. |
+| `isFocusLost` | — | `bool` | Pure. |
+| `isFocusGained` | — | `bool` | Pure. |
+| `isKeyPressed` | — | `bool` | Pure. |
+| `isKeyReleased` | — | `bool` | Pure. |
+| `getKeyPressed` | `key: sf.Keyboard.Key`, `handled: bool`, `alt: bool`, `ctrl: bool`, `shift: bool`, `system: bool` | `bool` | — |
+| `getScanPressed` | `scan: sf.Keyboard.Scancode`, `handled: bool`, `alt: bool`, `ctrl: bool`, `shift: bool`, `system: bool` | `bool` | — |
+| `getKeyReleased` | `key: sf.Keyboard.Key`, `handled: bool`, `alt: bool`, `ctrl: bool`, `shift: bool`, `system: bool` | `bool` | — |
+| `getScanReleased` | `scan: sf.Keyboard.Scancode`, `handled: bool`, `alt: bool`, `ctrl: bool`, `shift: bool`, `system: bool` | `bool` | — |
+| `isMouseWheelScrolled` | — | `bool` | Pure. |
+| `getMouseScrolledWheel` | — | `sf.Mouse.Wheel` | Pure. |
+| `getMouseScrolledWheelDelta` | — | `float` | Pure. |
+| `isMouseWheelPrecise` | — | `bool` | Pure. |
+| `getMouseScrolledWheelPosition` | — | `sf.Vector2i` | Pure. |
+| `isMouseButtonPressed` | — | `bool` | Pure. |
+| `isMouseButtonReleased` | — | `bool` | Pure. |
+| `getMouseButtonPressed` | `button: sf.Mouse.Button`, `handled: bool` | `bool` | — |
+| `getMouseButtonReleased` | `button: sf.Mouse.Button`, `handled: bool` | `bool` | — |
+| `isMouseMoved` | — | `bool` | Pure. |
+| `getMousePosition` | — | `sf.Vector2i` | Pure. |
+| `getMouseMovedDelta` | — | `sf.Vector2i` | Pure. |
+| `setMousePosition` | `position: sf.Vector2i` | — | — |
+| `isMouseEntered` | — | `bool` | Pure. |
+| `isMouseLeft` | — | `bool` | Pure. |
+| `isTouchBegan` | `handled: bool` | `bool` | — |
+| `isTouchTap` | `handled: bool` | `bool` | — |
+| `isTouchLongPressed` | `handled: bool = false` | `bool` | — |
+| `getTouchLongPressPosition` | — | `sf.Vector2i` | Pure. |
+| `isTouchEnded` | — | `bool` | Pure. |
+| `isTouchMoved` | — | `bool` | Pure. |
+| `isTouchActive` | — | `bool` | Pure. |
+| `isTouchDragged` | — | `bool` | Pure. |
+| `getTouchPosition` | — | `sf.Vector2i` | Pure. |
+| `getTouchBeganPosition` | — | `sf.Vector2i` | Pure. |
+| `getTouchTapPosition` | — | `sf.Vector2i` | Pure. |
+| `getTouchEndedPosition` | — | `sf.Vector2i` | Pure. |
+| `getTouchMovedDelta` | — | `sf.Vector2i` | Pure. |
+| `isTouchTriggered` | `handled: bool` | `bool` | — |
+| `isTouchBlocked` | — | `bool` | Pure. |
+| `cancelTouchGesture` | — | — | — |
+| `blockTouch` | — | — | — |
+| `unblockTouch` | — | — | — |
+| `isJoystickButtonPressed` | — | `bool` | Pure. |
+| `isJoystickButtonReleased` | — | `bool` | Pure. |
+| `isMouseInputMode` | — | `bool` | Pure. |
+| `getJoystickButtonPressed` | `joystickId: int`, `button: int`, `handled: bool` | `bool` | — |
+| `getJoystickButtonReleased` | `joystickId: int`, `button: int`, `handled: bool` | `bool` | — |
+| `isJoystickAxisMoved` | — | `bool` | Pure. |
+| `getJoystickAxisMoved` | `joystickId: int`, `handled: bool` | `Engine.JoystickAxisEvent` | — |
+| `isJoystickConnected` | — | `bool` | Pure. |
+| `isJoystickDisconnected` | — | `bool` | Pure. |
+| `isKeyTriggered` | `key: sf.Keyboard.Key`, `alt: bool`, `ctrl: bool`, `shift: bool`, `system: bool`, `handled: bool`, `repeatDelay: float`, `repeatInterval: float` | `bool` | — |
+| `isJoystickButtonDown` | `joystickId: int`, `button: int` | `bool` | Pure. |
+| `isAnyJoystickButtonDown` | `button: int` | `bool` | Pure. |
+| `isAnyJoystickButtonTriggered` | `button: int`, `handled: bool`, `repeatDelay: float`, `repeatInterval: float` | `bool` | — |
+| `isActionTriggered` | `actionKeys: Engine.InputActionKey[]`, `handled: bool`, `repeatDelay: float`, `repeatInterval: float` | `bool` | — |
+| `isActionHeld` | `actionKeys: Engine.InputActionKey[]` | `bool` | Pure. |
+| `isMouseButtonTriggered` | `button: sf.Mouse.Button`, `handled: bool` | `bool` | — |
+| `isMouseButtonDown` | `button: sf.Mouse.Button` | `bool` | Pure. |
+| `getEnteredText` | — | `string` | Pure. |
+| `isTextEntered` | — | `bool` | Pure. |
+| `isKeyboardBlocked` | — | `bool` | Pure. |
+| `isMouseBlocked` | — | `bool` | Pure. |
+| `isJoystickBlocked` | — | `bool` | Pure. |
+| `blockKeyboard` | — | — | — |
+| `blockMouse` | — | — | — |
+| `blockJoystick` | — | — | — |
+| `unblockKeyboard` | — | — | — |
+| `unblockMouse` | — | — | — |
+| `unblockJoystick` | — | — | — |
+| `blockInput` | — | — | — |
+| `unblockInput` | — | — | — |
+| `getConfirmKeys` | — | `Engine.InputActionKey[]` | Pure. |
+| `getCancelKeys` | — | `Engine.InputActionKey[]` | Pure. |
+| `getUpKeys` | — | `Engine.InputActionKey[]` | Pure. |
+| `getDownKeys` | — | `Engine.InputActionKey[]` | Pure. |
+| `getLeftKeys` | — | `Engine.InputActionKey[]` | Pure. |
+| `getRightKeys` | — | `Engine.InputActionKey[]` | Pure. |
+| `registerActionMapping` | `object: any`, `actionName: string`, `actionKeys: Engine.InputActionKey[]`, `callback: function`, `triggerOnHold: bool` | — | — |
+| `unregisterActionMapping` | `object: any`, `actionName: string` | — | — |

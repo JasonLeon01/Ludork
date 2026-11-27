@@ -1,14 +1,14 @@
 # GlobalFunctions.GameMap
 
-`GameMap` 声明 Actor 查找节点。
+`GlobalFunctions.GameMap` 提供用于在当前活动地图上查找 Actor 的纯函数蓝图节点。
 
-Metadata 来源：`Scripts/GlobalFunctions/GameMap_meta.lua`
+**元数据来源**：`Scripts/GlobalFunctions/GameMap_meta.lua`
 
 ## GameMap
 
 ### 函数与事件
 
-| 名称 | 种类 | 参数 | 返回 | 执行语义与 metadata |
-|---|---|---|---|---|
-| `GetActorByTag` | `function` | tag: string | actor: { "Engine", "Actor" } | Pure |
-| `GetAllActors` | `function` | — | actors: { "Engine", "Actor[]" } | Pure |
+| 函数 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `GetActorByTag` | `tag: string` | `actor: Engine.Actor` | 纯函数（Pure）。返回当前活动地图中与 `tag` 匹配的 Actor。 |
+| `GetAllActors` | — | `actors: Engine.Actor[]` | 纯函数（Pure）。返回当前活动地图上的全部 Actor。 |

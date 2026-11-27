@@ -1,61 +1,59 @@
 # Official Blueprint AI
 
-Configure the official Blueprint AI plug-in, discuss changes to one Blueprint and review its proposal before applying it.
-
-The plug-in ID is `Ludork.OfficialBlueprintAI`; its repository source is `Plugins/OfficialBlueprintAI`. Open it through **Game → Blueprint AI**.
+Configure the official Blueprint AI plug-in (`Ludork.OfficialBlueprintAI`, source in `Plugins/OfficialBlueprintAI`) to inspect your project, discuss changes to one existing Blueprint and review a validated diff before applying it. Open the assistant from **Game → Blueprint AI**.
 
 ## Workflow
 
-1. Install the plug-in as described in [Installing and Managing Plug-ins](<../Installing and Managing Plug-ins.md#official-release-plug-ins>).
+1. Install the official plug-ins as described in [Official release plug-ins](<../Installing and Managing Plug-ins.md#official-release-plug-ins>).
 2. Open a project and select **Game → Blueprint AI**.
-3. Configure the provider, model, endpoint and secret from **Settings**.
-4. Create a conversation for one existing Blueprint and review the staged proposal and generated diff.
-5. Select **Apply** only after validation succeeds, then use the normal project Save command when you are ready to write the change to disk.
+3. Open **Settings** to configure your provider, model, endpoint and API key.
+4. Select **New** to create a conversation bound to one existing Blueprint, then review any staged proposal and generated diff.
+5. Select **Apply** after validation succeeds, then use the normal project Save command when ready to write the change to disk.
 
 ## Local data
 
-Settings and conversation history are stored in `.data/Ludork.OfficialBlueprintAI` beneath the global plug-in root. Uninstalling the plug-in retains this data. See [Data and uninstall](<../Installing and Managing Plug-ins.md#data-and-uninstall>) for storage locations and removal.
+Settings and conversation history are stored under `~/Ludork/Plugins/.data/Ludork.OfficialBlueprintAI`. Uninstalling the plug-in retains this directory; see [Data and uninstall](<../Installing and Managing Plug-ins.md#data-and-uninstall>) for storage paths and explicit removal.
 
 ## Scope and permissions
 
-Each conversation is bound to one project and one existing Blueprint. The assistant can inspect other Blueprints, Lua metadata and allowlisted Lua/C/C++ source files to understand the available APIs, and search and read official engine documentation. It cannot create, rename or delete Blueprints, modify more than one Blueprint, write source code, run a shell or start processes.
+- **Read scope:** Each conversation binds to one project and one existing Blueprint. The assistant can inspect other Blueprints, Lua metadata, allowlisted Lua/C/C++ source files and official Ludork documentation to understand available APIs.
+- **Write boundaries:** The assistant cannot create, rename or delete Blueprints, edit multiple Blueprints, modify source code, run shell commands or start processes.
+- **Review and Apply:** The model can only stage a Blueprint proposal; the editor validates the candidate and renders a generated diff, changing nothing until you select **Apply**. Applying re-reads the editor's working copy, verifies its base revision, records one normal Undo step, marks the project dirty and refreshes all open editors for that Blueprint without saving to disk.
 
-The model can only stage a Blueprint proposal. The editor validates the candidate and shows a generated diff. Nothing changes until the user selects **Apply**. Apply re-reads the editor working copy and compares its revision with the proposal base. A successful Apply creates one normal Undo step, leaves the project dirty and refreshes every open editor for that Blueprint. The Blueprint is not written to disk until the normal project Save operation.
-
-Plug-ins are trusted in-process code and are not an operating-system sandbox. The official assistant's model-facing capability surface and the editor's session and Apply boundaries enforce the restrictions above.
+> **Note:** Plug-ins run as trusted in-process code rather than inside an operating-system sandbox. The restrictions above are enforced by the official assistant's model-facing tool surface together with the editor's session and Apply boundaries.
 
 ## Provider settings and credentials
 
-Open **Settings** in the Blueprint AI window to choose a provider, model and endpoint. OpenAI uses the Responses API. DeepSeek, Google OpenAI-compatible and Custom profiles use an OpenAI-compatible Chat endpoint. The model and endpoint fields remain editable, so a plug-in update is not required for every model release.
+Open **Settings** in the Blueprint AI window to configure a provider profile, model and endpoint:
 
-An endpoint must be an absolute HTTPS URL. Plain HTTP is accepted only for a loopback address used during local development. Credentials, query strings and fragments are not accepted in endpoint URLs.
-
-API keys use the [host secret store](<../Avalonia UI Secrets and Localisation.md#store-secrets>) and are not written to `settings.json`. The settings window displays a stored key as its first three characters, a fixed mask and its final three characters. Short keys are fully hidden. The credential changes only when a new value is entered or removal is explicitly selected. Provider availability is outside Ludork's control.
+- **Supported profiles:** OpenAI uses the Responses API; DeepSeek, Google OpenAI-compatible and Custom profiles use an OpenAI-compatible Chat Completions endpoint. Model and endpoint fields remain editable so new model releases need no plug-in update.
+- **Endpoint validation:** Endpoints must be absolute `https://` URLs without embedded credentials, query strings or fragments. Plain `http://` is permitted only for loopback addresses during local development.
+- **API keys:** Keys are stored in the [host secret store](<../Avalonia UI Secrets and Localisation.md#store-secrets>) and never written to `settings.json`. The UI shows only the first three and last three characters separated by a fixed mask (short keys are completely hidden), and updates a stored credential only when you enter a new value or explicitly remove it. Provider availability is outside Ludork's control.
 
 ## Local conversations and provider state
 
-The local index and the append-only JSONL records under the plug-in data directory are the authoritative conversation history. They contain messages, model snapshots, compact tool activity and proposal decisions. They never contain the API key or complete source-file reads.
+The local index and append-only JSONL files in the plug-in data directory are the authoritative conversation history. They store messages, model snapshots, compact tool activity and proposal decisions, and never record API keys or full source-file reads.
 
-OpenAI Responses requests use `store:false`, and the plug-in does not rely on provider-side conversation storage. For a long conversation, only a rolling summary and recent messages are placed in the next provider request. This request-context compaction does not delete or replace the complete local history.
+OpenAI Responses requests set `store:false`, avoiding reliance on provider-side conversation state. For long conversations, only a rolling summary and recent messages are sent in subsequent requests; this context compaction never deletes or alters the complete local history.
 
-An unfinished request is recorded as interrupted. Its completed local records remain available after a restart, but the in-flight request is not resumed automatically.
+An interrupted request is recorded as interrupted: completed local entries survive restart, while the in-flight network request is never resumed automatically.
 
 ## Project source inspection
 
-Project search and file reading only accept project-relative paths under the configured runtime and API source roots, with supported text extensions. Build outputs, logs, VCS data, INI/plist configuration files, plug-in data, credentials and paths outside the project are rejected. Symbolic links, broken links and reparse points are rejected throughout the path, including the project root. File-system failures during reading or searching are returned as tool errors. File contents are treated as data, not as instructions that can expand assistant permissions.
+Project search and file reads accept only project-relative paths under the configured runtime and API source roots with supported text extensions. Build outputs, logs, version-control metadata, INI/plist configs, plug-in data, credentials and out-of-project paths are rejected, as are symbolic links, broken links and reparse points anywhere in the path (including the project root). Filesystem failures return tool errors, and file contents are treated strictly as data rather than instructions that can expand permissions.
 
 ## Official documentation
 
-The assistant can search and read the development or release documentation selected by the editor, in the editor's current language. It follows the same [version selection as the online manual](<../../Editor User Guide/Start Page Workspace and Shortcuts.md#online-documentation>). Results include links to the source pages.
+The assistant searches and reads the development or release documentation selected by the editor in the editor's active language, matching the [online documentation](<../../Editor User Guide/Start Page Workspace and Shortcuts.md#online-documentation>) version rules and returning links to the source pages.
 
-If the matching documentation is unavailable, the assistant reports the problem without using a different version or language. The current project's API catalogue and metadata remain authoritative for concrete nodes, types, serialised names and pins. Public documentation methods are listed in [Registration and Hook Reference](<../Registration and Hook Reference.md#blueprint-assistants>).
+If the matching documentation index is unavailable, the assistant reports the failure without falling back to another version or language. The current project's API catalogue and metadata remain authoritative for concrete nodes, types, serialised names and pins. See [Blueprint assistants](<../Registration and Hook Reference.md#blueprint-assistants>) for the underlying host API.
 
 ## Troubleshooting
 
-- **Blueprint AI is missing from Game:** follow [Installing and Managing Plug-ins](<../Installing and Managing Plug-ins.md#official-release-plug-ins>), restart the editor and inspect **Plugins → Manage Plugins** for registration or load diagnostics.
-- **No project or Blueprint is available:** open a project first. The host bridge is unavailable outside a project window. A project also needs at least one existing Blueprint. Opening the plug-in does not choose a target; the selector appears only after selecting **New**.
-- **The target was renamed or deleted:** the old conversation remains readable, but its target cannot be switched silently. Create a new conversation for an existing Blueprint.
-- **The API key is missing or the server returns 401:** replace the key in Settings and check that it belongs to the selected provider or profile. Also verify the endpoint and any OpenAI organisation or project values. The UI shows only a masked value, never the complete stored key.
-- **Connection or endpoint errors:** use an absolute HTTPS base endpoint without embedded credentials, a query or a fragment. Check DNS, proxy, firewall and TLS settings. Plain HTTP is intentionally limited to loopback development endpoints.
-- **Apply reports a revision conflict:** the Blueprint changed after the proposal recorded its base revision. The editor refuses to overwrite it. Discard the proposal, review the current Blueprint and start a new conversation or request.
-- **History shows interrupted:** the editor, window or request was stopped before completion. The local history remains authoritative. Send a new request when ready instead of expecting the previous network stream to resume.
+- **Blueprint AI is missing from Game:** Install the [official release plug-ins](<../Installing and Managing Plug-ins.md#official-release-plug-ins>), restart Ludork and inspect **Plug-ins → Manage Plug-ins** for registration or load diagnostics.
+- **No project or Blueprint is available:** Open a project containing at least one existing Blueprint (the host bridge is unavailable outside a project window). Opening the window does not select a target automatically; click **New** to choose one.
+- **The target was renamed or deleted:** The existing conversation stays readable, but its target cannot be reassigned silently. Start a new conversation for an existing Blueprint.
+- **Missing API key or HTTP 401:** Re-enter the API key in **Settings** and confirm it matches the chosen provider, endpoint and any OpenAI **Organisation** or **Project** values. The UI never displays the full stored key.
+- **Connection or endpoint errors:** Supply an absolute `https://` base URL without embedded credentials, query parameters or fragments, and check DNS, proxy, firewall and TLS settings (plain `http://` works only for loopback endpoints).
+- **Apply reports a revision conflict:** The Blueprint changed after the proposal captured its base revision. Discard the proposal, inspect the updated Blueprint and start a new request or conversation.
+- **History shows interrupted:** The request, window or editor stopped before completion. Local history remains intact; send a new request rather than expecting the previous stream to resume.

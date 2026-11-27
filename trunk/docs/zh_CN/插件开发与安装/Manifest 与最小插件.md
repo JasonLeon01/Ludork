@@ -1,25 +1,25 @@
 # Manifest 与最小插件
 
-从生成的 C# 13 模板开始，或手写一个为帮助菜单添加命令、能被 Ludork 1.0.0 引入的完整源码插件。
+你可以直接在编辑器中生成 C# 13 插件模板，也可以从零手写一个适用于 Ludork 1.0.0 及以上版本、向**帮助**菜单添加命令的最小源码插件。
 
-## 前置条件
+## 环境要求
 
-- 如需 IDE 项目诊断与本地编译，准备 .NET 9 SDK。
-- 可以从本仓库或编辑器开发包访问 `Ludork.Plugin.Abstractions`。
-- 在有效作用域内唯一的插件 ID，以及 CLR 命名空间。
+- .NET 9 SDK（可选；仅在使用 `.csproj` 文件进行 IDE 诊断与本地编译时需要）。
+- 可从 Ludork 仓库或编辑器开发包访问 `Ludork.Plugin.Abstractions`。
+- 在有效作用域内唯一的插件 ID 以及对应的 CLR 命名空间。
 
 ## 自动生成模板
 
-**插件 → 插件管理 → 新建插件...** 会在所选的全局或当前项目作用域下创建以下源码目录：
+打开**插件 → 插件管理**并点击**新建插件...**，编辑器会在所选的全局或当前项目作用域下生成可直接编辑的插件目录：
 
 ```text
-<插件 ID>/
+<plugin-id>/
 ├── plugin.json
 ├── Plugin.cs
-└── PluginWindow.cs   （仅带界面）
+└── PluginWindow.cs   （仅“带界面”模板）
 ```
 
-生成的 manifest 使用版本 `1.0.0`，`minimumEditorVersion` 为当前编辑器版本，`entryType` 为 `Ludork.UserPlugins.Plugin`。每个插件独立编译为程序集，因此不同模板可以使用相同的 CLR 类型名。入口类为：
+生成的清单默认将 `version` 设为 `1.0.0`、`minimumEditorVersion` 设为当前编辑器版本、`entryType` 设为 `Ludork.UserPlugins.Plugin`。由于每个插件都会编译为独立程序集，不同生成模板可以共用该 CLR 类型名：
 
 ```csharp
 using Ludork.Plugin.Abstractions;
@@ -34,11 +34,11 @@ public sealed class Plugin : IEditorPlugin
 }
 ```
 
-默认的 **带界面** 模板还会生成独立的 `PluginWindow : Window` 类，并应用宿主主题。**不带界面** 只生成 manifest 与入口类。两种模板都不会注册命令，窗口也不会自动打开。不生成 XAML 或 IDE 项目。添加业务逻辑与注册代码后，重启以加载修改后的源码。
+**带界面**模板（默认）会额外生成一个继承宿主主题的独立 `PluginWindow : Window` 类；**不带界面**模板仅生成 `plugin.json` 与 `Plugin.cs`。两种模板都不会自动注册命令、打开窗口，也不会生成 XAML 或 `.csproj` 文件。添加注册代码与业务逻辑后，重启 Ludork 即可加载更新后的源码。
 
 ## 手写命令示例
 
-下面的完整示例会添加一条帮助菜单命令，可选的项目文件用于 IDE 诊断。
+下面的完整示例创建一个向**帮助**菜单添加一条命令的源码插件，并附带可选的 `.csproj` 文件用于 IDE 分析。
 
 ### 源码目录
 
@@ -49,7 +49,7 @@ MyPlugin/
 └── MyPlugin.csproj
 ```
 
-插件只有源码目录这一种格式。源码按相对路径顺序编译，采用 C# 13，启用 nullable，允许 unsafe，并使用 Release 优化。宿主不还原 NuGet 包，也不加载预构建的入口程序集。
+Ludork 仅支持单一的源码目录插件格式。编辑器按相对路径顺序使用 C# 13 编译全部 `.cs` 文件，默认启用可空引用类型、允许 `unsafe` 并开启 Release 优化。宿主不会还原 NuGet 包，也不会加载预编译的入口程序集。
 
 ### 编写 `plugin.json`
 
@@ -57,7 +57,7 @@ MyPlugin/
 {
   "schemaVersion": 1,
   "id": "Example.MyPlugin",
-  "name": "My Plugin",
+  "name": "My Plug-in",
   "version": "1.0.0",
   "minimumEditorVersion": "1.0.0",
   "entryType": "Example.MyPlugin.Plugin"
@@ -66,14 +66,14 @@ MyPlugin/
 
 | 字段 | 契约 |
 |---|---|
-| `schemaVersion` | manifest 使用的 schema；取值必须等于 `1` |
-| `id` | 只含字母、数字、点、连字符或下划线的标识 |
-| `name` | 非空显示名 |
-| `version` | 能被 .NET `Version` 解析的版本 |
-| `minimumEditorVersion` | 按 .NET `Version` 解析的最低编辑器版本 |
+| `schemaVersion` | 清单 Schema 版本，必须等于 `1` |
+| `id` | 仅含 ASCII 字母、数字、点、连字符或下划线的唯一标识符 |
+| `name` | 非空显示名称 |
+| `version` | 可被 .NET `Version` 解析的版本字符串 |
+| `minimumEditorVersion` | 可被 .NET `Version` 解析的最低编辑器版本 |
 | `entryType` | 带命名空间限定的 CLR 类型名，区分大小写匹配 |
 
-JSON 属性名区分大小写。
+所有 JSON 属性名均区分大小写。
 
 ### 添加入口类型
 
@@ -111,7 +111,7 @@ public sealed class Plugin : IEditorPlugin
 }
 ```
 
-入口类型必须公开、非抽象、实现 `IEditorPlugin`，并提供公开的无参构造函数。插件 ID 和命令 ID 必须在有效的“全局＋当前项目”集合内唯一；不同项目作用域可以使用相同 ID。
+入口类型必须为 `public`、非抽象、实现 `IEditorPlugin` 并提供公共无参构造函数。插件 ID 与命令 ID 必须在有效的“全局＋当前项目”集合内保持唯一；不同项目作用域之间允许复用相同 ID。
 
 ### 添加可选的 IDE 项目
 
@@ -131,8 +131,8 @@ public sealed class Plugin : IEditorPlugin
 </Project>
 ```
 
-按实际的源码布局调整该引用。仓库里的官方插件位于 `Plugins`，因此这一相对路径指向 `Editor/Ludork.Plugin.Abstractions`。该项目只供 IDE 分析使用。运行时需要的所有源码都必须留在引入目录内，并使用宿主提供的依赖项。
+请按实际检出目录布局调整相对路径（仓库内位于 `Plugins/` 下的官方插件通过 `..\..` 引用 `Editor/Ludork.Plugin.Abstractions`）。该项目文件仅用于 IDE 诊断：所有运行时 `.cs` 源码都必须位于被引入的插件目录内，并仅依赖宿主提供的程序集引用。
 
 ### 引入并重启
 
-[引入完整的 `MyPlugin` 目录后重启 Ludork](<安装与管理插件.md#引入第三方插件>)。
+完成后，请[引入完整的 `MyPlugin` 目录并重启 Ludork](<安装与管理插件.md#引入第三方插件>)。

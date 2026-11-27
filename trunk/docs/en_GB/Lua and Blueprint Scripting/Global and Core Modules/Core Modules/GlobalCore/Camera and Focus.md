@@ -1,102 +1,114 @@
 # GlobalCore: Camera and Focus
 
+This page documents `Camera`, floating tip notifications (`CommonTipController`) and keyboard/gamepad UI focus navigation (`FocusNeighbor`, `FocusGroup`, `FocusManager`). Instance method tables omit the implicit `self` receiver exposed as the first Blueprint target pin.
+
 ## Camera
+
+Controls the map view transform, viewport, Actor attachment, bound map and offscreen render texture.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `setViewport` | `function` | self: { "GlobalCore", "Camera" } = "self"; inViewport: sf.FloatRect | — | ExecSplit { [1] = "default", default = nil } |
-| `getView` | `function` | self: { "GlobalCore", "Camera" } = "self" | view: sf.View | Pure |
-| `getViewPosition` | `function` | self: { "GlobalCore", "Camera" } = "self" | position: sf.Vector2f | Pure |
-| `setViewPosition` | `function` | self: { "GlobalCore", "Camera" } = "self"; inPosition: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
-| `getViewSize` | `function` | self: { "GlobalCore", "Camera" } = "self" | size: sf.Vector2f | Pure |
-| `setViewSize` | `function` | self: { "GlobalCore", "Camera" } = "self"; inSize: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
-| `getViewRotation` | `function` | self: { "GlobalCore", "Camera" } = "self" | rotation: sf.Angle | Pure |
-| `setViewRotation` | `function` | self: { "GlobalCore", "Camera" } = "self"; inRotation: sf.Angle | — | ExecSplit { [1] = "default", default = nil } |
-| `moveView` | `function` | self: { "GlobalCore", "Camera" } = "self"; delta: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
-| `rotateView` | `function` | self: { "GlobalCore", "Camera" } = "self"; delta: sf.Angle | — | ExecSplit { [1] = "default", default = nil } |
-| `resumeViewport` | `function` | self: { "GlobalCore", "Camera" } = "self" | — | ExecSplit { [1] = "default", default = nil } |
-| `getPosition` | `function` | self: { "GlobalCore", "Camera" } = "self" | position: sf.Vector2f | Pure |
-| `setPosition` | `function` | self: { "GlobalCore", "Camera" } = "self"; inPosition: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
-| `move` | `function` | self: { "GlobalCore", "Camera" } = "self"; delta: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
-| `getRotation` | `function` | self: { "GlobalCore", "Camera" } = "self" | rotation: sf.Angle | Pure |
-| `setRotation` | `function` | self: { "GlobalCore", "Camera" } = "self"; inRotation: sf.Angle | — | ExecSplit { [1] = "default", default = nil } |
-| `rotate` | `function` | self: { "GlobalCore", "Camera" } = "self"; delta: sf.Angle | — | ExecSplit { [1] = "default", default = nil } |
-| `getScale` | `function` | self: { "GlobalCore", "Camera" } = "self" | scale: sf.Vector2f | Pure |
-| `setScale` | `function` | self: { "GlobalCore", "Camera" } = "self"; factors: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
-| `scale` | `function` | self: { "GlobalCore", "Camera" } = "self"; delta: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
-| `getParent` | `function` | self: { "GlobalCore", "Camera" } = "self" | parent: { "Engine", "Actor" } | Pure |
-| `setParent` | `function` | self: { "GlobalCore", "Camera" } = "self"; actor: { "Engine", "Actor" } | — | ExecSplit { [1] = "default", default = nil } |
-| `setMap` | `function` | self: { "GlobalCore", "Camera" } = "self"; map: { "GlobalCore", "GameMapBase" } | — | ExecSplit { [1] = "default", default = nil } |
-| `getMap` | `function` | self: { "GlobalCore", "Camera" } = "self" | map: { "GlobalCore", "GameMapBase" } | Pure |
-| `mapPixelToCoords` | `function` | self: { "GlobalCore", "Camera" } = "self"; point: sf.Vector2i | return: sf.Vector2f | — |
-| `mapCoordsToPixel` | `function` | self: { "GlobalCore", "Camera" } = "self"; point: sf.Vector2f | return: sf.Vector2i | — |
-| `getRenderTexture` | `function` | self: { "GlobalCore", "Camera" } = "self" | renderTexture: sf.RenderTexture | Pure |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `setViewport` | `inViewport: sf.FloatRect` | — | Exec (`default`). |
+| `getView` | — | `view: sf.View` | Pure. |
+| `getViewPosition` | — | `position: sf.Vector2f` | Pure. |
+| `setViewPosition` | `inPosition: sf.Vector2f` | — | Exec (`default`). |
+| `getViewSize` | — | `size: sf.Vector2f` | Pure. |
+| `setViewSize` | `inSize: sf.Vector2f` | — | Exec (`default`). |
+| `getViewRotation` | — | `rotation: sf.Angle` | Pure. |
+| `setViewRotation` | `inRotation: sf.Angle` | — | Exec (`default`). |
+| `moveView` | `delta: sf.Vector2f` | — | Exec (`default`). |
+| `rotateView` | `delta: sf.Angle` | — | Exec (`default`). |
+| `resumeViewport` | — | — | Exec (`default`). |
+| `getPosition` | — | `position: sf.Vector2f` | Pure. |
+| `setPosition` | `inPosition: sf.Vector2f` | — | Exec (`default`). |
+| `move` | `delta: sf.Vector2f` | — | Exec (`default`). |
+| `getRotation` | — | `rotation: sf.Angle` | Pure. |
+| `setRotation` | `inRotation: sf.Angle` | — | Exec (`default`). |
+| `rotate` | `delta: sf.Angle` | — | Exec (`default`). |
+| `getScale` | — | `scale: sf.Vector2f` | Pure. |
+| `setScale` | `factors: sf.Vector2f` | — | Exec (`default`). |
+| `scale` | `delta: sf.Vector2f` | — | Exec (`default`). |
+| `getParent` | — | `parent: Engine.Actor` | Pure. |
+| `setParent` | `actor: Engine.Actor` | — | Exec (`default`). |
+| `setMap` | `map: GlobalCore.GameMapBase` | — | Exec (`default`). |
+| `getMap` | — | `map: GlobalCore.GameMapBase` | Pure. |
+| `mapPixelToCoords` | `point: sf.Vector2i` | `sf.Vector2f` | — |
+| `mapCoordsToPixel` | `point: sf.Vector2f` | `sf.Vector2i` | — |
+| `getRenderTexture` | — | `renderTexture: sf.RenderTexture` | Pure. |
 
 ## CommonTipController
 
+Manages transient on-screen text tip banners.
+
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `addTip` | `function` | self: { "GlobalCore", "CommonTipController" } = "self"; text: string | — | — |
-| `onTick` | `function` | self: { "GlobalCore", "CommonTipController" } = "self"; deltaTime: float | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `addTip` | `text: string` | — | — |
+| `onTick` | `deltaTime: float` | — | — |
 
 ## FocusNeighbor
 
+Describes a directional navigation edge from one `FocusGroup` to a neighbouring group.
+
 ### Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
-| `group` | `{ "GlobalCore", "FocusGroup" }` | — | — |
+| `group` | `GlobalCore.FocusGroup` | — | Non-owning reference. |
 | `transition` | `string` | — | — |
 
-The `group` field is non-owning, so the `FocusManager` or the caller must retain its target. If the target is destroyed, the field reads as `nil` and the edge is ignored. Reciprocal neighbours do not extend the lifetime of either side.
+> **Note:** `group` is non-owning, so `FocusManager` or the caller must retain the target group. If the target is destroyed, `group` reads as `nil` and the edge is ignored. Reciprocal neighbours do not extend each other's lifetimes.
 
 ## FocusGroup
 
+Groups focusable `Engine.FunctionalBase` controls and defines directional transitions between neighbouring groups.
+
 ### Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
 | `name` | `string` | — | — |
-| `activeOwner` | `{ "Engine", "FunctionalBase" }` | — | — |
+| `activeOwner` | `Engine.FunctionalBase` | — | — |
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `addItem` | `function` | self: { "GlobalCore", "FocusGroup" } = "self"; item: { "Engine", "FunctionalBase" } | — | — |
-| `removeItem` | `function` | self: { "GlobalCore", "FocusGroup" } = "self"; item: { "Engine", "FunctionalBase" } | — | — |
-| `getItems` | `function` | self: { "GlobalCore", "FocusGroup" } = "self" | return: { "Engine", "FunctionalBase[]" } | — |
-| `setNeighbor` | `function` | self: { "GlobalCore", "FocusGroup" } = "self"; direction: string; neighbor: { "GlobalCore", "FocusGroup" }; transition: string = "directional" | — | — |
-| `getNeighbor` | `function` | self: { "GlobalCore", "FocusGroup" } = "self"; direction: string | return: { "GlobalCore", "FocusNeighbor" } | — |
-| `canEnter` | `function` | self: { "GlobalCore", "FocusGroup" } = "self" | return: bool | — |
-| `findInitialFocus` | `function` | self: { "GlobalCore", "FocusGroup" } = "self" | return: { "Engine", "FunctionalBase" } | — |
-| `rememberFocus` | `function` | self: { "GlobalCore", "FocusGroup" } = "self"; element: { "Engine", "FunctionalBase" } | — | — |
-| `moveWithin` | `function` | self: { "GlobalCore", "FocusGroup" } = "self"; current: { "Engine", "FunctionalBase" }; direction: string | return: { "Engine", "FunctionalBase" } | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `addItem` | `item: Engine.FunctionalBase` | — | — |
+| `removeItem` | `item: Engine.FunctionalBase` | — | — |
+| `getItems` | — | `Engine.FunctionalBase[]` | — |
+| `setNeighbor` | `direction: string`, `neighbor: GlobalCore.FocusGroup`, `transition: string = "directional"` | — | — |
+| `getNeighbor` | `direction: string` | `GlobalCore.FocusNeighbor` | — |
+| `canEnter` | — | `bool` | — |
+| `findInitialFocus` | — | `Engine.FunctionalBase` | — |
+| `rememberFocus` | `element: Engine.FunctionalBase` | — | — |
+| `moveWithin` | `current: Engine.FunctionalBase`, `direction: string` | `Engine.FunctionalBase` | — |
 
 ## FocusManager
 
+Coordinates active keyboard and gamepad focus across registered UI elements and `FocusGroup` instances.
+
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `setNavigationEnabled` | `function` | self: { "GlobalCore", "FocusManager" } = "self"; enabled: bool | — | — |
-| `getNavigationEnabled` | `function` | self: { "GlobalCore", "FocusManager" } = "self" | return: bool | — |
-| `isRoutingKeyboard` | `function` | self: { "GlobalCore", "FocusManager" } = "self" | return: bool | — |
-| `registerElement` | `function` | self: { "GlobalCore", "FocusManager" } = "self"; element: { "Engine", "FunctionalBase" } | — | — |
-| `unregisterElement` | `function` | self: { "GlobalCore", "FocusManager" } = "self"; element: { "Engine", "FunctionalBase" } | — | — |
-| `registerFocusGroup` | `function` | self: { "GlobalCore", "FocusManager" } = "self"; group: { "GlobalCore", "FocusGroup" } | — | — |
-| `unregisterFocusGroup` | `function` | self: { "GlobalCore", "FocusManager" } = "self"; group: { "GlobalCore", "FocusGroup" } | — | — |
-| `getFocus` | `function` | self: { "GlobalCore", "FocusManager" } = "self" | return: { "Engine", "FunctionalBase" } | — |
-| `setFocus` | `function` | self: { "GlobalCore", "FocusManager" } = "self"; element: { "Engine", "FunctionalBase" } | return: bool | — |
-| `clearFocus` | `function` | self: { "GlobalCore", "FocusManager" } = "self" | — | — |
-| `prepareFrame` | `function` | self: { "GlobalCore", "FocusManager" } = "self" | — | — |
-| `shouldDispatchKeyboardTo` | `function` | self: { "GlobalCore", "FocusManager" } = "self"; element: { "Engine", "FunctionalBase" } | return: bool | — |
-| `isFocused` | `function` | self: { "GlobalCore", "FocusManager" } = "self"; element: { "Engine", "FunctionalBase" } | return: bool | — |
-| `isCursorFocusOwner` | `function` | self: { "GlobalCore", "FocusManager" } = "self"; element: { "Engine", "FunctionalBase" } | return: bool | — |
-| `requestDirectionalMove` | `function` | self: { "GlobalCore", "FocusManager" } = "self"; element: { "Engine", "FunctionalBase" }; direction: string | return: bool | — |
-| `moveFocus` | `function` | self: { "GlobalCore", "FocusManager" } = "self"; direction: string; source: { "Engine", "FunctionalBase" } = nil | return: bool | — |
-| `activateGroup` | `function` | self: { "GlobalCore", "FocusManager" } = "self"; group: { "GlobalCore", "FocusGroup" } | return: bool | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `setNavigationEnabled` | `enabled: bool` | — | — |
+| `getNavigationEnabled` | — | `bool` | — |
+| `isRoutingKeyboard` | — | `bool` | — |
+| `registerElement` | `element: Engine.FunctionalBase` | — | — |
+| `unregisterElement` | `element: Engine.FunctionalBase` | — | — |
+| `registerFocusGroup` | `group: GlobalCore.FocusGroup` | — | — |
+| `unregisterFocusGroup` | `group: GlobalCore.FocusGroup` | — | — |
+| `getFocus` | — | `Engine.FunctionalBase` | — |
+| `setFocus` | `element: Engine.FunctionalBase` | `bool` | — |
+| `clearFocus` | — | — | — |
+| `prepareFrame` | — | — | — |
+| `shouldDispatchKeyboardTo` | `element: Engine.FunctionalBase` | `bool` | — |
+| `isFocused` | `element: Engine.FunctionalBase` | `bool` | — |
+| `isCursorFocusOwner` | `element: Engine.FunctionalBase` | `bool` | — |
+| `requestDirectionalMove` | `element: Engine.FunctionalBase`, `direction: string` | `bool` | — |
+| `moveFocus` | `direction: string`, `source: Engine.FunctionalBase = nil` | `bool` | — |
+| `activateGroup` | `group: GlobalCore.FocusGroup` | `bool` | — |

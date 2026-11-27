@@ -1,135 +1,145 @@
 # Engine: Interactive and Declarative UI Controls
 
+This page documents interactive UI controls (`TextBox`, `CheckBox`, `DropBox`, `TabView`, `GamepadHintBar`, `ProgressBar`, `Slider`), the pie-slice graphic primitive (`SectorShape`) and instantiated declarative UI handles (`AssetInstance`). Instance method tables omit the implicit `self` receiver, which Blueprint nodes expose as the first target pin (defaulting to the graph owner when unset); static constructors (`new`) take no receiver.
+
 ## TextBox
 
-The method table lists Lua business arguments. Each Blueprint instance-method node also keeps its first `self: Engine.TextBox` input, defaulting to the graph owner when unset. The static `new` constructor has no receiver.
+**Inherits:** `Engine.ControlBase`, `Engine.FunctionalBase`
 
-Direct metadata bases: `{ "Engine", "ControlBase" }`, `{ "Engine", "FunctionalBase" }`
+Single-line UTF-8 text input control with editing initially off. Click, tap or Confirm enters editing mode; focus alone does not.
 
-TextBox is a single-line UTF-8 input with editing initially off. A click, a tap or Confirm starts editing, while focus alone does not. Desktop editing supports a blinking caret, selection, horizontal scrolling, grapheme-based navigation and deletion, Home, End and clipboard shortcuts.
+- **Desktop editing:** Supports a blinking caret, selection, horizontal scrolling, grapheme-based navigation and deletion, Home/End and clipboard shortcuts. On Windows, both embedded play and standalone windows support character input and IME composition; losing the bridge connection ends editing under the same committed-text rules as focus loss.
+- **Confirming and cancelling:** Enter or `finishEdit` commits the edited text, whereas Escape, a connected controller's B/Cancel button or `cancelEdit` restores the value captured when editing started (neither submits an enclosing form). Focus loss keeps committed text and discards unfinished composition. Hiding, disabling, detaching or destroying the control ends editing. Only one `TextBox` edits at a time.
+- **Mobile and HarmonyOS:** iOS, Android and HarmonyOS phones and tablets open a system input dialog (HarmonyOS 2-in-1 uses desktop editing). Native Done commits the text and Cancel restores the pre-dialog value; backgrounding closes the session without reopening it on return.
+- **Callbacks and sanitisation:** `setOnTextChanged` fires on committed-value changes (including `setString` and cancellation), while IME composition does not change `getString()`. Newlines and tabs convert to spaces and other control characters are stripped. Form validation belongs to the Controller.
 
-Enter or `finishEdit` keeps the edited value, and Escape, a connected controller's B/Cancel button or `cancelEdit` restores the value from activation. Neither submits the containing form. Focus loss keeps committed text and discards unfinished composition. Hiding, disabling, detaching or destroying the control ends editing. Only one TextBox edits at a time.
+### Functions and events
 
-iOS, Android and HarmonyOS phones and tablets use a system input dialog, while HarmonyOS 2in1 uses desktop editing. Native Done updates the text, and Cancel restores the pre-dialog value. Backgrounding closes the session without automatically reopening it on return.
-
-| Method | Parameters | Result |
-|---|---|---|
-| `new` | size: sf.Vector2f; windowSkin: sf.Image; textConfig: Engine.PlainTextConfig; text: string = "" | TextBox |
-| `getString` / `setString` | — / text: string | string / — |
-| `isEditing` / `beginEdit` | — | bool |
-| `finishEdit` / `cancelEdit` | — | — |
-| `setInputDialogLabels` | title: string; done: string; cancel: string | — |
-| `setOnTextChanged` | callback: function(text: string) or nil | — |
-| `setOnEditingChanged` | callback: function(editing: bool) or nil | — |
-| `getSize` / `resize` | — / size: sf.Vector2f | sf.Vector2f / — |
-| `setWindowSkin` / `setTextConfig` | windowSkin: sf.Image / textConfig: Engine.PlainTextConfig | — |
-
-`setOnTextChanged` reports committed-value changes, including `setString` and cancellation, while IME composition does not change `getString()`. Newlines and tabs become spaces, and other control characters are removed. Form validation belongs to the Controller.
-
-On Windows, both embedded play and individual windows support character input and IME composition. Losing the bridge connection ends editing under the same committed-text rules as focus loss.
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `new` | `size: sf.Vector2f`, `windowSkin: sf.Image`, `textConfig: Engine.PlainTextConfig`, `text: string = ""` | `Engine.TextBox` | Static. |
+| `getString` | — | `string` | — |
+| `setString` | `text: string` | — | — |
+| `isEditing` | — | `bool` | — |
+| `beginEdit` | — | `bool` | — |
+| `finishEdit` | — | — | — |
+| `cancelEdit` | — | — | — |
+| `setInputDialogLabels` | `title: string`, `done: string`, `cancel: string` | — | — |
+| `setOnTextChanged` | `callback: function(text: string) \| nil` | — | — |
+| `setOnEditingChanged` | `callback: function(editing: bool) \| nil` | — | — |
+| `getSize` | — | `sf.Vector2f` | — |
+| `resize` | `size: sf.Vector2f` | — | — |
+| `setWindowSkin` | `windowSkin: sf.Image` | — | — |
+| `setTextConfig` | `textConfig: Engine.PlainTextConfig` | — | — |
 
 ## CheckBox
 
-Direct metadata bases: `{ "Engine", "ControlBase" }`, `{ "Engine", "FunctionalBase" }`
+**Inherits:** `Engine.ControlBase`, `Engine.FunctionalBase`
+
+Binary toggle control rendered with a window skin and plain-text configuration.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `getSize` | `function` | self: { "Engine", "CheckBox" } = "self" | return: sf.Vector2f | Pure |
-| `resize` | `function` | self: { "Engine", "CheckBox" } = "self"; size: sf.Vector2f | — | — |
-| `isChecked` | `function` | self: { "Engine", "CheckBox" } = "self" | return: bool | Pure |
-| `setChecked` | `function` | self: { "Engine", "CheckBox" } = "self"; checked: bool | — | — |
-| `toggle` | `function` | self: { "Engine", "CheckBox" } = "self" | — | — |
-| `setWindowSkin` | `function` | self: { "Engine", "CheckBox" } = "self"; windowSkin: sf.Image | — | — |
-| `setTextConfig` | `function` | self: { "Engine", "CheckBox" } = "self"; textConfig: { "Engine", "PlainTextConfig" } | — | — |
-| `setOnCheckedChanged` | `function` | self: { "Engine", "CheckBox" } = "self"; callback: function | — | — |
-| `getLocalBounds` | `function` | self: { "Engine", "CheckBox" } = "self" | return: sf.FloatRect | Pure |
-| `update` | `function` | self: { "Engine", "CheckBox" } = "self"; deltaTime: float | — | — |
-| `onConfirm` | `function` | self: { "Engine", "CheckBox" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `onClick` | `function` | self: { "Engine", "CheckBox" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `onMouseButtonDown` | `function` | self: { "Engine", "CheckBox" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | return: bool | — |
-| `onKeyDown` | `function` | self: { "Engine", "CheckBox" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `draw` | `function` | self: { "Engine", "CheckBox" } = "self"; target: sf.RenderTarget; states: sf.RenderStates | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `getSize` | — | `sf.Vector2f` | Pure. |
+| `resize` | `size: sf.Vector2f` | — | — |
+| `isChecked` | — | `bool` | Pure. |
+| `setChecked` | `checked: bool` | — | — |
+| `toggle` | — | — | — |
+| `setWindowSkin` | `windowSkin: sf.Image` | — | — |
+| `setTextConfig` | `textConfig: Engine.PlainTextConfig` | — | — |
+| `setOnCheckedChanged` | `callback: function` | — | — |
+| `getLocalBounds` | — | `sf.FloatRect` | Pure. |
+| `update` | `deltaTime: float` | — | — |
+| `onConfirm` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `onClick` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `onMouseButtonDown` | `arguments: Engine.UiInputEventArguments` | `bool` | — |
+| `onKeyDown` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `draw` | `target: sf.RenderTarget`, `states: sf.RenderStates` | — | — |
 
 ## DropBox
 
-Direct metadata bases: `{ "Engine", "ControlBase" }`, `{ "Engine", "FunctionalBase" }`
+**Inherits:** `Engine.ControlBase`, `Engine.FunctionalBase`
+
+Drop-down selection control displaying a collapsed button and a scrollable overlay popup list.
 
 ### Overlay and measurement
 
-When a DropBox has a Canvas ancestor, its expanded popup is drawn in the outermost ancestor Canvas overlay layer, after that Canvas's ordinary content and animations. The popup therefore escapes nested Canvas clipping, and it does not resize or reposition controls in its parent layout.
-
-The popup's visible height is limited to the intersection of the root Canvas content rectangle and the game screen. It opens downwards when the complete list fits, and upwards when the complete list fits there instead. If neither side fits, it uses the side with more space and scrolls its items internally.
-
-`getSize()` always returns the collapsed layout size. `getLocalBounds()` returns that rectangle while collapsed, and its union with the visible popup while expanded. An upward popup can make the local Y position negative. The inherited absolute bounds and default touch hit bounds follow this visual extent.
+- **Overlay rendering:** Under a `Canvas` ancestor, the expanded popup draws in the outermost ancestor `Canvas` overlay layer after ordinary content and animations, escaping nested `Canvas` clipping without resizing or moving sibling controls.
+- **Direction and height:** Visible popup height clamps to the intersection of the root `Canvas` content rectangle and the game screen. The popup opens downwards if the full list fits, upwards if it fits there instead, or towards the side with more space with internal scrolling.
+- **Bounds:** `getSize()` always returns the collapsed layout size. `getLocalBounds()` returns the collapsed rectangle while closed, and its union with the visible popup while expanded (an upward popup can produce a negative local Y). Inherited absolute bounds and default touch hit bounds follow this extent.
 
 ### Popup scrolling and selection
 
-An ordinary mouse wheel scrolls towards a row-sized target, while a precise wheel and touch dragging on mobile and Web apply their offsets directly. These inputs move only the popup viewport, not the cursor or the committed selection, and releasing a drag never confirms an item. Directional keys move the cursor and reveal it as needed. Mouse hover previews a visible item, and a mouse click confirms it. Mobile and Web taps use the two-stage confirmation described below. All indices still address the complete `items` array.
+An ordinary mouse wheel scrolls towards a row-sized target, while a precise wheel and mobile/Web touch dragging apply offsets directly. Scrolling moves only the popup viewport — never the cursor or committed selection — and releasing a drag never confirms an item.
+
+Directional keys move the cursor and scroll it into view. Mouse hover previews a visible item and clicking confirms it; mobile and Web taps use two-stage confirmation. All indices address the complete `items` array.
 
 ### Touch confirmation
 
-On mobile and Web, an expanded DropBox uses two-stage confirmation. Tapping a non-highlighted item only moves the highlight and plays the cursor sound, without changing `selectedIndex` or firing either selection callback. Tapping the highlighted item confirms it, including the initial highlight. Cancelling discards the preview and preserves `selectedIndex`.
+On mobile and Web, an expanded `DropBox` uses two-stage confirmation: tapping a non-highlighted item moves the highlight and plays the cursor sound without changing `selectedIndex` or firing selection callbacks; tapping the highlighted item (including the initial highlight) confirms it. Cancelling discards the preview and keeps `selectedIndex`.
 
 ### Selection callbacks
 
-`setOnSelectedIndexChanged(callback)` fires with the new index only when `setSelectedIndex` resolves to a different selection, and during confirmation it runs before the confirmation callback. `setOnSelectionConfirmed(callback)` fires with the current index when an expanded, non-empty DropBox confirms, even if the index is unchanged. Programmatic selection or item replacement, cancellation and empty confirmation do not fire it. Pass `nil` to either setter to clear it.
+- `setOnSelectedIndexChanged(callback)` fires with the new index only when `setSelectedIndex` resolves to a different selection, running before the confirmation callback during confirmation.
+- `setOnSelectionConfirmed(callback)` fires with the current index whenever an expanded, non-empty `DropBox` confirms (even if the index is unchanged). Programmatic selection, item replacement, cancellation and empty confirmation do not trigger it.
+- Pass `nil` to either setter to clear its callback.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `getSize` | `function` | self: { "Engine", "DropBox" } = "self" | return: sf.Vector2f | Pure |
-| `getLocalBounds` | `function` | self: { "Engine", "DropBox" } = "self" | return: sf.FloatRect | Pure |
-| `resize` | `function` | self: { "Engine", "DropBox" } = "self"; size: sf.Vector2f | — | — |
-| `setWindowSkin` | `function` | self: { "Engine", "DropBox" } = "self"; windowSkin: sf.Image; repeated: bool = false | — | — |
-| `setTextConfig` | `function` | self: { "Engine", "DropBox" } = "self"; textConfig: { "Engine", "PlainTextConfig" } | — | — |
-| `getItems` | `function` | self: { "Engine", "DropBox" } = "self" | return: string[] | Pure |
-| `setItems` | `function` | self: { "Engine", "DropBox" } = "self"; items: string[] | — | — |
-| `getSelectedIndex` | `function` | self: { "Engine", "DropBox" } = "self" | return: int | Pure |
-| `setSelectedIndex` | `function` | self: { "Engine", "DropBox" } = "self"; index: int | — | — |
-| `getSelectedItem` | `function` | self: { "Engine", "DropBox" } = "self" | return: string | Pure |
-| `isExpanded` | `function` | self: { "Engine", "DropBox" } = "self" | return: bool | Pure |
-| `setExpanded` | `function` | self: { "Engine", "DropBox" } = "self"; expanded: bool | — | — |
-| `open` | `function` | self: { "Engine", "DropBox" } = "self" | — | — |
-| `cancel` | `function` | self: { "Engine", "DropBox" } = "self" | — | — |
-| `setOnSelectedIndexChanged` | `function` | self: { "Engine", "DropBox" } = "self"; callback: function | — | — |
-| `setOnSelectionConfirmed` | `function` | self: { "Engine", "DropBox" } = "self"; callback: function | — | — |
-| `setOnExpandedChanged` | `function` | self: { "Engine", "DropBox" } = "self"; callback: function | — | — |
-| `setOpenSound` | `function` | self: { "Engine", "DropBox" } = "self"; filename: string | — | — |
-| `getOpenSound` | `function` | self: { "Engine", "DropBox" } = "self" | return: string | Pure |
-| `setCursorSound` | `function` | self: { "Engine", "DropBox" } = "self"; filename: string | — | — |
-| `getCursorSound` | `function` | self: { "Engine", "DropBox" } = "self" | return: string | Pure |
-| `setSelectSound` | `function` | self: { "Engine", "DropBox" } = "self"; filename: string | — | — |
-| `getSelectSound` | `function` | self: { "Engine", "DropBox" } = "self" | return: string | Pure |
-| `setCancelSound` | `function` | self: { "Engine", "DropBox" } = "self"; filename: string | — | — |
-| `getCancelSound` | `function` | self: { "Engine", "DropBox" } = "self" | return: string | Pure |
-| `update` | `function` | self: { "Engine", "DropBox" } = "self"; deltaTime: float | — | — |
-| `onConfirm` | `function` | self: { "Engine", "DropBox" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `onCancel` | `function` | self: { "Engine", "DropBox" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `onClick` | `function` | self: { "Engine", "DropBox" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `onMouseButtonDown` | `function` | self: { "Engine", "DropBox" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | return: bool | — |
-| `onMouseMoved` | `function` | self: { "Engine", "DropBox" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `onMouseWheelScrolled` | `function` | self: { "Engine", "DropBox" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `onKeyDown` | `function` | self: { "Engine", "DropBox" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `draw` | `function` | self: { "Engine", "DropBox" } = "self"; target: sf.RenderTarget; states: sf.RenderStates | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `getSize` | — | `sf.Vector2f` | Pure. |
+| `getLocalBounds` | — | `sf.FloatRect` | Pure. |
+| `resize` | `size: sf.Vector2f` | — | — |
+| `setWindowSkin` | `windowSkin: sf.Image`, `repeated: bool = false` | — | — |
+| `setTextConfig` | `textConfig: Engine.PlainTextConfig` | — | — |
+| `getItems` | — | `string[]` | Pure. |
+| `setItems` | `items: string[]` | — | — |
+| `getSelectedIndex` | — | `int` | Pure. |
+| `setSelectedIndex` | `index: int` | — | — |
+| `getSelectedItem` | — | `string` | Pure. |
+| `isExpanded` | — | `bool` | Pure. |
+| `setExpanded` | `expanded: bool` | — | — |
+| `open` | — | — | — |
+| `cancel` | — | — | — |
+| `setOnSelectedIndexChanged` | `callback: function` | — | — |
+| `setOnSelectionConfirmed` | `callback: function` | — | — |
+| `setOnExpandedChanged` | `callback: function` | — | — |
+| `setOpenSound` | `filename: string` | — | — |
+| `getOpenSound` | — | `string` | Pure. |
+| `setCursorSound` | `filename: string` | — | — |
+| `getCursorSound` | — | `string` | Pure. |
+| `setSelectSound` | `filename: string` | — | — |
+| `getSelectSound` | — | `string` | Pure. |
+| `setCancelSound` | `filename: string` | — | — |
+| `getCancelSound` | — | `string` | Pure. |
+| `update` | `deltaTime: float` | — | — |
+| `onConfirm` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `onCancel` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `onClick` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `onMouseButtonDown` | `arguments: Engine.UiInputEventArguments` | `bool` | — |
+| `onMouseMoved` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `onMouseWheelScrolled` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `onKeyDown` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `draw` | `target: sf.RenderTarget`, `states: sf.RenderStates` | — | — |
 
 ## TabView
 
-Direct metadata bases: `{ "Engine", "ControlBase" }`, `{ "Engine", "FunctionalBase" }`
+**Inherits:** `Engine.ControlBase`, `Engine.FunctionalBase`
+
+Horizontal tab strip with a fixed item count, optional keyboard/gamepad edge hints and non-focusable navigation.
 
 ### Selection and navigation
 
-A TabView has a fixed, non-zero item count, zero-based clamped indices and an always-visible selection. The middle area contains equal tab slots, and each side reserves 16 logical pixels for hints. The control never takes keyboard focus. Declarative assets construct that fixed count from the required non-empty `items: string[]` property, and `tabCount` is not an asset property.
-
-`setItems(items)` replaces same-count labels without changing the selection or the callback, while a wrong count leaves the control unchanged. `setOnSelectedIndexChanged(callback)` binds the selection callback, and `nil` clears it. A real `setSelectedIndex` change calls the callback without sound. `selectPrevious`, `selectNext` and real Q/E, LB/RB, mouse-move or touch-tap changes play the configured cursor sound once and then call the callback. Unchanged and boundary selections do neither, and tabs do not wrap.
-
-Focused content calls `handleNavigationInput()`. It consumes Q, E, LB and RB while the TabView is visible and active. Duplicate same-direction inputs move once, and opposing inputs cancel. Mouse movement selects central slots. A left click there is consumed but does not select, while right and middle clicks and both hint gutters pass through. Touch movement does not select, but a tap does.
+- **Layout and construction:** A `TabView` has a fixed, non-zero item count, zero-based clamped indices and an always-visible selection. Equal tab slots occupy the centre, with `16` logical pixels reserved on each side for hints. It never takes keyboard focus. Declarative assets establish the fixed count from the required non-empty `items: string[]` property (`tabCount` is not an asset property).
+- **Updating items and selection:** `setItems(items)` replaces labels when the count matches without changing selection or callbacks (a mismatched count leaves the control unchanged). `setOnSelectedIndexChanged(callback)` sets or clears (`nil`) the callback. A real `setSelectedIndex` change invokes the callback silently; `selectPrevious`, `selectNext` and real Q/E, LB/RB, mouse-move or touch-tap changes play the cursor sound once and then invoke the callback. Unchanged and boundary selections do neither, and tabs do not wrap.
+- **Input handling:** Focused content calls `handleNavigationInput()`, which consumes Q, E, LB and RB while the `TabView` is visible and active (duplicate same-direction inputs move once; opposing inputs cancel). Mouse movement selects central slots; left click there is consumed without selecting, while right/middle clicks and hint gutters pass through. Touch tap selects; touch movement does not.
 
 ### Key hints
 
-`setKeyHint(leftHint, rightHint)` accepts two `Engine.KeyHint` values with optional `Keyboard` and `Joystick` fields, which hold a non-Unknown `sf.Keyboard.Key` and an `Engine.JoystickButton` getter value respectively. An empty hint clears that side, and a missing current-device field hides it. Invalid input leaves both hints unchanged.
+`setKeyHint(leftHint, rightHint)` accepts two `Engine.KeyHint` values with optional `Keyboard` (non-Unknown `sf.Keyboard.Key`) and `Joystick` (`Engine.JoystickButton` getter value) fields. An empty hint clears that side, a missing current-device field hides it, and invalid input leaves both hints unchanged.
 
 ```lua
 tabView:setKeyHint(
@@ -138,42 +148,42 @@ tabView:setKeyHint(
 )
 ```
 
-Hints appear only where movement is possible. A connected joystick uses the `Joystick` hint, otherwise desktop, HarmonyOS 2in1 and HarmonyOS tablets use `Keyboard`, while Android, iOS and HarmonyOS phones hide hints. Hints never rebind or disable input.
+Hints appear only where movement is possible: a connected joystick shows `Joystick`, otherwise desktop, HarmonyOS 2-in-1 and HarmonyOS tablets show `Keyboard`, while Android, iOS and HarmonyOS phones hide hints. Hints never rebind or disable input.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `getSize` | `function` | self: { "Engine", "TabView" } = "self" | return: sf.Vector2f | Pure |
-| `resize` | `function` | self: { "Engine", "TabView" } = "self"; size: sf.Vector2f | — | — |
-| `setWindowSkin` | `function` | self: { "Engine", "TabView" } = "self"; windowSkin: sf.Image | — | — |
-| `setTextConfig` | `function` | self: { "Engine", "TabView" } = "self"; textConfig: { "Engine", "PlainTextConfig" } | — | — |
-| `getItems` | `function` | self: { "Engine", "TabView" } = "self" | return: string[] | Pure |
-| `setItems` | `function` | self: { "Engine", "TabView" } = "self"; items: string[] | — | — |
-| `setOnSelectedIndexChanged` | `function` | self: { "Engine", "TabView" } = "self"; callback: function \| nil | — | — |
-| `getSelectedIndex` | `function` | self: { "Engine", "TabView" } = "self" | return: int | Pure |
-| `setSelectedIndex` | `function` | self: { "Engine", "TabView" } = "self"; index: int | — | — |
-| `getSelectedItem` | `function` | self: { "Engine", "TabView" } = "self" | return: string | Pure |
-| `selectPrevious` | `function` | self: { "Engine", "TabView" } = "self" | return: bool | — |
-| `selectNext` | `function` | self: { "Engine", "TabView" } = "self" | return: bool | — |
-| `handleNavigationInput` | `function` | self: { "Engine", "TabView" } = "self" | return: bool | — |
-| `setCursorSound` | `function` | self: { "Engine", "TabView" } = "self"; filename: string | — | — |
-| `getCursorSound` | `function` | self: { "Engine", "TabView" } = "self" | return: string | Pure |
-| `setKeyHint` | `function` | self: { "Engine", "TabView" } = "self"; leftHint: { "Engine", "KeyHint" }; rightHint: { "Engine", "KeyHint" } | — | — |
-| `getLocalBounds` | `function` | self: { "Engine", "TabView" } = "self" | return: sf.FloatRect | Pure |
-| `update` | `function` | self: { "Engine", "TabView" } = "self"; deltaTime: float | — | — |
-| `onClick` | `function` | self: { "Engine", "TabView" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `onMouseButtonDown` | `function` | self: { "Engine", "TabView" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | return: bool | — |
-| `onMouseMoved` | `function` | self: { "Engine", "TabView" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `draw` | `function` | self: { "Engine", "TabView" } = "self"; target: sf.RenderTarget; states: sf.RenderStates | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `getSize` | — | `sf.Vector2f` | Pure. |
+| `resize` | `size: sf.Vector2f` | — | — |
+| `setWindowSkin` | `windowSkin: sf.Image` | — | — |
+| `setTextConfig` | `textConfig: Engine.PlainTextConfig` | — | — |
+| `getItems` | — | `string[]` | Pure. |
+| `setItems` | `items: string[]` | — | — |
+| `setOnSelectedIndexChanged` | `callback: function \| nil` | — | — |
+| `getSelectedIndex` | — | `int` | Pure. |
+| `setSelectedIndex` | `index: int` | — | — |
+| `getSelectedItem` | — | `string` | Pure. |
+| `selectPrevious` | — | `bool` | — |
+| `selectNext` | — | `bool` | — |
+| `handleNavigationInput` | — | `bool` | — |
+| `setCursorSound` | `filename: string` | — | — |
+| `getCursorSound` | — | `string` | Pure. |
+| `setKeyHint` | `leftHint: Engine.KeyHint`, `rightHint: Engine.KeyHint` | — | — |
+| `getLocalBounds` | — | `sf.FloatRect` | Pure. |
+| `update` | `deltaTime: float` | — | — |
+| `onClick` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `onMouseButtonDown` | `arguments: Engine.UiInputEventArguments` | `bool` | — |
+| `onMouseMoved` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `draw` | `target: sf.RenderTarget`, `states: sf.RenderStates` | — | — |
 
 ## GamepadHintBar
 
-Direct metadata bases: `{ "Engine", "ControlBase" }`, `{ "Engine", "FunctionalBase" }`
+**Inherits:** `Engine.ControlBase`, `Engine.FunctionalBase`
 
-GamepadHintBar shows up to three gamepad hints, centred in its size. It draws and reacts only while a gamepad is connected. Each hint is an `Engine.GamepadHint` with `Button` (an `Engine.JoystickButton` getter value), `LongPress` and `Text`. `setHints` rejects more than three. Default windows place it on the bottom border through the shared `WindowChrome` asset, and `WindowBase` binds its callbacks.
+Displays up to three centred gamepad button prompts while a gamepad is connected, rejecting more than three in `setHints`. Each entry is an `Engine.GamepadHint` with `Button` (`Engine.JoystickButton` getter value), `LongPress` and `Text`. Default windows place it along the bottom border via the shared `WindowChrome` asset, with `WindowBase` binding its callbacks.
 
-A short-press hint draws the current controller's button glyph on a 16 logical-pixel white circle, then the text. A long-press hint adds a green clockwise sector that fills over one second. Holding the button fires `setOnHintTriggered` once with the zero-based index at the one-second mark; release resets progress. `setHintEnabled` greys a hint, stops its progress and blocks its trigger.
+A short-press hint draws the active controller's glyph on a `16`-logical-pixel white circle followed by its label. A long-press hint adds a green clockwise sector filling over one second, firing `setOnHintTriggered` once with the zero-based index at one second (releasing resets progress). `setHintEnabled` greys out a hint, stops its progress and blocks triggering.
 
 ### Properties
 
@@ -181,126 +191,128 @@ No editable properties are declared beyond `size` and the plain-text configurati
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `getSize` | `function` | self: { "Engine", "GamepadHintBar" } = "self" | return: sf.Vector2f | Pure |
-| `resize` | `function` | self: { "Engine", "GamepadHintBar" } = "self"; size: sf.Vector2f | — | — |
-| `setTextConfig` | `function` | self: { "Engine", "GamepadHintBar" } = "self"; textConfig: { "Engine", "PlainTextConfig" } | — | — |
-| `setHints` | `function` | self: { "Engine", "GamepadHintBar" } = "self"; hints: { "Engine", "GamepadHint" }[] | — | — |
-| `getHintCount` | `function` | self: { "Engine", "GamepadHintBar" } = "self" | return: int | Pure |
-| `setHintEnabled` | `function` | self: { "Engine", "GamepadHintBar" } = "self"; index: int; enabled: bool | — | — |
-| `isHintEnabled` | `function` | self: { "Engine", "GamepadHintBar" } = "self"; index: int | return: bool | Pure |
-| `isGamepadConnected` | `function` | self: { "Engine", "GamepadHintBar" } = "self" | return: bool | Pure |
-| `setOnHintTriggered` | `function` | self: { "Engine", "GamepadHintBar" } = "self"; callback: function \| nil | — | — |
-| `getLocalBounds` | `function` | self: { "Engine", "GamepadHintBar" } = "self" | return: sf.FloatRect | Pure |
-| `update` | `function` | self: { "Engine", "GamepadHintBar" } = "self"; deltaTime: float | — | — |
-| `draw` | `function` | self: { "Engine", "GamepadHintBar" } = "self"; target: sf.RenderTarget; states: sf.RenderStates | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `getSize` | — | `sf.Vector2f` | Pure. |
+| `resize` | `size: sf.Vector2f` | — | — |
+| `setTextConfig` | `textConfig: Engine.PlainTextConfig` | — | — |
+| `setHints` | `hints: Engine.GamepadHint[]` | — | — |
+| `getHintCount` | — | `int` | Pure. |
+| `setHintEnabled` | `index: int`, `enabled: bool` | — | — |
+| `isHintEnabled` | `index: int` | `bool` | Pure. |
+| `isGamepadConnected` | — | `bool` | Pure. |
+| `setOnHintTriggered` | `callback: function \| nil` | — | — |
+| `getLocalBounds` | — | `sf.FloatRect` | Pure. |
+| `update` | `deltaTime: float` | — | — |
+| `draw` | `target: sf.RenderTarget`, `states: sf.RenderStates` | — | — |
 
 ## SectorShape
 
-Direct metadata bases: `{ "sf", "Drawable" }`, `{ "sf", "Transformable" }`
+**Inherits:** `sf.Drawable`, `sf.Transformable`
 
-SectorShape is a base graphic, not a UI control, so it is not in the Palette. It fills a pie slice clockwise from 12 o'clock, with the angle clamped to 0–360 degrees. `GamepadHintBar` and `Button` use it for long-press progress.
+Base graphic primitive (not a UI control and not in the Palette) that fills a pie slice clockwise from 12 o'clock with its angle clamped to `0–360` degrees. Used by `GamepadHintBar` and `Button` for long-press progress indicators.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `new` | `function` | radius: float = 0.0; fillColour: sf.Color = white | SectorShape | — |
-| `getRadius` | `function` | self: { "Engine", "SectorShape" } = "self" | float | Pure |
-| `setRadius` | `function` | self: { "Engine", "SectorShape" } = "self"; radius: float | — | — |
-| `getAngle` | `function` | self: { "Engine", "SectorShape" } = "self" | sf.Angle | Pure |
-| `setAngle` | `function` | self: { "Engine", "SectorShape" } = "self"; angle: sf.Angle | — | — |
-| `getFillColour` | `function` | self: { "Engine", "SectorShape" } = "self" | sf.Color | Pure |
-| `setFillColour` | `function` | self: { "Engine", "SectorShape" } = "self"; colour: sf.Color | — | — |
-| `getLocalBounds` | `function` | self: { "Engine", "SectorShape" } = "self" | return: sf.FloatRect | Pure |
-| `getGlobalBounds` | `function` | self: { "Engine", "SectorShape" } = "self" | return: sf.FloatRect | Pure |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `new` | `radius: float = 0.0`, `fillColour: sf.Color = white` | `Engine.SectorShape` | Static. |
+| `getRadius` | — | `float` | Pure. |
+| `setRadius` | `radius: float` | — | — |
+| `getAngle` | — | `sf.Angle` | Pure. |
+| `setAngle` | `angle: sf.Angle` | — | — |
+| `getFillColour` | — | `sf.Color` | Pure. |
+| `setFillColour` | `colour: sf.Color` | — | — |
+| `getLocalBounds` | — | `sf.FloatRect` | Pure. |
+| `getGlobalBounds` | — | `sf.FloatRect` | Pure. |
 
 ## ProgressBar
 
-Direct metadata bases: `{ "Engine", "ControlBase" }`
+**Inherits:** `Engine.ControlBase`
 
-Progress ranges from 0 to 1; values outside that range are clamped and non-finite values become 0. The background covers the full control, and the fill reveals the corresponding left portion as progress increases, without compressing the whole fill image into the current width. Display scale and presentation opacity apply to both layers.
+Horizontal bar control with separate background and fill layers supporting solid colours or cropped textures.
 
-Each layer independently retains its `sf.Texture` resource. Passing `nil` to its texture setter clears the image and restores solid-colour rendering. Texture Rects use source pixels; `nil` selects the whole image. A layer's colour multiplies its image, so set it to white to preserve the original colours. Size and progress remain unchanged when images are replaced or cleared.
+- **Progress range:** Runs from `0` to `1`; out-of-range values clamp and non-finite values become `0`. The background spans the full control, while the fill reveals the left portion proportionally by cropping rather than compressing its image. Display scale and presentation opacity apply to both layers.
+- **Textures and tinting:** Each layer independently retains its `sf.Texture`; passing `nil` clears the texture and restores solid-colour rendering. Texture rectangles use source pixels (`nil` selects the full image). Each layer's colour multiplies its texture (use white to preserve original colours). Replacing or clearing textures preserves size and progress.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `getSize` | `function` | self: { "Engine", "ProgressBar" } = "self" | return: sf.Vector2f | Pure |
-| `resize` | `function` | self: { "Engine", "ProgressBar" } = "self"; size: sf.Vector2f | — | — |
-| `getProgress` | `function` | self: { "Engine", "ProgressBar" } = "self" | return: float | Pure |
-| `setProgress` | `function` | self: { "Engine", "ProgressBar" } = "self"; progress: float | — | — |
-| `getBackgroundColor` | `function` | self: { "Engine", "ProgressBar" } = "self" | return: sf.Color | Pure |
-| `setBackgroundColor` | `function` | self: { "Engine", "ProgressBar" } = "self"; color: sf.Color | — | — |
-| `getFillColor` | `function` | self: { "Engine", "ProgressBar" } = "self" | return: sf.Color | Pure |
-| `setFillColor` | `function` | self: { "Engine", "ProgressBar" } = "self"; color: sf.Color | — | — |
-| `getBackgroundTexture` | `function` | self: { "Engine", "ProgressBar" } = "self" | return: sf.Texture or nil | Pure |
-| `setBackgroundTexture` | `function` | self: { "Engine", "ProgressBar" } = "self"; texture: sf.Texture or nil | — | — |
-| `getFillTexture` | `function` | self: { "Engine", "ProgressBar" } = "self" | return: sf.Texture or nil | Pure |
-| `setFillTexture` | `function` | self: { "Engine", "ProgressBar" } = "self"; texture: sf.Texture or nil | — | — |
-| `getBackgroundTextureRect` | `function` | self: { "Engine", "ProgressBar" } = "self" | return: sf.IntRect or nil | Pure |
-| `setBackgroundTextureRect` | `function` | self: { "Engine", "ProgressBar" } = "self"; rect: sf.IntRect or nil | — | — |
-| `getFillTextureRect` | `function` | self: { "Engine", "ProgressBar" } = "self" | return: sf.IntRect or nil | Pure |
-| `setFillTextureRect` | `function` | self: { "Engine", "ProgressBar" } = "self"; rect: sf.IntRect or nil | — | — |
-| `getLocalBounds` | `function` | self: { "Engine", "ProgressBar" } = "self" | return: sf.FloatRect | Pure |
-| `draw` | `function` | self: { "Engine", "ProgressBar" } = "self"; target: sf.RenderTarget; states: sf.RenderStates | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `getSize` | — | `sf.Vector2f` | Pure. |
+| `resize` | `size: sf.Vector2f` | — | — |
+| `getProgress` | — | `float` | Pure. |
+| `setProgress` | `progress: float` | — | — |
+| `getBackgroundColor` | — | `sf.Color` | Pure. |
+| `setBackgroundColor` | `color: sf.Color` | — | — |
+| `getFillColor` | — | `sf.Color` | Pure. |
+| `setFillColor` | `color: sf.Color` | — | — |
+| `getBackgroundTexture` | — | `sf.Texture \| nil` | Pure. |
+| `setBackgroundTexture` | `texture: sf.Texture \| nil` | — | — |
+| `getFillTexture` | — | `sf.Texture \| nil` | Pure. |
+| `setFillTexture` | `texture: sf.Texture \| nil` | — | — |
+| `getBackgroundTextureRect` | — | `sf.IntRect \| nil` | Pure. |
+| `setBackgroundTextureRect` | `rect: sf.IntRect \| nil` | — | — |
+| `getFillTextureRect` | — | `sf.IntRect \| nil` | Pure. |
+| `setFillTextureRect` | `rect: sf.IntRect \| nil` | — | — |
+| `getLocalBounds` | — | `sf.FloatRect` | Pure. |
+| `draw` | `target: sf.RenderTarget`, `states: sf.RenderStates` | — | — |
 
 ## Slider
 
-Direct metadata bases: `{ "Engine", "ControlBase" }`, `{ "Engine", "FunctionalBase" }`
+**Inherits:** `Engine.ControlBase`, `Engine.FunctionalBase`
+
+Integer range slider with customisable track and handle textures.
 
 ### Touch interaction
 
-On touch capture, a Slider sets its value from the pointer's X position against its visual bounds, then continues updating and clamping until release, even outside the hit bounds. `setTouchHitBounds` changes only the touch target, not the visual or mouse bounds.
+On touch capture, a `Slider` updates its value from the pointer's X coordinate relative to its visual bounds and continues updating and clamping until release, even outside hit bounds. `setTouchHitBounds` alters only the touch target, not the visual or mouse bounds.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `setVisible` | `function` | self: { "Engine", "Slider" } = "self"; visible: bool | — | — |
-| `getSize` | `function` | self: { "Engine", "Slider" } = "self" | return: sf.Vector2f | Pure |
-| `resize` | `function` | self: { "Engine", "Slider" } = "self"; size: sf.Vector2f | — | — |
-| `getValue` | `function` | self: { "Engine", "Slider" } = "self" | return: int | Pure |
-| `setValue` | `function` | self: { "Engine", "Slider" } = "self"; value: int | — | — |
-| `setRange` | `function` | self: { "Engine", "Slider" } = "self"; minValue: int; maxValue: int | — | — |
-| `getRange` | `function` | self: { "Engine", "Slider" } = "self" | minimum: int; maximum: int | Pure |
-| `setValueFromRatio` | `function` | self: { "Engine", "Slider" } = "self"; ratio: float | — | — |
-| `setValueFromBoundsPosition` | `function` | self: { "Engine", "Slider" } = "self"; bounds: sf.FloatRect; position: sf.Vector2f | — | — |
-| `adjust` | `function` | self: { "Engine", "Slider" } = "self"; delta: int | — | — |
-| `getHandlePosition` | `function` | self: { "Engine", "Slider" } = "self" | return: int | Pure |
-| `setLineTexture` | `function` | self: { "Engine", "Slider" } = "self"; texture: sf.Texture | — | — |
-| `setHandleTexture` | `function` | self: { "Engine", "Slider" } = "self"; texture: sf.Texture | — | — |
-| `setOnValueChanged` | `function` | self: { "Engine", "Slider" } = "self"; callback: function | — | — |
-| `getLocalBounds` | `function` | self: { "Engine", "Slider" } = "self" | return: sf.FloatRect | Pure |
-| `update` | `function` | self: { "Engine", "Slider" } = "self"; deltaTime: float | — | — |
-| `onClick` | `function` | self: { "Engine", "Slider" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `onMouseButtonDown` | `function` | self: { "Engine", "Slider" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | return: bool | — |
-| `onMouseMoved` | `function` | self: { "Engine", "Slider" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `onKeyDown` | `function` | self: { "Engine", "Slider" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `draw` | `function` | self: { "Engine", "Slider" } = "self"; target: sf.RenderTarget; states: sf.RenderStates | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `setVisible` | `visible: bool` | — | — |
+| `getSize` | — | `sf.Vector2f` | Pure. |
+| `resize` | `size: sf.Vector2f` | — | — |
+| `getValue` | — | `int` | Pure. |
+| `setValue` | `value: int` | — | — |
+| `setRange` | `minValue: int`, `maxValue: int` | — | — |
+| `getRange` | — | `minimum: int`, `maximum: int` | Pure. |
+| `setValueFromRatio` | `ratio: float` | — | — |
+| `setValueFromBoundsPosition` | `bounds: sf.FloatRect`, `position: sf.Vector2f` | — | — |
+| `adjust` | `delta: int` | — | — |
+| `getHandlePosition` | — | `int` | Pure. |
+| `setLineTexture` | `texture: sf.Texture` | — | — |
+| `setHandleTexture` | `texture: sf.Texture` | — | — |
+| `setOnValueChanged` | `callback: function` | — | — |
+| `getLocalBounds` | — | `sf.FloatRect` | Pure. |
+| `update` | `deltaTime: float` | — | — |
+| `onClick` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `onMouseButtonDown` | `arguments: Engine.UiInputEventArguments` | `bool` | — |
+| `onMouseMoved` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `onKeyDown` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `draw` | `target: sf.RenderTarget`, `states: sf.RenderStates` | — | — |
 
 ## AssetInstance
 
-Generated Views expose this native object as `.instance`. Native `requireAsset` returns an `Engine.AssetInstance`, while `UiController:requireAsset` returns a generated child View. See the [Declarative UI Runtime Contract](<../../../Declarative UI/Runtime Contract.md>).
+Native handle exposed as `.instance` on generated declarative UI Views. Native `requireAsset` returns an `Engine.AssetInstance`, whereas `UiController:requireAsset` returns a generated child View; see [Declarative UI Runtime Contract](<../../../Declarative UI/Runtime Contract.md>).
 
-`setProperty` requires the property's runtime type. For Image `drawAs`, pass `Engine.ImageDrawAs.Image` or `Engine.ImageDrawAs.Tile`; the strings used in JSON are not accepted here. WrapBox templates form independent instance boundaries, so use the WrapBox's `get(i)` to access a repeated root instead of looking up its template name in the enclosing asset.
-
-`reflowControl(localName, logicalSize)` applies a positive `sf.Vector2u` size to a named local system control and lays out its authored descendants while preserving that control's position. It does not cross a nested asset boundary; use that child instance for its own controls. The override lasts until a parent reflow applies the authored Slot again.
+- **Typed properties:** `setProperty` requires each property's declared runtime type — for example, `Engine.ImageDrawAs.Image` or `Engine.ImageDrawAs.Tile` for `drawAs` (JSON strings are rejected). `WrapBox` templates form separate instance boundaries; access repeated roots through `wrapBox:get(i)` instead of looking up template names in the enclosing asset.
+- **Scoped reflow:** `reflowControl(localName, logicalSize)` applies a positive `sf.Vector2u` size to a named local system control and lays out its authored descendants while keeping its position. It does not cross nested asset boundaries (call `reflowControl` on the child instance instead), and the override persists until a parent reflow reapplies the authored Slot.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `getRoot` | `function` | self: { "Engine", "AssetInstance" } = "self" | return: { "Engine", "ControlBase" } | Pure |
-| `requireControl` | `function` | self: { "Engine", "AssetInstance" } = "self"; localName: string | return: { "Engine", "ControlBase" } | Pure |
-| `getNodeByName` | `function` | self: { "Engine", "AssetInstance" } = "self"; name: string | return: { "Engine", "ControlBase" } | Pure |
-| `requireAsset` | `function` | self: { "Engine", "AssetInstance" } = "self"; localName: string | return: { "Engine", "AssetInstance" } | Pure |
-| `setProperty` | `function` | self: { "Engine", "AssetInstance" } = "self"; localName: string; propertyId: string; value: Union[nil, bool, int, float, string, sf.Vector2f, sf.Vector2u, sf.IntRect, sf.Color, Engine.ImageDrawAs, string[]] | — | — |
-| `setText` | `function` | self: { "Engine", "AssetInstance" } = "self"; localName: string; text: string | — | — |
-| `reflow` | `function` | self: { "Engine", "AssetInstance" } = "self"; logicalSize: sf.Vector2u = nil | — | — |
-| `reflowControl` | `function` | self: { "Engine", "AssetInstance" } = "self"; localName: string; logicalSize: sf.Vector2u | — | — |
-| `hasAnimation` | `function` | self: { "Engine", "AssetInstance" } = "self"; name: string; target: string = nil | return: bool | Pure |
-| `playAnimation` | `function` | self: { "Engine", "AssetInstance" } = "self"; name: string; target: string = nil; onFinished: function = nil | return: bool | — |
-| `stopAnimation` | `function` | self: { "Engine", "AssetInstance" } = "self"; name: string; target: string = nil | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `getRoot` | — | `Engine.ControlBase` | Pure. |
+| `requireControl` | `localName: string` | `Engine.ControlBase` | Pure. |
+| `getNodeByName` | `name: string` | `Engine.ControlBase` | Pure. |
+| `requireAsset` | `localName: string` | `Engine.AssetInstance` | Pure. |
+| `setProperty` | `localName: string`, `propertyId: string`, `value: Union[nil, bool, int, float, string, sf.Vector2f, sf.Vector2u, sf.IntRect, sf.Color, Engine.ImageDrawAs, string[]]` | — | — |
+| `setText` | `localName: string`, `text: string` | — | — |
+| `reflow` | `logicalSize: sf.Vector2u = nil` | — | — |
+| `reflowControl` | `localName: string`, `logicalSize: sf.Vector2u` | — | — |
+| `hasAnimation` | `name: string`, `target: string = nil` | `bool` | Pure. |
+| `playAnimation` | `name: string`, `target: string = nil`, `onFinished: function = nil` | `bool` | — |
+| `stopAnimation` | `name: string`, `target: string = nil` | — | — |

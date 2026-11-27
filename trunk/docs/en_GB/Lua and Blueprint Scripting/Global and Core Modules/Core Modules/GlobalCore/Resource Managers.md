@@ -1,119 +1,130 @@
 # GlobalCore: Resource Managers
 
-The generic managers require `/Game/Assets/...` paths with exact case, and they read both loose files and `.ldpak` archives, with [user-directory resources taking priority](<../../../../Editor User Guide/Project Settings and Asset Layout.md#runtime-resource-lookup>). Native absolute paths, `Assets/...` paths and category-relative paths are invalid.
+This page documents the static native resource managers under `GlobalCore` (`AudioManager`, `FontManager`, `ShaderManager` and `TextureManager`) and the Lua-only `TextureLoadRequest` handle. All manager methods are static and take no receiver; `TextureLoadRequest` methods are Lua-only instance methods.
 
-Archive compression is transparent to these APIs. Seekable streams decode one block at a time and report original file sizes and byte positions. Each loaded block is CRC32-checked; complete reads also check the file CRC32.
+All generic managers require `/Game/Assets/...` paths with exact case and read transparently from both loose files and `.ldpak` archives, with [user-directory resources taking priority](<../../../../Editor User Guide/Project Settings and Asset Layout.md#runtime-resource-lookup>). Native absolute paths, `Assets/...` paths and category-relative paths are invalid.
+
+Archive compression is transparent: seekable streams decode one block at a time, report original file sizes and byte positions, and verify CRC32 per loaded block as well as on complete file reads.
 
 ## AudioManager
 
-Music, sound and voice switches and volumes are configured here. `set*` applies the value and saves it, while `save*` only persists the value.
+Controls audio playback, spatial references, filters, custom audio effects and persistent volume/mute switches for music, sound effects and voice. `set*` methods apply and save the value, whereas `save*` methods only persist it.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `loadSound` | `function` | filePath: string | return: sf.SoundBuffer | — |
-| `playSound` | `function` | filePath: string; filter: { "Engine", "SoundFilter" } = nil; parent: sf.Transformable = nil | return: sf.Sound | — |
-| `setSoundParent` | `function` | sound: sf.Sound; parent: sf.Transformable | — | — |
-| `playVoice` | `function` | filePath: string; filter: { "Engine", "SoundFilter" } = nil; refActor: sf.Transformable = nil; minDistance: float = 64 | return: sf.Sound | — |
-| `setVoiceRefActor` | `function` | voice: sf.Sound; refActor: sf.Transformable; minDistance: float = 64 | — | — |
-| `playMusic` | `function` | musicType: string; filePath: string; filter: { "Engine", "MusicFilter" } = nil | return: sf.Music | — |
-| `stopSound` | `function` | — | — | — |
-| `stopVoice` | `function` | — | — | — |
-| `stopMusic` | `function` | musicType: string | — | — |
-| `applySoundVolumes` | `function` | — | — | — |
-| `applyVoiceVolumes` | `function` | — | — | — |
-| `applyMusicVolumes` | `function` | — | — | — |
-| `updateAllSoundPositions` | `function` | — | — | — |
-| `updateAllVoicePositions` | `function` | — | — | — |
-| `setSoundFilter` | `function` | sound: sf.Sound; filter: { "Engine", "SoundFilter" } | — | — |
-| `setVoiceFilter` | `function` | voice: sf.Sound; filter: { "Engine", "SoundFilter" } | — | — |
-| `setMusicFilter` | `function` | music: sf.Music; filter: { "Engine", "MusicFilter" } | — | — |
-| `setEffect` | `function` | audioType: string; effect: callback or nil | — | Lua only; `metadata = false` |
-| `getMemory` | `function` | — | return: int | — |
-| `getMusicOn` | `function` | — | return: bool | — |
-| `setMusicOn` | `function` | value: bool | — | — |
-| `saveMusicOn` | `function` | value: bool | — | — |
-| `getSoundOn` | `function` | — | return: bool | — |
-| `setSoundOn` | `function` | value: bool | — | — |
-| `saveSoundOn` | `function` | value: bool | — | — |
-| `getVoiceOn` | `function` | — | return: bool | — |
-| `setVoiceOn` | `function` | value: bool | — | — |
-| `saveVoiceOn` | `function` | value: bool | — | — |
-| `getMusicVolume` | `function` | — | return: float | — |
-| `setMusicVolume` | `function` | value: float | — | — |
-| `saveMusicVolume` | `function` | value: float | — | — |
-| `getSoundVolume` | `function` | — | return: float | — |
-| `setSoundVolume` | `function` | value: float | — | — |
-| `saveSoundVolume` | `function` | value: float | — | — |
-| `getVoiceVolume` | `function` | — | return: float | — |
-| `setVoiceVolume` | `function` | value: float | — | — |
-| `saveVoiceVolume` | `function` | value: float | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `loadSound` | `filePath: string` | `sf.SoundBuffer` | Static. |
+| `playSound` | `filePath: string`, `filter: Engine.SoundFilter = nil`, `parent: sf.Transformable = nil` | `sf.Sound` | Static. |
+| `setSoundParent` | `sound: sf.Sound`, `parent: sf.Transformable` | — | Static. |
+| `playVoice` | `filePath: string`, `filter: Engine.SoundFilter = nil`, `refActor: sf.Transformable = nil`, `minDistance: float = 64` | `sf.Sound` | Static. |
+| `setVoiceRefActor` | `voice: sf.Sound`, `refActor: sf.Transformable`, `minDistance: float = 64` | — | Static. |
+| `playMusic` | `musicType: string`, `filePath: string`, `filter: Engine.MusicFilter = nil` | `sf.Music` | Static. |
+| `stopSound` | — | — | Static. |
+| `stopVoice` | — | — | Static. |
+| `stopMusic` | `musicType: string` | — | Static. |
+| `applySoundVolumes` | — | — | Static. |
+| `applyVoiceVolumes` | — | — | Static. |
+| `applyMusicVolumes` | — | — | Static. |
+| `updateAllSoundPositions` | — | — | Static. |
+| `updateAllVoicePositions` | — | — | Static. |
+| `setSoundFilter` | `sound: sf.Sound`, `filter: Engine.SoundFilter` | — | Static. |
+| `setVoiceFilter` | `voice: sf.Sound`, `filter: Engine.SoundFilter` | — | Static. |
+| `setMusicFilter` | `music: sf.Music`, `filter: Engine.MusicFilter` | — | Static. |
+| `setEffect` | `audioType: string`, `effect: function \| nil` | — | Static. Lua only (`metadata = false`). |
+| `getMemory` | — | `int` | Static. |
+| `getMusicOn` | — | `bool` | Static. |
+| `setMusicOn` | `value: bool` | — | Static. |
+| `saveMusicOn` | `value: bool` | — | Static. |
+| `getSoundOn` | — | `bool` | Static. |
+| `setSoundOn` | `value: bool` | — | Static. |
+| `saveSoundOn` | `value: bool` | — | Static. |
+| `getVoiceOn` | — | `bool` | Static. |
+| `setVoiceOn` | `value: bool` | — | Static. |
+| `saveVoiceOn` | `value: bool` | — | Static. |
+| `getMusicVolume` | — | `float` | Static. |
+| `setMusicVolume` | `value: float` | — | Static. |
+| `saveMusicVolume` | `value: float` | — | Static. |
+| `getSoundVolume` | — | `float` | Static. |
+| `setSoundVolume` | `value: float` | — | Static. |
+| `saveSoundVolume` | `value: float` | — | Static. |
+| `getVoiceVolume` | — | `float` | Static. |
+| `setVoiceVolume` | `value: float` | — | Static. |
+| `saveVoiceVolume` | `value: float` | — | Static. |
 
-`AudioManager.setEffect(audioType, effect)` accepts `Sound`, `Voice` or `Music` and stores a callback for future playback in that category; `nil` clears it. It does not affect a source that is already playing. The callback has the signature `fun(source: sf.SoundSource, control: GlobalCore.AudioEffectControl, sampleRate: integer)`, with non-nil source and control arguments. It is invoked once for each new source before playback, using the current playback-device sample rate. The callback must install exactly one non-empty processor; missing or duplicate installation fails synchronously.
+`AudioManager.setEffect(audioType, effect)` accepts `"Sound"`, `"Voice"` or `"Music"` and registers a callback for future playback in that category (`nil` clears it; already-playing sources are unaffected):
 
-For a Lua processor, call `control:attachLuaProcessor(source, moduleName, resolverName, effectName, sampleRate)`. The three names are required strings supplied by the project. The native layer has no default project module or resolver. Each attachment creates an isolated Lua state, loads the module table with `require(moduleName)`, calls its `resolverName` function with `effectName`, then invokes the returned attacher as `(nil, control, sampleRate)` to obtain an `sf.SoundSource.EffectProcessor`. The isolated control exposes `isCancelled()`, `beginTail()` and `finishTail()`; it cannot attach another processor. Module loading, resolver and processor-creation failures propagate synchronously, without falling back to unprocessed audio. Errors raised later by the audio callback propagate through the Manager update.
-
-The isolated state uses the module search path captured when AudioManager initialises. Configure any additional search paths before loading `GlobalCore`. Main-state closures and objects are not transferred to the audio state. The project owns its module names, resolver functions and preset registry; see [default gameplay audio](<../../../Default Gameplay/Resources Audio Video and Effects.md#audio>) for the supplied presets, playback lifetime and cancellation rules.
+- **Callback contract:** Signature is `fun(source: sf.SoundSource, control: GlobalCore.AudioEffectControl, sampleRate: integer)` with non-`nil` `source` and `control`. It runs once per new source before playback starts using the playback device's current sample rate, and must install exactly one non-empty processor (missing or duplicate installation fails synchronously).
+- **Isolated Lua processor:** Call `control:attachLuaProcessor(source, moduleName, resolverName, effectName, sampleRate)` with three required project-supplied strings (the native layer defines no default module or resolver). Each attachment creates an isolated Lua state, loads `require(moduleName)`, calls `resolverName(effectName)`, and invokes the returned attacher as `(nil, control, sampleRate)` to produce an `sf.SoundSource.EffectProcessor`.
+- **Control and errors:** The isolated control exposes `isCancelled()`, `beginTail()` and `finishTail()` and cannot attach another processor. Module loading, resolver and processor-creation errors propagate synchronously without falling back to unprocessed audio; later audio-callback errors propagate during Manager updates.
+- **Search paths and isolation:** The isolated state inherits the module search path captured when `AudioManager` initialises, so configure extra search paths before loading `GlobalCore`. Main-state closures and objects do not transfer to the audio state. See [default gameplay audio](<../../../Default Gameplay/Resources Audio Video and Effects.md#audio>) for supplied presets, playback lifetime and cancellation rules.
 
 ## FontManager
 
+Loads and queries cached `sf.Font` resources.
+
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `load` | `function` | filePath: string | return: sf.Font | — |
-| `getFont` | `function` | fontName: string | return: sf.Font | — |
-| `getFontFilename` | `function` | fontName: string | return: string | — |
-| `getFontList` | `function` | — | return: string[] | — |
-| `getFontFilenameList` | `function` | — | return: string[] | — |
-| `hasFont` | `function` | fontName: string | return: bool | — |
-| `getMemory` | `function` | — | return: int | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `load` | `filePath: string` | `sf.Font` | Static. |
+| `getFont` | `fontName: string` | `sf.Font` | Static. |
+| `getFontFilename` | `fontName: string` | `string` | Static. |
+| `getFontList` | — | `string[]` | Static. |
+| `getFontFilenameList` | — | `string[]` | Static. |
+| `hasFont` | `fontName: string` | `bool` | Static. |
+| `getMemory` | — | `int` | Static. |
 
 ## ShaderManager
 
-Finish [shader preparation](<../Engine/Maps and Materials.md#shader-preparation-in-mrb>) before these loads. Register non-default stage combinations in that request; load methods do not translate or compile missing programs during rendering.
+Loads pre-prepared shader programs. Finish [shader preparation](<../Engine/Maps and Materials.md#shader-preparation-in-mrb>) before calling these methods, and register any non-default stage combinations in that request; load methods do not translate or compile missing programs during rendering.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `load` | `function` | shaderPath: string; shaderType: sf.Shader.Type = nil | return: sf.Shader | — |
-| `loadFull` | `function` | vertPath: string; fragPath: string | return: sf.Shader | — |
-| `loadFullShaderWithGeo` | `function` | vertPath: string; geoPath: string; fragPath: string | return: sf.Shader | — |
-| `getMemory` | `function` | — | return: int | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `load` | `shaderPath: string`, `shaderType: sf.Shader.Type = nil` | `sf.Shader` | Static. |
+| `loadFull` | `vertPath: string`, `fragPath: string` | `sf.Shader` | Static. |
+| `loadFullShaderWithGeo` | `vertPath: string`, `geoPath: string`, `fragPath: string` | `sf.Shader` | Static. |
+| `getMemory` | — | `int` | Static. |
 
 ## TextureManager
 
-`load` returns a ready texture synchronously. `request` returns a `TextureLoadRequest` immediately, with file reading, archive decompression and image decoding performed in the background. The running System frame loop uploads decoded images to the GPU before publishing Ready. Requesting a texture does not make it drawable yet; check the handle from a later update instead of polling in a loop that blocks the frame.
+Loads textures synchronously (`load`) or asynchronously (`request`). `request` returns a `TextureLoadRequest` immediately while file reading, archive decompression and image decoding run on background workers; the running System frame loop uploads decoded images to the GPU before publishing Ready.
+
+> **Important:** Requesting a texture does not make it drawable immediately. Poll the handle from later updates rather than spinning in a loop that blocks the frame.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `load` | `function` | filePath: string; sRGB: bool = false; area: sf.IntRect = nil; smooth: bool = false | return: sf.Texture | — |
-| `request` | `function` | filePath: string; sRGB: bool = false; area: sf.IntRect = nil; smooth: bool = false; priority: int = 0 | return: GlobalCore.TextureLoadRequest | Lua only; `metadata = false` |
-| `getPath` | `function` | texture: sf.Texture | return: string or nil | Lua only; `metadata = false` |
-| `getMemory` | `function` | — | return: int | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `load` | `filePath: string`, `sRGB: bool = false`, `area: sf.IntRect = nil`, `smooth: bool = false` | `sf.Texture` | Static. |
+| `request` | `filePath: string`, `sRGB: bool = false`, `area: sf.IntRect = nil`, `smooth: bool = false`, `priority: int = 0` | `GlobalCore.TextureLoadRequest` | Static. Lua only (`metadata = false`). |
+| `getPath` | `texture: sf.Texture` | `string \| nil` | Static. Lua only (`metadata = false`). |
+| `getMemory` | — | `int` | Static. |
 
-`TextureManager.getPath(texture)` finds the actual texture instance in the manager's current cache and returns its original resource path. It performs no file read or load and does not retain the texture. A texture created outside the manager, or no longer present after cache clearing, returns `nil`. The returned path does not encode `load` options such as a cropped `area`, sRGB or smoothing.
+Cache and lookup rules:
 
-Both loading methods share the same cache and in-flight work. Exact path, sRGB, area and smoothing distinguish cache entries; priority does not. Repeated requests for the same entry share decoding and upload, but receive independent subscription handles. A cache hit is immediately Ready. A synchronous `load` can finish a matching pending request without waiting for another frame, which also permits use before the System frame loop starts. Failed results are not reused, so a new request can retry the load.
+- **`getPath(texture)`:** Finds the exact texture instance in the current cache and returns its original resource path without reading files or retaining the texture. Textures created outside the manager or evicted by cache clearing return `nil`. The path does not encode `area`, `sRGB` or `smooth` load options.
+- **Cache sharing:** `load` and `request` share the same cache and in-flight work. Exact path, `sRGB`, `area` and `smooth` form the cache key (priority does not). Repeated requests for the same entry share decoding and upload while returning independent subscription handles.
+- **Ready and retry semantics:** Cache hits start Ready immediately. Synchronous `load` can complete a matching pending request without waiting for another frame, allowing use before the System frame loop begins. Failed results are not cached, so subsequent requests retry the load.
 
 ### TextureLoadRequest
 
-The handle retains its ready texture until it is cancelled or released. Other holders of that texture remain valid. The manager uses weak texture references on ordinary platforms and retains strong references on iOS until the cache is cleared.
+Instance handle returned by `TextureManager.request`. It retains its ready texture until cancelled or released without invalidating other holders. The manager keeps weak texture references on ordinary platforms and strong references on iOS until the cache is cleared.
 
-| API | Contract |
-|---|---|
-| `getStatus()` | Return one of the read-only constants `TextureLoadRequest.PENDING` (`"pending"`), `READY` (`"ready"`), `FAILED` (`"failed"`) or `CANCELLED` (`"cancelled"`). It never waits or raises the stored load failure. |
-| `getTexture()` | Return the ready `sf.Texture`, or raise the stored loading error for Failed. Pending and Cancelled raise a state error; this method never waits. |
-| `resolve()` | Finish this request synchronously and return its texture. The calling thread can complete a queued decode or upload. A failed request raises its stored error, and a cancelled request raises a state error. |
-| `setPriority(priority)` | Change this pending subscription's integer priority. Larger values run first, with request order breaking ties. Completed, failed and cancelled handles are unchanged. |
-| `cancel()` | Release this subscription and make the handle Cancelled, including after Ready or Failed. Repeated cancellation is harmless. Textures already obtained from the handle remain valid. |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `getStatus` | — | `string` | Lua only. Returns read-only constants `TextureLoadRequest.PENDING` (`"pending"`), `READY` (`"ready"`), `FAILED` (`"failed"`) or `CANCELLED` (`"cancelled"`). Never waits or raises stored load errors. |
+| `getTexture` | — | `sf.Texture` | Lua only. Returns the ready texture, raises the stored load error on Failed, or raises a state error on Pending/Cancelled. Never waits. |
+| `resolve` | — | `sf.Texture` | Lua only. Finishes the request synchronously on the calling thread and returns the texture. Raises the stored error on Failed or a state error on Cancelled. |
+| `setPriority` | `priority: int` | — | Lua only. Updates this pending subscription's integer priority (larger runs first; request order breaks ties). Completed, failed and cancelled handles are unchanged. |
+| `cancel` | — | — | Lua only. Releases this subscription and marks the handle Cancelled (including after Ready or Failed). Safe to repeat; textures already obtained stay valid. |
 
-These methods and constants are Lua-only and do not create Blueprint nodes. A texture request is not an `Engine.AsyncOperation` and cannot be passed to `asyncio.await`. Poll its state from normal updates; call `getTexture()` for Ready or Failed so required-resource failures propagate.
+These methods and constants are Lua-only and do not create Blueprint nodes. A `TextureLoadRequest` is not an `Engine.AsyncOperation` and cannot be passed to `asyncio.await`. Poll its state from normal updates and call `getTexture()` on Ready or Failed so required-resource errors propagate.
 
-The highest priority among pending subscriptions controls shared work. Cancelling or releasing one handle leaves other subscribers active. When the last subscriber leaves, queued work is cancelled and an in-flight result is discarded. An already-running decode or upload is not interrupted. Runtime shutdown cancels outstanding requests and joins the decoding workers before closing the graphics context.
+Scheduling, cancellation and budget behaviour:
 
-The service starts decoding workers on demand up to the [process's file-read limit](<../../../../Getting Started/Ludork Lua Advanced.md#cooperative-tasks-and-file-batches>). A 64 MiB backlog of decoded pixels pauses further background decoding; already-running decodes can still finish. Each frame starts at most two uploads, with an 8 MiB byte budget and a 1 ms time budget. A first texture larger than the byte budget is still allowed to make progress, and an upload already started cannot be interrupted. These are scheduling limits, not hard frame-time or total-memory limits: image decoding can hold additional pixel copies and codec buffers. The backlog counts the complete decoded image even when `area` selects a smaller GPU texture. Uploads pause while the mobile application is suspended.
+- **Shared subscriptions:** The highest priority among pending subscriptions governs shared work. Cancelling or releasing one handle leaves other subscribers active; when the last subscriber leaves, queued work cancels and in-flight results are discarded (already-running decodes or uploads are not interrupted). Runtime shutdown cancels outstanding requests and joins decoding workers before closing the graphics context.
+- **Worker and backlog limits:** Decoding workers start on demand up to the [process's file-read limit](<../../../../Getting Started/Ludork Lua Advanced.md#cooperative-tasks-and-file-batches>). A 64 MiB decoded-pixel backlog pauses new background decodes while in-flight decodes finish. The backlog counts full decoded images even when `area` selects a smaller GPU texture.
+- **Per-frame upload budgets:** Each frame starts at most two GPU uploads within an 8 MiB byte budget and a 1 ms time budget (a first texture exceeding 8 MiB is still permitted to proceed, and started uploads are not interrupted). These are scheduling limits rather than hard frame-time or total-memory caps; decoding can temporarily hold extra pixel copies and codec buffers. Uploads pause while a mobile app is suspended.

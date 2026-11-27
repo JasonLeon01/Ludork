@@ -1,71 +1,85 @@
 # Start Page, Workspace and Shortcuts
 
+Navigate the Ludork editor workspace, manage global preferences and user data, browse project files and use keyboard shortcuts, save workflows and diagnostic tools.
+
 ## Start page
 
-The Start page lists up to three recently opened projects and provides **New Project** and **Open Project**. Opening a validated `.proj` file moves it to the top of the list. The Start page removes unavailable entries as it loads. Opening `Main.proj` replaces the current project only after the unsaved-work checks succeed.
+The Start page displays up to three recently opened projects alongside **New Project** and **Open Project**. Opening a validated `.proj` file moves it to the top of the list; unavailable entries are pruned automatically when the page loads. Opening `Main.proj` replaces the active project only after unsaved-work checks pass.
 
-Dropping an existing `.proj` file anywhere on the Start page opens it. When several files are dropped, the editor uses the first existing `.proj` file and ignores the others.
-
-An unsupported project version cannot be opened. See [Main.proj](<Project Settings and Asset Layout.md#mainproj>) for supported versions.
+Drag and drop an existing `.proj` file anywhere onto the Start page to open it (if multiple files are dropped, the first existing `.proj` is opened and the rest are ignored). Projects with an unsupported version cannot be opened; see [Main.proj](<Project Settings and Asset Layout.md#mainproj>).
 
 ## Main workspace
 
-The **Map List** is on the left, with the map canvas in the centre and layer tabs above it. The right panel shows the tile palette in Tile mode, or **World Outliner** and **Actor Info** in Actor mode. **File Explorer** tabs and **Console** share the tab strip below the canvas. Tile and Actor mode controls sit beside the canvas and are hidden for world maps. The toolbar provides **Construct → Export → Play** / **Stop**; Standalone projects hide Construct. See [Run, Debug and Package](<Run Debug and Package.md>).
+| Area | Contents |
+|---|---|
+| **Left panel** | **Map List** for ordinary maps and composite worlds. |
+| **Centre panel** | Map canvas with layer tabs above it. Tile and Actor mode controls sit beside the canvas (hidden for world maps). |
+| **Right panel** | Tile palette in Tile mode, or **World Outliner** and **Actor Info** in Actor mode. |
+| **Bottom strip** | **File Explorer** tabs and **Console**. |
+| **Toolbar** | **Construct → Export → Play** / **Stop** (Standalone projects hide **Construct**). See [Run, Debug and Package](<Run Debug and Package.md>). |
 
-Resource windows display a loading indicator while opening. If loading fails, use **Retry**.
+Resource windows display a loading indicator while opening; if loading fails, click **Retry**.
 
 ## Online documentation
 
-**F1** opens the online manual inside the editor. Development editors use `trunk`, the documentation for ongoing development, at `/Ludork/docs/trunk/`. Release editors use the frozen snapshot matching their major.minor version: release `1.0.7` opens `/Ludork/docs/v1.0/`. The current editor language is selected initially; language and version selectors remain available in the documentation sidebar. About and third-party notices load online and use the same documentation version; the About page still shows the installed package version.
+Press `F1` to open the online manual inside the editor. Development editors open `trunk` (`/Ludork/docs/trunk/`); release editors open the frozen major.minor snapshot matching their version (for example, `1.0.7` opens `/Ludork/docs/v1.0/`).
 
-The embedded pages hide website navigation. Documentation links stay in the window; the homepage, downloads and external links open in the system browser. An internet connection is required. Failed page loads offer **Retry**. Windows requires Microsoft Edge WebView2 Runtime and offers an installation link when it is missing; macOS uses its system WKWebView.
+The manual starts in the active editor language, with language and version selectors available in the sidebar. **About** and third-party notices load online from the same version, while **About** displays the installed package version.
+
+Embedded pages hide website navigation: internal documentation links stay inside the window, whereas the homepage, downloads and external links open in the system browser. An internet connection is required, and failed loads offer **Retry**. Windows requires Microsoft Edge WebView2 Runtime (offering an install link if missing); macOS uses the system WKWebView.
 
 ## Global editor preferences
 
-Preferences shared by all projects are stored in `~/Ludork/Ludork.plist` on macOS and `~/Ludork/Ludork.ini` on other platforms, and restored when the editor starts. The macOS file uses the [XML plist configuration structure](<../Getting Started/Ludork Lua Advanced.md#platform-configuration-and-files>). Its directory stays `~/Ludork`; an existing macOS `Ludork.ini` is neither read nor migrated. If the plist is missing, the editor starts with the default preferences.
+Preferences shared across all projects are stored in `~/Ludork/Ludork.plist` on macOS (XML plist; see [Platform, configuration and files](<../Getting Started/Ludork Lua Advanced.md#platform-configuration-and-files>)) and `~/Ludork/Ludork.ini` on other platforms. macOS never reads or migrates an existing `Ludork.ini`; if the plist is absent, defaults apply.
 
 | Area | Saved preferences |
 |---|---|
-| Main window | Normal position and size, maximised state, map-list and inspector widths, lower-area height, Actor outliner/inspector proportions and the world-map child-list width. |
-| File Explorer | Initial icon/list view, content zoom and expanded/collapsed source list for a new workspace, plus the preferred external open target. |
-| Tool windows | Position, normal size and maximised state for each window type. |
-| Tool content | Existing adjustable split widths or proportions, the UI timeline and system-control category expansion, and particle configuration section expansion. |
+| **Main window** | Normal position and size, maximised state, map-list and inspector widths, lower-area height, Actor outliner/inspector split and world-map child-list width. |
+| **File Explorer** | Initial icon/list view, content zoom, source-list expansion for new workspaces and preferred external open target. |
+| **Tool windows** | Position, normal size and maximised state per window type. |
+| **Tool content** | Adjustable split widths or proportions, UI Timeline and system-control category expansion, and particle configuration section expansion. |
 
-File Explorer defaults to icon view, 100% zoom, a collapsed source list and the system file manager. Saved project tabs use their own display preferences; changing one tab does not change other open tabs. Missing or invalid preference values use defaults. An unreadable or malformed plist is reported and is not overwritten by preference saves; repair it and restart the editor before saving preferences again. Project browsing and map selection stay in `Main.proj`; global preferences do not modify project resources or restore search text, input drafts, layer selection or canvas view state.
-
-Window layouts adapt to the current monitors. For each window type, the most recent adjustment is restored; minimised state is not restored.
-
-Project-specific display preferences are described in [Viewport options](<../PreviewHost/Map and World Previews.md#viewport-options>).
+- **Defaults and recovery:** File Explorer defaults to icon view, `100%` zoom, a collapsed source list and the system file manager. Saved project tabs use their own display preferences independently. Missing or invalid values fall back to defaults. An unreadable or malformed plist is reported and never overwritten by saves — repair it and restart before saving preferences again.
+- **Scope and monitors:** Project browsing and map selection live in `Main.proj`; global preferences never modify project files or restore search text, input drafts, layer selection or canvas view state. Window layouts adapt to connected monitors, restoring the latest non-minimised geometry per window type. For project-specific display preferences, see [Viewport options](<../PreviewHost/Map and World Previews.md#viewport-options>).
 
 ## User data directory
 
-Windows and macOS editors use `~/Ludork` for persistent data in installed, portable and repository runs. `~` is the current user's home directory: typically `C:\Users\<user>` on Windows and `/Users/<user>` on macOS.
+Windows and macOS editors store persistent data under `~/Ludork` (`C:\Users\<user>\Ludork` on Windows, `/Users/<user>/Ludork` on macOS) across installed, portable and repository runs.
 
-| Data | Path below `~/Ludork` |
+| Data | Path beneath `~/Ludork` |
 |---|---|
-| Preferences, recent projects and window layouts | `Ludork.plist` on macOS; `Ludork.ini` on other platforms |
+| Preferences, recent projects and window layouts | `Ludork.plist` (macOS) or `Ludork.ini` (other platforms) |
 | Global and project plug-ins, registrations and retained data | `Plugins/` and `plugins.json` |
-| Downloaded templates, all four variants | `Templates/v<base-version>/` |
+| Downloaded project templates (all four variants) | `Templates/v<base-version>/` |
 | Signing profile indexes | `macos-signing.json`, `ios-signing.json`, `harmony-signing.json`, `android-signing.json` |
 | Local server test settings | `.localserver/<project-directory-name>/test.json` |
-| Editor Console output for a project | `Log/<project-key>/Ludork.log` |
+| Project Console logs | `Log/<project-key>/Ludork.log` |
 | Windows embedded-browser data | `WebView2/` |
 
-Plug-in discovery also reads the working directory's registry and sources, with working-directory IDs taking priority over user copies. Retained plug-in data stays in `~/Ludork`; see [Global and project storage](<../Plug-in Development and Installation/Installing and Managing Plug-ins.md#global-and-project-storage>).
+Plug-in discovery also reads the working directory's registry and sources, giving working-directory IDs priority over user copies while keeping retained plug-in data in `~/Ludork` (see [Global and project storage](<../Plug-in Development and Installation/Installing and Managing Plug-ins.md#global-and-project-storage>)).
 
-Project files, build output and `EditorCache` remain in each project. Game runtime settings and save files retain their own locations. Passwords continue to use the operating system's credential store; macOS manages its WebKit cache separately.
+Project files, build outputs and `EditorCache` stay inside each project, game runtime configs and saves keep their own directories, passwords live in the OS credential store, and macOS manages its WebKit cache separately.
 
-Windows MSI and EXE uninstallers offer **Delete user data**, selected by default. Keeping it selected deletes the verified initiating user's entire `~/Ludork` directory, including all plug-in sources, registrations and retained data, preferences, logs, template caches, browser data and signing indexes. Close Ludork and back up anything needed before uninstalling. Clear the option to retain this directory. Projects in `~/LudorkProjects` or other directories outside `~/Ludork`, and other users' data, are not deleted. Removing the macOS application continues to leave `~/Ludork` intact.
+> **Warning:** On Windows, MSI and EXE uninstallers select **Delete user data** by default, deleting the verified initiating user's entire `~/Ludork` directory — including all plug-ins, registrations, preferences, logs, template caches, browser data and signing indexes.
+>
+> Close Ludork and back up needed files before uninstalling, or clear the option to keep your data. Projects outside `~/Ludork` (such as `~/LudorkProjects`) and other users' data are never deleted. Removing the macOS application leaves `~/Ludork` intact.
 
-For silent MSI removal, pass `REMOVE_USER_DATA=0` to retain data or `REMOVE_USER_DATA=1` to delete it; the default is `1`. Cleanup runs only for an explicit full uninstall, after the removal transaction commits. Repair and the removal of an older version during a major upgrade do not delete user data. A deletion failure is reported and may leave data requiring manual cleanup. Service accounts and uninstall sessions whose initiating user cannot be verified must use `REMOVE_USER_DATA=0`.
+| Uninstaller | Flag | Behaviour |
+|---|---|---|
+| **Windows MSI** | `REMOVE_USER_DATA=0` (keep) / `1` (delete, default) | Runs only on explicit full uninstall after the removal transaction commits (never during repair or major upgrade). Deletion errors are reported and may require manual cleanup. Service accounts and sessions whose initiating user cannot be verified must pass `REMOVE_USER_DATA=0`. |
+| **Windows EXE** | `/REMOVEUSERDATA=0` (keep) / `1` (delete, default) | Honoured in interactive and silent removal while keeping the Windows uninstall entry. If another administrator supplies UAC credentials, no interactive desktop exists, or the initiating user cannot be confirmed, user data is preserved and manual cleanup is requested rather than substituting the administrator's or desktop user's directory. |
 
-The EXE uninstaller accepts `/REMOVEUSERDATA=0` or `/REMOVEUSERDATA=1`, also defaulting to `1`; silent removal honours the same choice. It retains the existing Windows uninstall entry. If another administrator's account supplies UAC credentials, no interactive desktop is available, or the initiating user's identity cannot be confirmed, it preserves user data and prompts for manual deletion, or records that instruction during silent removal. It does not substitute the administrator's or desktop user's directory. If manual cleanup is needed, sign in as the intended user and delete only that user's `~/Ludork` after preserving anything needed.
+If manual cleanup is required, sign in as the intended user, back up anything needed and delete only that user's `~/Ludork` directory.
 
 ### Moving existing editor data
 
-Apart from the documented working-directory plug-in scan, old storage locations are not read or migrated automatically. Close Ludork and back up anything needed **before uninstalling an older version**. Windows previously stored editor data in the installation directory, while repository runs could use the working directory for settings and the repository for plug-ins. macOS settings and signing indexes previously lived in `~/Library/Application Support/Ludork`; its published plug-ins and template cache already used `~/Ludork`.
+Apart from the working-directory plug-in scan, legacy storage locations are not read or migrated automatically (Windows previously stored data in the installation directory and repository runs could use the working directory or repository; macOS previously kept settings and signing indexes in `~/Library/Application Support/Ludork`, while published plug-ins and template caches already used `~/Ludork`).
 
-After the new installation finishes, restore the required preferences file in the [current platform format](<#global-editor-preferences>), signing indexes, template cache and local server settings to the matching locations above. Restore `Plugins` and `plugins.json` together from the same backup. To preserve existing plug-ins during installation, clear the EXE's **Install Official Plugins** option or pass `INSTALL_OFFICIAL_PLUGINS=0` to MSI, then restore the backup. Restoring plug-ins before an installation that retains the default plug-in option would replace them again. Back up any existing destination files before replacing them. System credential-store entries and project files do not need to move.
+1. Close Ludork and back up needed files **before uninstalling an older version**.
+2. Install the new version. To keep existing plug-ins, clear the EXE installer's **Install Official Plug-ins** option or pass `INSTALL_OFFICIAL_PLUGINS=0` to MSI (restoring plug-ins before an install with that option enabled overwrites them).
+3. Restore preferences in the [current platform format](#global-editor-preferences), signing indexes, template caches and local server settings into `~/Ludork`, backing up any existing destination files first. Restore `Plugins` and `plugins.json` together from the same backup.
+
+System credential-store entries and project files do not need to move.
 
 ## Global shortcuts
 
@@ -91,87 +105,63 @@ The primary modifier is `Ctrl` on Windows and `Command` on macOS.
 | `F9` | Game Variables |
 | `F10` | General Data |
 
-Some document windows add context-specific shortcuts. In the Blueprint editor, `F2` renames the selected event tab; in the Common Functions window, the selected Common Function; in File Explorer, the selected file (except on macOS); and in the animation editor, the selected time tag. No window displays an `F2` hint.
-
-Single-button hint and error dialogs close with `Enter`, `Return`, `Space` or `Escape`. In confirmation dialogs, `Enter`, `Return` and `Space` confirm the action, while `Escape` cancels it.
+- **Context-specific `F2` rename:** Renames the selected event tab (Blueprint editor), Common Function (Common Functions window), file (File Explorer on Windows/Linux; unavailable on macOS) or time tag (animation editor). Windows do not display an `F2` hint.
+- **Dialog keys:** Single-button hint and error dialogs close with `Enter`, `Return`, `Space` or `Escape`. Confirmation dialogs confirm with `Enter`, `Return` or `Space`, and cancel with `Escape`.
 
 ## Editing and saving
 
-Displayed field defaults are written only when the field is edited.
+Displayed field defaults are written only when edited. Clearable file fields list **Clear** first in every directory and file filter (select and click **Open**, press `Enter` or double-click to clear; **Cancel** or `Escape` keeps the previous value). Save dialogs, multi-file imports and required-file selectors omit **Clear**.
 
-File fields that can be cleared offer **Clear** as the first item in the file selector, in every directory and for every file filter. Select it and choose **Open**, press Enter or double-click it to clear the field. **Cancel** or Escape keeps the previous value. Save dialogs, multi-file imports and selectors that require an actual file do not offer this item.
+### Saving and progress locks
 
-Managed resource changes and asset file or folder renames and moves stay in memory until Save; **Discard** restores the last saved paths. All Save buttons and `Ctrl/Command+S` write every modified document, including unopened resources, and Construct, Export, Play and Pack use the same workflow. Successful saves show no result dialog; a failed save reports only the failed items and their errors. Normal Save validates changed Blueprints, while forced saving can retain unfinished graphs. [Game Config](<Project Settings and Asset Layout.md#game-configuration>) writes immediately on confirmation.
+- **Global Save:** Managed edits and asset renames or moves stay in memory until Save (**Discard** restores saved paths). Every Save button and `Ctrl/Command+S` writes all modified documents (including unopened ones); Construct, Export, Play and Pack invoke the same save flow. Successful saves show no dialog; failures report only failed items and their errors. Normal Save validates changed Blueprints, whereas forced save can retain unfinished graphs. [Game Config](<Project Settings and Asset Layout.md#game-configuration>) writes immediately on confirmation.
+- **Operation locks:** Save, deletion, file transfers, renames, Undo and Redo temporarily disable editing, project switching and window closing. Longer operations (including pre-deletion reference checks) display a non-cancellable animated progress dialog showing stage, current file and completed count, yielding to any confirmation prompt. If project or external files change during validation, the editor asks you to retry.
+- **Unsaved markers:** Modified documents show `*` in File Explorer, window titles and resource selectors. Closing a resource window preserves unsaved changes until the project closes. Closing or replacing a project lists unsaved files with **Save**, **Discard** and **Cancel**; a save failure keeps modified markers and prevents closing.
 
-Saving, resource deletion, file transfers and renames, Undo and Redo temporarily disable editing, project switching and window closing. Longer operations show an animated progress dialog after a short delay, including reference checks before deletion. The dialog reports the current stage and, when available, the current file and completed count. It gives way to any required confirmation and closes when the operation finishes or fails. These editing operations cannot be cancelled midway. If project data or external files change during validation, the editor asks you to retry.
+### Undo, Redo and pending moves
 
-Undo and Redo apply only to the active file, which keeps its 100 most recent entries. Windows that show the same file share its data and history, including after they are closed and reopened. Continuous text or numeric input in one field merges into a single step. Changing the control or the editing view, an automatic update, Save, Undo and Redo all end that step. Buttons, check boxes and selections each remain separate steps.
-
-Undo cannot restore a reference to a deleted resource or to an unavailable asset path or General Data member ID renamed during the session; a rejected step leaves the document and history unchanged.
-
-Automatic reference updates create a marked Undo barrier in every changed target file, including unopened files. Later edits remain undoable, but Undo cannot cross the barrier and reports the barrier's source. Undoing or redoing the source rename updates references against the current target content and adds a new barrier, which preserves unrelated edits. Saving preserves the history and the barriers, so Undo can mark a saved file as modified again.
-
-To Undo or Redo an asset path change, select the file or folder in File Explorer. Undoing a folder move preserves later independent changes to its children. Save pending moves before copying, deleting, importing, creating or writing files at their source or destination paths. Further renames and moves remain available.
-
-For external-change conflicts, **Keep memory** accepts the current disk contents while retaining pending paths, updated references and Undo/Redo history. **Use disk** cancels the affected pending moves and restores recognised references to the last saved paths, preserving unrelated edits.
-
-If a source is missing or a destination is occupied, **Keep memory** fails without partial changes. **Use disk** can still cancel the moves, but does not restore missing files or clear their references; restore the files or update those references yourself.
-
-Modified files show `*` in File Explorer and in editor titles, and they are marked in resource selectors. Closing or replacing a project lists unsaved files and offers **Save**, **Discard** and **Cancel**. **Save** writes every modified document. Save failures retain the modified markers and prevent closing. Closing a resource window keeps its unsaved data until the project closes.
+- **Per-file history:** Undo and Redo operate on the active file (up to `100` steps). Windows displaying the same file share data and history across close and reopen. Continuous text or numeric input in one field merges into a single step (ended by changing control or view, automatic updates, Save, Undo or Redo); buttons, checkboxes and selections are individual steps.
+- **Reference barriers:** Undo cannot restore references to deleted resources or unavailable/renamed asset paths or General Data member IDs (rejected steps leave document and history unchanged). Automatic reference updates insert a marked Undo barrier in every updated target file (including unopened files): later edits stay undoable, but Undo stops at the barrier and identifies its source. Undoing or redoing the source rename updates targets against current content and places a new barrier, preserving unrelated edits. Save preserves history and barriers.
+- **Pending asset paths:** Select a file or folder in File Explorer to Undo or Redo its path change (undoing a folder move preserves later independent child changes). Save pending moves before copying, deleting, importing, creating or writing files at their source or destination paths; further renames and moves remain allowed.
+- **External-change conflicts:** **Keep memory** accepts disk contents while keeping pending paths, updated references and Undo/Redo (fails without partial changes if a source is missing or destination is occupied). **Use disk** cancels affected pending moves and restores recognised references to saved paths while preserving unrelated edits, but does not restore missing files or clear their references.
 
 ## File explorer and reference tree
 
-File Explorer browses `Assets` and `Data` through the source list and breadcrumbs. Up stops at the selected root.
+**File Explorer** browses `Assets` and `Data` through the source list and breadcrumbs (Up stops at the selected root).
 
-Click **＋** to the right of Console in the tab bar, or choose **View → New File Explorer Tab**, to open another browser. The first **File Explorer** tab stays open; additional tabs have numbers and a **×** close control. A new tab copies the most recently active File Explorer's current directory and display preferences, with an empty search, navigation history and selection. Closing the active additional tab selects the File Explorer immediately to its left.
+### Tabs, navigation and layout
 
-Each tab keeps its own browsing state. Use **Back** and **Forward**, `Alt+Left` and `Alt+Right`, or the mouse side buttons to revisit directories. History also restores that visit's search, expanded folders, selection, scroll position and display preferences. Navigating to a new directory after going back clears the forward history. Refreshing, changing a selection or search, and switching tabs do not add history entries.
+- **Multiple tabs:** Click **＋** beside **Console** or choose **View → New File Explorer Tab**. The first **File Explorer** tab stays permanently open; extra tabs are numbered and show **×**. New tabs inherit the most recently active File Explorer's directory and display preferences with empty search, history and selection; closing an active extra tab focuses the tab to its left.
+- **History and Locate:** Navigate each tab's history via **Back** / **Forward**, `Alt+Left` / `Alt+Right` or mouse side buttons (restoring search, expanded folders, selection, scroll and display preferences; navigating after Back clears forward history; refreshing, changing selection/search or switching tabs adds no entry).
+  - Resource **Locate** targets the most recently active File Explorer even while Console is active. Reopening restores tabs, directories, display preferences and active tab per [Main.proj](<Project Settings and Asset Layout.md#mainproj>); search, history, selection and scroll are session-only.
+- **Views and zoom:** List view expands/collapses folders in place (double-click enters; `Right` expands or selects first child; `Left` collapses or selects parent; expansion lasts for the session), whereas icon view and search results are flat. Zoom `50%–200%` with `Ctrl/Command+wheel` or the bottom-right slider, and press `F5` to refresh external changes.
+- **Search:** Matches filenames case-insensitively in the current directory and subdirectories (including unsaved resources, excluding symlink folders). Clearing the box, changing directories or locating exits search.
+- **Media previews:** Image and video files show supported thumbnails (see [Actor previews](<../PreviewHost/UI Actor Particle and Subtitle Previews.md>) for Blueprint JSON). Press `Space` on an image, audio or video file (or use a file selector's right-hand pane) to preview locally starting paused, with playback, seek and volume controls (`Escape` closes). Preview relies on system codecs (Windows needs Edge WebView2 Runtime), requires no FFmpeg option or native build, and reports unsupported or damaged files.
 
-Resource **Locate** actions use the most recently active File Explorer, including when Console is selected. Reopening the project restores the browser tabs, their directories and display preferences, and the active browser; search, navigation history, selection and scroll position last only for the current session. The saved fields and directory recovery rules are described in [Main.proj](<Project Settings and Asset Layout.md#mainproj>).
+### File operations, deletion and reference tree
 
-Right-click an entry for file operations or empty space for the current directory menu. Paste or drop on a folder to place entries inside it, on a file to use its containing folder, or on empty space to use the current browsing directory. These rules also apply to expanded folders and search results. Keyboard paste (`Ctrl/Command+V`) uses the selected entry, or the current browsing directory when several entries or none are selected.
+- **Context menus and drag-and-drop:** Right-click an entry for item actions or empty space for the current directory menu. Pasting or dropping targets a folder directly, a file's containing folder, or the current directory on empty space (including expanded folders and search results); `Ctrl/Command+V` uses the selected entry or current directory if none or multiple are selected.
+  - Drag any selected entry to move the group (clicking and releasing without dragging selects just that entry; folders cannot move into themselves or descendants). Right-click and choose **Show in File Explorer** (Windows) or **Show in Finder** (macOS) to reveal the right-clicked entry only (disabled for unsaved entries; never saves pending changes).
+- **Duplicating and move conflicts:** Duplicate a folder in place with `Ctrl/Command+C` followed by `Ctrl/Command+V` (conflicts append `_copy`, `_copy2`, placed before file extensions; copied folders appear once complete). A cut or drag causing duplicate destinations or name collisions rejects the entire move (leaving the cut clipboard ready after fixing conflicts). On disk error during a move, the editor attempts rollback, reporting any unreturned file and keeping remaining items on the cut clipboard.
+- **Reference tree and creation:** The reference tree shows outgoing and incoming references. Create, rename and move managed resources in the editor so recognised references update automatically (update arbitrary strings and source code manually). Creating or copying a managed resource leaves it unsaved without a creation Undo step; renames appear immediately and Global Save commits paths and references together. [Fixed resource directories](<Project Settings and Asset Layout.md#fixed-resource-directories>) enforce additional path restrictions.
+- **Pre-deletion checks:** Remove recognised references and save referring files before deleting. For `Assets` files and folders, File Explorer checks both current and last saved project data (including nested folder contents) and blocks the entire selection if referenced, listing each asset, referring file and field (delete referring files first rather than together).
+- **Recycling and recovery:** Confirmed deletions move saved files to the Windows Recycle Bin or macOS Trash (keeping items that fail to recycle while already-recycled items stay deleted). Recycling preserves the last saved disk path and content, discarding unsaved edits; never-saved resources disappear without a recoverable copy. Deleted resources leave managed documents/lists so Save does not recreate them; Editor Undo cannot undo resource deletion (restore via Trash/Recycle Bin and reopen the project; in-document item deletions use document Undo).
 
-To move several entries together, drag from any selected entry. Clicking and releasing there without dragging selects just that entry. The highlighted folder or content area shows the destination. Search results also show its project-relative path. A folder cannot be moved into itself or a descendant.
+### Opening in external editors
 
-Right-click a file or folder and choose **Show in File Explorer** on Windows or **Show in Finder** on macOS to open its containing directory and select it. This also works in expanded folders and search results. With multiple entries selected, it reveals only the right-clicked entry. The action is disabled for entries that do not yet exist on disk and does not save pending changes.
+The open menu at the upper right always offers the system file manager (opening the active directory) and remembers your selection as the preferred target, falling back to the system file manager when unavailable on another project or machine without overwriting the preference.
 
-In list view, folder arrows expand or collapse nested folders in place; double-click a folder to enter it. `Right` expands a folder or selects its first child; `Left` collapses it or selects its parent. Expansion is remembered for the project session. Icon view and search results remain flat.
-
-Search matches file names in the current directory and its subdirectories, ignoring case. Results include unsaved resources and display relative paths. Clearing the field restores browsing; changing directories or locating a file clears the search. Symbolic-link folders are excluded from expansion and recursive search.
-
-Use `Ctrl/Command` with the mouse wheel or the bottom-right slider to scale icons and text from 50% to 200%. Press F5 to refresh external file changes.
-
-Image and video entries show thumbnails when the format is supported. For Blueprint JSON entries, see [Actor previews](<../PreviewHost/UI Actor Particle and Subtitle Previews.md>).
-
-Select an image, audio or video file in File Explorer and press **Space** to preview it. File selectors also preview audio and video in their right-hand pane. Playback starts paused; use the playback, seeking and volume controls, or **Escape** to close the preview or cancel selection.
-
-Media previews support common audio and video formats, subject to the system's codecs. Windows requires Microsoft Edge WebView2 Runtime. Previewing does not require the project's FFmpeg option or a native game build, and files stay on your machine. Unsupported or damaged files display an error.
-
-The reference tree shows which resources a file uses and which files use it. Create, rename and move managed resources through the editor to update recognised references. Arbitrary strings and references in source code must be updated manually.
-
-Creating or copying a managed resource leaves it unsaved and adds no Undo step for the creation. A rename appears immediately in the editor. Global Save then writes the new paths and the updated references together. [Fixed resource directories](<Project Settings and Asset Layout.md#fixed-resource-directories>) have additional path restrictions.
-
-Before deleting a resource, remove its recognised references and save the referring files. For files and folders under `Assets`, File Explorer checks the current project and the last saved data, including references to files inside selected folders. If either version still refers to a selected asset, the whole selection stays in place. The error lists each asset, the file that uses it and the field to edit. Selecting the referring file for deletion at the same time still blocks the operation. You can delete that file first, then delete the asset.
-
-After confirmation and reference checks, File Explorer and resource lists move saved files and folders to the Windows Recycle Bin or macOS Trash. If the system cannot recycle an item, the editor reports the error and keeps it. Successfully recycled items remain deleted if a later item fails.
-
-Recycling preserves the last saved disk contents and path, including when a resource has an unsaved rename. Unsaved edits are discarded. A new resource that has never been saved is removed from the editor without creating a recoverable copy. Successfully deleted resources are removed from managed documents and resource lists, so a later Save does not recreate them. Editor Undo cannot restore resource deletion. Restore saved files through the operating system, then reopen the project to load them again. Deleting items within a document, such as Actors, graph nodes and map layers, continues to use that document's Undo history.
-
-To duplicate a folder in place, select it and press `Ctrl/Command+C` followed by `Ctrl/Command+V` with the same selection. For example, copying `Icons` creates `Icons_copy` alongside it. A name conflict adds `_copy`, then `_copy2` and so on, before the extension for files. A folder copy appears at its final path once all its contents have been copied.
-
-If a cut or drag would give two entries the same destination, or a destination name is already taken, the whole move is rejected. After cutting, resolve the conflict and paste again using the same clipboard selection. If a disk error interrupts a move, the editor attempts to move the files back. If one cannot be returned, the error identifies its location and the cut clipboard keeps the entries still to move.
-
-The open menu at the upper right always offers the system file manager, which opens the current browsing directory. Selecting an entry saves it as the preferred open target. If it is unavailable in another project or on the current machine, the button uses the system file manager while retaining the saved preference. It lists VS Code or Cursor only when the corresponding application is installed. C++ Source projects also list an installed CLion, and Visual Studio 2022 on Windows. VS Code, Cursor and CLion open the project root regardless of the directory displayed in File Explorer. When the local `.idea` or `.vs` configuration is absent, opening CLion or Visual Studio for the first time prompts before running the project-provided environment generator. Cancelling leaves the project unchanged. Visual Studio opens the generated `Main.sln` at the project root.
+It lists installed VS Code and Cursor, plus installed CLion and Windows Visual Studio 2022 for C++ Source projects. VS Code, Cursor and CLion open the project root regardless of the current File Explorer path. When `.idea` or `.vs` is absent, opening CLion or Visual Studio prompts (**Initialise IDE Environment**) before running the project's environment generator (cancelling leaves the project unchanged); Visual Studio opens the generated root `Main.sln`.
 
 ## Console and performance monitor
 
-The Console collects plug-in, build and runtime output. Input can be sent only while a compatible runtime connection is ready. **Edit → Development Tools and Settings → Performance Monitor** displays recent frame, logic and memory samples while the game is running.
+**Console** collects plug-in, build and runtime output and accepts input only while a compatible runtime connection is active. Open **Edit → Development Tools and Settings → Performance Monitor** to view live frame, logic and memory samples while the game runs.
 
-Console output is saved to `~/Ludork/Log/<project-key>/Ludork.log`. The key is derived from the project's absolute path, so projects with the same directory name at different paths have separate logs. A new logging session archives the preceding log with its modification timestamp. Moving or renaming a project starts a different log directory; existing logs remain available.
+Console output writes to `~/Ludork/Log/<project-key>/Ludork.log`, keyed by the project's absolute path so identically named projects in different folders stay separated. Each new session archives the previous log with its modification timestamp; moving or renaming a project starts a new log directory while previous logs stay on disk.
 
 ### World-streaming samples
 
-When profiling a composite world, the Performance Monitor includes an optional `worldStreaming` snapshot. Ordinary-map and unprofiled ticks do not include it.
+When profiling a composite world, Performance Monitor includes an optional `worldStreaming` snapshot (omitted for ordinary maps and unprofiled ticks):
 
 | Field | Meaning |
 |---|---|
@@ -180,13 +170,13 @@ When profiling a composite world, the Performance Monitor includes an optional `
 | `prepared` | Loaded regions in `Prepared`. |
 | `active` | Regions in `Active`. |
 | `dormant` | Loaded regions in `Dormant`. |
-| `cacheBytes` | Conservative estimate used by the non-Active region cache. It is not an exact measure of process, Lua, native or GPU memory. |
+| `cacheBytes` | Conservative estimate for the non-Active region cache (not an exact process, Lua, native or GPU memory total). |
 | `publishMilliseconds` | Time spent converting and publishing regions during the logic tick. |
-| `visibleTileChunks` | Unique 32×32-cell TileLayer chunks submitted by visible child layers in the latest draw. |
+| `visibleTileChunks` | Unique 32×32-cell `TileLayer` chunks submitted by visible child layers in the latest draw. |
 | `activeActors` | Actors currently present in the world's Active update/render batches. |
 
 ![Console output after a Game project run](../../../images/editor/console-output.png)
 
 ![Performance Monitor waiting for runtime telemetry](../../../images/editor/console-performance.png)
 
-*A waiting monitor is normal when no compatible runtime session is active; the timeline fills after telemetry is connected.*
+*The monitor waits until a compatible runtime telemetry session connects.*

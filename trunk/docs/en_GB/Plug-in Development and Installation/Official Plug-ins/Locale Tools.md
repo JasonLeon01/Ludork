@@ -1,26 +1,26 @@
 # Official Locale Tools
 
-`Plugins/OfficialLocaleTools` is the reference implementation for an ordinary menu command, a text hint provider, an Export hook and a separate before-Pack exclusion hook. It does not register a map-item context-menu command.
+`Plugins/OfficialLocaleTools` is the official plug-in for game translation workbooks and serves as the reference implementation for an ordinary menu command, a text-hint provider, an Export hook and a before-Pack exclusion hook (it registers no map-item context-menu command).
 
-Install it with the [official plug-ins](<../Installing and Managing Plug-ins.md#official-release-plug-ins>) and confirm **Loaded** in the plug-in manager.
+Install it through [Official release plug-ins](<../Installing and Managing Plug-ins.md#official-release-plug-ins>) and confirm it reports **Loaded** in the **Plug-in Manager**.
 
 ## Registration
 
-The public entry type loads the plug-in's own `locale.json`, then registers:
+The entry type loads the plug-in's own `locale.json`, then registers four components:
 
-- A Database command at order 900 that opens `Data/Locale/Locale.xlsx`
-- A `LocaleTextHintProvider`
-- A `LocaleExportHook` through `RegisterBeforeExportHook`
-- A before-Pack hook that only excludes the authoring workbook from final game packages; Standalone project conversion skips this hook and retains the workbook
+- A **Database** menu command (order `900`) that opens `Data/Locale/Locale.xlsx`
+- `LocaleTextHintProvider` for `{ID}` editor hints
+- `LocaleExportHook` via `RegisterBeforeExportHook`
+- A before-Pack hook that excludes the authoring workbook from final game packages (skipped during Standalone project conversion so the workbook stays intact)
 
-The Export hook declares the workbook as input and language Lua files as outputs for change detection, and refreshes its cache and editor text hints after each export attempt.
+`LocaleExportHook` declares `Data/Locale/Locale.xlsx` as its input and the generated Lua language files as outputs for Export change detection, refreshing its internal cache and editor text hints after every export attempt.
 
-The [Game Localisation Workflow](<Game Localisation Workflow.md>) covers workbook authoring, generated files and packaging.
+See [Game Localisation Workflow](<Game Localisation Workflow.md>) for workbook rules, generated Lua files and runtime usage.
 
 ## Menu behaviour
 
-The menu handler requires an open project, checks that the workbook exists and asks the operating system to open it. It reports the warnings and errors it handles through `IPluginUserInterface`.
+The menu handler requires an open project, verifies that `Data/Locale/Locale.xlsx` exists and asks the operating system to open it with the default spreadsheet application, reporting handled warnings and errors through `IPluginUserInterface`.
 
 ## Plug-in and game languages
 
-`Plugins/OfficialLocaleTools/locale.json` localises the plug-in's own menu and diagnostic messages using `EditorLanguage`. It is not the game's catalogue.
+`Plugins/OfficialLocaleTools/locale.json` localises the plug-in's own menu label and diagnostic messages using `EditorLanguage`. It is completely separate from the project's game language catalogues.

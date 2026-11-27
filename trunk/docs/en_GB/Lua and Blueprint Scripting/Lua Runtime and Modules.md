@@ -1,8 +1,8 @@
 # Lua Runtime and Modules
 
-Ludork runs Lua 5.5 with Standard extensions, LuaSF and project-native modules.
+Ludork runs Lua 5.5 with Standard extensions, LuaSF and project-native modules. This page covers project scripting architecture, module boundaries, hot reload, error handling and workspace declarations.
 
-Readers new to Lua can begin with [Lua Basics](<../Getting Started/Lua Basics.md>). Ludork-native language additions such as `class`, `bool`, `list`, `dict`, copying, filesystem helpers and `asyncio` are described in [Ludork Lua Advanced](<../Getting Started/Ludork Lua Advanced.md>). This section covers project scripting architecture rather than language syntax.
+New to Lua? Start with [Lua Basics](<../Getting Started/Lua Basics.md>), then read [Ludork Lua Advanced](<../Getting Started/Ludork Lua Advanced.md>) for Ludork language additions (`class`, `bool`, `list`, `dict`, copying, filesystem helpers and `asyncio`).
 
 | Model | Best suited to | Primary source |
 |---|---|---|
@@ -12,11 +12,13 @@ Readers new to Lua can begin with [Lua Basics](<../Getting Started/Lua Basics.md
 | Declarative UI | JSON assets and generated typed View trees | `Data/UI/**/*.json`, generated `Scripts/Internal/UI/**/*.lua` and matching stubs |
 | UI behaviour | Handwritten foundations and business Controllers | `Scripts/Internal/UIBase`; private Controllers inside window modules; independent row and Scene `Controller.lua` modules |
 
-A Blueprint inheritance chain uses either graph mode or Script Mixin mode. Do not switch modes within one chain.
+> **Important:** A Blueprint inheritance chain uses either graph mode or Script Mixin mode; do not switch modes within one chain.
 
 ## Entry and module order
 
-Native startup runs the script passed as the first command-line argument, or `Scripts/Entry.lua` when no script is supplied. It does not read a project-local configuration or a `script` setting to select the entry. Load the root native modules in the order shown below, finish the direct `require` calls, then declare aliases:
+Native startup runs the script passed as the first command-line argument, or `Scripts/Entry.lua` when no argument is supplied. Startup does not read a project-local configuration or `script` setting to choose the entry file.
+
+Load the root native modules in the order below, finish direct `require` calls, then declare local aliases:
 
 ```lua
 local Engine = require("Engine")
@@ -31,27 +33,25 @@ local System = GlobalCore.System
 local ManagerFunctions = GlobalFunctions.Manager
 ```
 
-The native `GlobalFunctions` module exposes `Components`, `UI`, `NodeGraph` and `Manager`. Lua Blueprint function libraries under `Scripts/GlobalFunctions` are separate modules, loaded with paths such as `require("GlobalFunctions.Math")`; they are not members of the native root table. Other modules use their full dotted path. Do not add directory-level `init.lua` aggregators. Outside Blueprint function libraries, delay a `require` only to resolve a real dependency cycle or at an explicit first-use boundary such as an optional window's factory. The owning scene or feature must define that lifecycle; ordinary dependencies remain direct imports.
+### Module boundaries and loading rules
 
-Runtime modules under `Scripts/GlobalFunctions` do not call `require` at module scope, including for native modules. They resolve dependencies from functions on first use so Blueprint function libraries can load without cycles. Their Lua paths and exported names must not occupy the same `GlobalFunctions` paths as C++ bindings. The `ludork-check global-functions <repository-root>` command enforces these rules without executing Lua. Malformed strings, long comments or numeric literals also fail the command, with diagnostics identifying the file, line and column.
+- **Native vs. Lua `GlobalFunctions`**: The native `GlobalFunctions` module exposes `Components`, `UI`, `NodeGraph` and `Manager`. Lua Blueprint function libraries under `Scripts/GlobalFunctions` are separate modules loaded by full path (such as `require("GlobalFunctions.Math")`) and are not members of the native root table.
+- **Blueprint function library restrictions**: Modules under `Scripts/GlobalFunctions` must not call `require` at module scope (including for native modules); resolve dependencies inside functions on first use so libraries load without cycles. Their paths and exported names must not collide with C++ `GlobalFunctions` bindings. Run `ludork-check global-functions <repository-root>` to validate these rules statically; it also flags malformed strings, long comments and numeric literals with file, line and column.
+- **No aggregators or ad-hoc lazy imports**: Load project modules by their full dotted path and do not add directory-level `init.lua` aggregators. Outside Blueprint function libraries, use direct top-level `require` calls; defer a `require` only to break a genuine dependency cycle or at an explicit first-use boundary (such as an optional window's factory) whose lifecycle is owned by the enclosing scene or feature.
+- **Layer dependency direction**: Static dependencies flow from root native modules through `Scripts/Global` to `Scripts/Source`. `Global` implementations and declarations must not require `Source` or reference its types (including via project-aware `GlobalFunctions` libraries); the native root `GlobalFunctions` is a lower-layer API, while `Scripts/Internal` and `Scripts/GlobalFunctions` may depend on `Source`.
+- **Injecting project behaviour into Global**: Generic infrastructure may resolve opaque module names supplied by data, but must not hard-code higher-layer business modules. Inject project callbacks and class objects at startup via [`Global.Data.InitializeRuntime(options)`](<Default Gameplay/Runtime Data Configuration and Saves.md#data-services>).
+- **Shared constants**: Native resource suffixes are exposed through `Engine.ResourceFileConstants`; map identities and Gameplay tags live in `Source.Configs.MapConstants` and `Source.Configs.GameplayConstants`. Public enums live in `Enums.*`.
+- **Classes and encapsulation**: Keep each reusable class in its own module that returns the class. A window module may define a private Controller and export the UI through `Ui.DefineWindow` (see [Declarative UI Authoring Workflow](<Declarative UI/Authoring Workflow.md>)); utility modules may group related helpers. Access private members only through `self` or same-instance `super(..., self)` dispatch — use public getters, commands or data for all other objects, including chained and dynamic access.
 
-Static dependencies flow from the root native modules through `Scripts/Global` to `Scripts/Source`. Global implementations and declarations must not require Source or reference its types, including through project-aware Lua libraries under `GlobalFunctions`. The native root `GlobalFunctions` remains a lower-layer API. `Scripts/Internal` and `Scripts/GlobalFunctions` can depend on project modules in `Source`. Generic infrastructure can resolve opaque module names supplied by data, but it must not hard-code a higher-layer business module. Project startup supplies callbacks and class objects when shared services need project behaviour; see [`Global.Data.InitializeRuntime(options)`](<Default Gameplay/Runtime Data Configuration and Saves.md#data-services>).
+### Script and Data storage boundaries
 
-Native resource suffixes are exposed through `Engine.ResourceFileConstants`; game map identities and Gameplay tags live in `Source.Configs.MapConstants` and `Source.Configs.GameplayConstants`. Public enums use the independent `Enums.*` modules described below.
-
-The game root uses exactly one script storage form: loose `Scripts` during development, or a root `Scripts.ldpak` in a packed release. Mixed, missing or invalid root layouts fail during startup. Once Entry has called `Engine.setAppName`, loose files under the user data directory can override either root layout through the [runtime resource lookup](<../Editor User Guide/Project Settings and Asset Layout.md#runtime-resource-lookup>) rules.
-
-Every Lua state exposes project modules through `package.preload` and a dynamic script searcher without replacing native modules. New user-directory modules can be loaded on their first `require`; a module already in `package.loaded` is not re-executed merely because its file changed. Script Mixins still load fresh on every execution, and audio states use the same effective script sources. `loadfile` and `dofile` accept `/Game/Scripts/...` while preserving their usual return, error and environment behaviour; ordinary physical paths retain their existing behaviour. General filesystem APIs do not expose script archive contents.
-
-Loose and packed Data are available through logical `Data/...` and `/Game/Data/...` paths. `Engine.loadData` and `Engine.dataExists` resolve missing `.json` paths to binary `.ldc` alternatives within each source, giving user data priority over root data. JSON platform APIs use only the exact path. This is a read-only runtime boundary, not a general archive filesystem.
-
-Each independently reusable class has its own module, and that module returns the class. A window module may contain its private Controller and export the UI through `Ui.DefineWindow`; see the [Declarative UI Authoring Workflow](<Declarative UI/Authoring Workflow.md>). Utility modules may group related helpers.
-
-Access private members only through `self` or same-instance `super(..., self)` dispatch. For other objects, including chained and dynamic access, use public getters, commands or data.
+- **Script root layout**: The game root uses one script storage form: loose `Scripts/` during development or a root `Scripts.ldpak` in a packed release. Mixed, missing or invalid layouts fail startup. Once `Entry` calls `Engine.setAppName`, loose files in the user data directory override either layout per [runtime resource lookup](<../Editor User Guide/Project Settings and Asset Layout.md#runtime-resource-lookup>).
+- **Module resolution and Lua loaders**: Every Lua state exposes project modules through `package.preload` and a dynamic searcher without shadowing native modules. New user-directory modules load on first `require`; modules already cached in `package.loaded` do not re-execute merely because their file changed. Script Mixins load fresh on every execution, and audio states use the same effective script sources. `loadfile` and `dofile` accept `/Game/Scripts/...` with standard return, error and environment semantics alongside ordinary physical paths. General filesystem APIs do not expose script archive contents.
+- **Data lookup**: Loose and packed `Data` resolve through logical `Data/...` and `/Game/Data/...` paths. `Engine.loadData` and `Engine.dataExists` fall back from a missing `.json` path to a binary `.ldc` alternative within each source, giving user data priority over root data. JSON platform APIs read only the exact path. This is a read-only runtime boundary, not a general archive filesystem.
 
 ## Enum modules
 
-Each public enum has its own module beneath `Scripts/Enums`. Its constants, EmmyLua annotations and API documentation stay together in the source file, without a mirrored enum stub. A handwritten enum declares a local table of string keys and scalar literals, then returns that table. It has no dependencies, functions or class construction:
+Each public enum lives in its own module under `Scripts/Enums`, keeping its constants, EmmyLua annotations and API documentation together in the source file without a mirrored stub. A handwritten enum declares a local table of string keys and scalar literals and returns it, with no dependencies, functions or class construction:
 
 ```lua
 -- Scripts/Enums/StairDirection.lua
@@ -65,11 +65,11 @@ local StairDirection = {
 return StairDirection
 ```
 
-Load an enum directly, for example `local StairDirection = require("Enums.StairDirection")`, then use `StairDirection.Up`. Blueprint metadata references it with `type = { enum = "Enums.StairDirection" }`; see [Metadata Schema and Decorators](<Blueprint Scripting/Metadata Schema and Decorators.md>) for the full rules.
+Load an enum with `local StairDirection = require("Enums.StairDirection")` and read `StairDirection.Up`. Blueprint metadata references it via `type = { enum = "Enums.StairDirection" }`; see [Enum schemas](<Blueprint Scripting/Metadata Schema and Decorators.md#enum-schemas>).
 
 | Game enum module | Values or purpose |
 |---|---|
-| `Enums.StairDirection` | `None`, `Up`, `Down`, stored as the same strings |
+| `Enums.StairDirection` | `None`, `Up`, `Down` (stored as the same strings) |
 | `Enums.BattleResultCode` | `WIN = 1`, `CANNOT_DAMAGE = 2`, `LETHAL_COUNTER_DAMAGE = 3` |
 | `Enums.CriticalResultCode` | `VALUE = 1`, `NOT_NEEDED = 2`, `UNKNOWN = 3` |
 | `Enums.DamageHintLevel` | `NONE = 0`, `BATTLE = 1`, `MAP = 2` |
@@ -86,60 +86,72 @@ Load an enum directly, for example `local StairDirection = require("Enums.StairD
 | `Enums.WorldActorState` | World Actor lifecycle labels: `NEVER_ACTIVE = "NeverActive"`, `ACTIVE = "Active"`, `DORMANT = "Dormant"` |
 | `Enums.WorldPublishPhase` | Region publication labels: `CONVERT = "convert"`, `BUILD = "build"`, `INDEX = "index"`, `FINALISE = "finalise"` |
 
-Native builds generate `Enums.Engine.*`, `Enums.GlobalCore.*`, `Enums.GlobalFunctions.*` and `Enums.sf.*`. Saving project data generates `Enums.GeneralDataKey`, one `Enums.GeneralData.<TypeName>` module per data type, `Enums.Animation` and `Enums.Particle`. The editor resolves these string enums from the current project catalogue before saving, including unsaved changes; runtime `require` reads the generated source modules. These generated modules retain their owning native declarations or database records as the source of truth; edit those sources and regenerate.
+Native builds generate `Enums.Engine.*`, `Enums.GlobalCore.*`, `Enums.GlobalFunctions.*` and `Enums.sf.*`. Saving project data generates `Enums.GeneralDataKey`, one `Enums.GeneralData.<TypeName>` module per data type, `Enums.Animation` and `Enums.Particle`. The editor resolves these project-managed string enums directly from the current catalogue (including unsaved edits), while runtime `require` loads the generated modules. Treat the owning native declarations or database records as the source of truth: edit those sources and regenerate rather than editing generated enum files directly.
 
 ## Native modules and values
 
-Standard globals such as `os.createDirectories`, `os.removeFile`, `zlib` and `base64` are host-installed and need no `require`. The host also installs the `SAVE_AS_LDC` default from `LUDORK_SAVE_AS_LDC`; project overrides are described in [Saves](<Default Gameplay/Runtime Data Configuration and Saves.md#saves>). `LudorkRuntime` is a native library, not a Lua module. Core bindings load only through `Engine`, `GlobalCore` and `GlobalFunctions`, and there is no `Runtime` or `CoreSystem` alias.
+Standard globals such as `os.createDirectories`, `os.removeFile`, `zlib` and `base64` are host-installed and require no `require`. The host also sets the `SAVE_AS_LDC` default from `LUDORK_SAVE_AS_LDC`; see [Saves](<Default Gameplay/Runtime Data Configuration and Saves.md#saves>) for project overrides. `LudorkRuntime` is a native library rather than a Lua module — Core bindings load only through `Engine`, `GlobalCore` and `GlobalFunctions`, with no `Runtime` or `CoreSystem` alias.
 
-LuaSF registers the global `sf`. Use exact native values such as `sf.Vector2i.new(...)`, `sf.Vector2f.new(...)` and `sf.Color.new(...)` when an API declares those types. Native containers and ordinary tables are not implicit vector adapters.
+LuaSF registers the global `sf`. Pass exact native values such as `sf.Vector2i.new(...)`, `sf.Vector2f.new(...)` and `sf.Color.new(...)` whenever an API expects them; native containers and plain Lua tables do not implicitly convert to SFML vectors.
 
 ## Asynchronous operation updates
 
-The default `Scripts/Entry.lua` calls `GlobalFunctions.NodeGraph.initLatent()` to enable operation updates. Custom entry points must also call it, including for script-only gameplay. See [Lua waiting examples](<../Getting Started/Ludork Lua Advanced.md#cooperative-tasks-and-file-batches>) and [Blueprint execution](<Blueprint Scripting/Execution Flow Events and Variables.md>).
+The default `Scripts/Entry.lua` calls `GlobalFunctions.NodeGraph.initLatent()` to drive asynchronous operation updates. Custom entry scripts must also call it, even for script-only gameplay. See [Cooperative tasks and file batches](<../Getting Started/Ludork Lua Advanced.md#cooperative-tasks-and-file-batches>) and [Execution Flow, Events and Variables](<Blueprint Scripting/Execution Flow Events and Variables.md>).
 
 ## Session lifetime
 
-The main thread and coroutines in one Lua VM share a native session. Captured callbacks and opaque values survive yields but cannot cross VMs, and session shutdown invalidates them. Native host integration is covered in [Session and module lifetime](<../Native C++ Development/Build and Module Layout.md#session-and-module-lifetime>).
+The main thread and all coroutines within one Lua VM share a single native session. Captured callbacks and opaque handles survive coroutine yields, cannot cross VMs, and become invalid when the session shuts down. See [Session and module lifetime](<../Native C++ Development/Build and Module Layout.md#session-and-module-lifetime>) for native host integration.
 
 ## Live Debug
 
-Live Debug lets you change Actor state in an editor-launched game, including Actors created at runtime. Changes are not saved to project data or reapplied when instances are rebuilt. See [Live Debug](<../Editor User Guide/Run Debug and Package.md#live-debug>) for the controls.
+Live Debug edits Actor state inside an editor-launched game, including Actors spawned at runtime. Edits are transient and are neither saved to project data nor reapplied when instances rebuild. See [Live Debug](<../Editor User Guide/Run Debug and Package.md#live-debug>) for the editor controls.
 
 ## Lua hot reload
 
-In an editor-launched game whose root uses loose Lua sources under `Scripts`, save the changes and enter `$r` in the Console. At the next Console update, between gameplay callbacks, the runtime updates loaded project modules and used Script Mixins while keeping the current scene, objects and Lua VM. Both Debug and Release builds support the command. Packed or compiled-only scripts do not.
+In an editor-launched Debug or Release game running from loose `Scripts/` sources, save your edits and enter `$r` in the Console. On the next Console update (between gameplay callbacks), the runtime updates loaded project modules and used Script Mixins while keeping the active scene, live objects and Lua VM intact. Packed or compiled-only scripts do not support hot reload.
 
-Reload replaces existing named functions while preserving module and class identities, instance fields, module data, constants, defaults and captured non-function values. Changing a function body takes effect. Changing a class default requires a restart. Cached references to matched functions, including native callbacks, are redirected to new function objects. Existing anonymous callbacks and suspended coroutine frames keep their original bodies, although references to matched helpers are updated. Constructors and lifecycle callbacks do not run again.
+### What updates and what requires a restart
 
-Loaded modules and used Script Mixins must retain their export names, class bases, field and function kinds, native callback members and compatible captured state. Deleting one of these modules, or making an incompatible structural change, requires a restart. Adding or removing ordinary global accesses is supported. An unmatchable custom `_ENV` requires a restart.
+- **Updated in place**: Existing named functions are replaced while preserving module and class identities, instance fields, module data, constants, defaults and captured non-function values. Cached references to matched functions (including native callbacks) redirect to the new functions, and ordinary global accesses may be added or removed.
+- **Unchanged until recreated**: Existing anonymous callbacks and suspended coroutine frames keep their original bodies (though calls to matched helpers update). Constructors and lifecycle callbacks do not rerun. Existing [audio processors](<Default Gameplay/Resources Audio Video and Effects.md#audio>) keep their code until a new playback starts.
+- **Requires a restart**: Changing class defaults, deleting a loaded module or used Script Mixin, changing export names, class bases, field-vs-function kinds, native callback members, incompatible captured state, or using an unmatchable custom `_ENV`.
+- **Scope and exclusions**: The runtime compiles all effective Lua sources (including user-directory overrides) before applying changes. `Entry` is checked but not rerun, and new or unloaded modules load on demand via `require`. Metadata, declarations, JSON data, UI assets and native code are excluded.
 
-The runtime compiles all effective Lua sources, including user-directory overrides, before it applies changes. Entry is checked but not rerun. New and unloaded modules remain available on demand through `require`. Metadata, declarations, JSON data, UI assets and native code are excluded. Existing [audio processors](<Default Gameplay/Resources Audio Video and Effects.md#audio>) keep their code until a new playback starts.
-
-Syntax, compatibility or candidate-execution failures leave the existing definitions in place and report an error in the Console. External side effects from candidate execution cannot be rolled back, so restart after an error that may have changed native resources or shared objects. Keep module top levels to definitions and dependencies, and put resource creation and subscriptions in explicit startup or lifecycle functions. See the [Game entry sequence](<Default Gameplay/Default Template Overview.md#entry-and-modules>).
+> **Warning:** Syntax, compatibility or candidate-execution failures leave existing definitions intact and log an error in the Console, but external side effects from candidate execution cannot be rolled back. Restart the game after any error that may have modified native resources or shared objects. Keep module top levels restricted to definitions and dependencies, and place resource creation and subscriptions in explicit startup or lifecycle functions (see [Entry and modules](<Default Gameplay/Default Template Overview.md#entry-and-modules>)).
 
 ## Logging and errors
 
-Runtime Lua logs through `Global.Utils.Logging`: `debug` for diagnostic detail, `info` for significant stages, `warning` for recoverable data problems and `error` for unrecoverable failures. Logging does not raise. Use `error` or `assert` when execution must stop.
+Log runtime diagnostics through `Global.Utils.Logging`: `debug` for diagnostic detail, `info` for major stages, `warning` for recoverable data issues and `error` for unrecoverable failures. Logging never raises an exception; call `error` or `assert` when execution must stop.
 
-When a scheduled Scene input or frame callback, Actor frame callback, or UI input, frame or animation completion callback raises a Lua runtime error, the engine ends that invocation and logs the callback name and Lua stack trace in the Console. Other scheduled callbacks continue, and a repeating callback can run again on its next turn. Synchronous calls inside the failing callback unwind with it. Changes made before the error remain applied. A failed mouse-button-down callback leaves the input unconsumed.
-
-An error that escapes the game entry script or required initialisation fails the launch. See [cooperative tasks](<../Getting Started/Ludork Lua Advanced.md#cooperative-tasks-and-file-batches>) and [scene timers](<Global and Core Modules/Core Modules/GlobalCore/Scenes and System.md#scene-timers>) for their failure behaviour.
-
-Engine providers are installed explicitly during [startup](<Default Gameplay/Default Template Overview.md#entry-and-modules>), not by `require`. Missing or duplicate providers, stopped sessions and invalid return counts or types raise errors. Returning no values differs from returning one `nil`.
+- **Scheduled callback isolation**: When a scheduled Scene input/frame callback, Actor frame callback or UI input/frame/animation-completion callback raises a Lua error, the engine aborts that invocation and prints the callback name and Lua stack trace to the Console. Synchronous calls inside the failing callback unwind with it, while state changes made before the error stay applied. Other scheduled callbacks continue, and repeating callbacks can run on their next turn. A failing mouse-button-down callback leaves the input unconsumed.
+- **Fatal startup errors and async tasks**: An error escaping the entry script or required initialisation aborts launch. See [Cooperative tasks and file batches](<../Getting Started/Ludork Lua Advanced.md#cooperative-tasks-and-file-batches>) and [Scene timers](<Global and Core Modules/Core Modules/GlobalCore/Scenes and System.md#scene-timers>) for their error rules.
+- **Runtime providers**: Engine providers register explicitly during [startup](<Default Gameplay/Default Template Overview.md#entry-and-modules>), never as a side effect of `require`. Missing or duplicate providers, stopped sessions and invalid return counts or types raise errors; returning zero values differs from returning one `nil`.
 
 ## Runtime, declarations and metadata
 
-Lua files have separate owners:
+Lua files are divided by ownership:
 
-- `.lua` files contain runtime behaviour and implementation-only annotations. Short pure constant tables and simple configuration tables keep their public type annotations and documentation in the source, like pure-data enums, without mirrored stubs. This exception does not extend to short modules with business methods or lifecycle behaviour.
-- `Scripts/stub/**/*.d.lua` files contain other public documentation and LuaLS declarations, with no runtime side effects or `require`. Types with no runtime implementation stay here even when their declarations are short. Native API enum types remain in their owning declarations, such as `Engine.d.lua` and `LuaSF.d.lua`.
-- Same-name `_meta.lua` files contain pure editor metadata and never run as gameplay scripts.
+- **`.lua` runtime modules**: Contain runtime behaviour and implementation-only annotations. Short pure constant tables and simple configuration tables keep their public annotations and documentation directly in the source file (like pure-data enums), without mirrored stubs. This exception does not apply to short modules with business methods or lifecycle behaviour.
+- **`Scripts/stub/**/*.d.lua` declarations**: Contain all other public documentation and LuaLS declarations, with no runtime side effects or `require` calls. Type-only declarations with no runtime implementation live here even when short. Native API enum types live in their owning declarations, such as `Engine.d.lua` and `LuaSF.d.lua`.
+- **`*_meta.lua` metadata**: Contain pure editor metadata and never execute as gameplay scripts.
 
-A requireable declaration mirrors its runtime module's path and uses `---@meta` with that module path; for example, `Global/Pool.d.lua` declares `---@meta Global.Pool`. Global-only `Standard.d.lua`, `Class.d.lua` and `LuaSF.d.lua`, and the declaration-only `Scripts/stub/Source/Configs/EventChangePayload.d.lua`, use a bare `---@meta`. The language server reads these declarations from the workspace; they need no runtime `require`.
+A requireable declaration mirrors its runtime module's path and begins with `---@meta <module.path>` (for example, `Global/Pool.d.lua` declares `---@meta Global.Pool`). Global-only declarations (`Standard.d.lua`, `Class.d.lua`, `LuaSF.d.lua`) and declaration-only `Scripts/stub/Source/Configs/EventChangePayload.d.lua` use a bare `---@meta`. Source-owned declarations omit `---@meta`. The language server reads declarations directly from the workspace without runtime `require`.
 
-The EmmyLua workspace keeps `Scripts/stub` as its module root and library. In `.emmyrc.json`, `workspace.moduleMap` maps `^Scripts[.]Enums[.](.*)$` to `Enums.$1` and maps the exact source modules `Source.Configs.HotKey`, `Source.Configs.Tutorial`, `Source.Configs.MapConstants`, `Source.Configs.GameplayConstants` and `Global.WorldMapConstants` to their normal import paths. These imports resolve to annotated sources; other public imports retain their stub declarations. Source-owned declarations do not use `---@meta`.
+The EmmyLua workspace configures `Scripts/stub` as its workspace root and library. In `.emmyrc.json`, `workspace.moduleMap` maps `Scripts/Enums` modules to `Enums.*` and maps the exact source-owned modules (`Global.WorldMapConstants`, `Source.Configs.HotKey`, `Source.Configs.Tutorial`, `Source.Configs.MapConstants` and `Source.Configs.GameplayConstants`) directly to their runtime import paths, while all other public imports resolve to their stub declarations:
 
-See [Project Templates](<../Getting Started/Project Templates.md>) for which declarations templates and game packages include.
+```json
+"moduleMap": [
+    {
+        "pattern": "^Scripts[.]Enums[.](.*)$",
+        "replace": "Enums.$1"
+    },
+    {
+        "pattern": "^Scripts[.](Global[.]WorldMapConstants|Source[.]Configs[.](HotKey|Tutorial|MapConstants|GameplayConstants))$",
+        "replace": "$1"
+    }
+]
+```
 
-Standalone and C++ Source templates include a Windows VS Code configuration named `Ludork: EmmyLua Attach (Windows)` that attaches the `tangzx.emmylua` `emmylua_attach` debugger to a running `Main.exe`. C++ Source templates also keep the native `cppvsdbg` and `lldb` launch and attach configurations. The EmmyLua attach debugger supports Windows only.
+See [Project Templates](<../Getting Started/Project Templates.md>) for which declarations templates and game packages ship.
+
+Standalone and C++ Source templates include the Windows VS Code launch configuration `Ludork: EmmyLua Attach (Windows)` for attaching `tangzx.emmylua`'s `emmylua_attach` debugger to a running `Main.exe` (Windows only). C++ Source templates also include native `cppvsdbg` and `lldb` launch and attach configurations.

@@ -1,264 +1,264 @@
 # Engine: Gameplay Types
 
+This page documents core gameplay object types under `Engine`: `Actor`, `BPBase`, `Character`, `Component`, `BillboardComponent` and `LightComponent`. Instance method tables omit the implicit `self` receiver exposed as the first Blueprint target pin; static methods and events take no receiver.
+
 ## Actor
 
-`material` references a formal 2D material resource. `materialParameters` holds independent per-Actor overrides. Switching to a different resource clears the old overrides, and parameter writes are validated against the selected resource. See [Maps and Materials](<Maps and Materials.md#material-resources>) for paths, defaults, lighting and masking.
+Base map entity owning a transform, sprite, material, movement route, hierarchy, Blueprint graph and attached components.
 
-`getMaterialBounds()` (`metadata = false`) returns the world-space visual bounds, including the material's declared maximum vertex displacement and the Actor transform. Runtime capture effects use these bounds to avoid clipping displaced pixels. This method does not change collision bounds or occupied map cells.
-
-`collectTree()` (`metadata = false`) returns a root-first BFS snapshot that preserves child order and ownership. Duplicates or cycles raise an error.
-
-`setGraph` stores an `Engine.Graph` instance, which `getGraph` returns. Passing nil clears the graph, after which `getGraph` returns nil.
-
-`visible` is an editable boolean field that defaults to `true`, and `getVisible()` returns its current value. `isVisibleInHierarchy()` also checks every ancestor. An invisible Actor retains its instance, lifecycle and configured Tick behaviour, but contributes no drawing, no attached light or light blocking, and no collision, overlap or pathfinding obstruction. Rendering, interaction and gameplay caches take the current visibility into account. `setVisible(value, applyToChildren = true)` also sets the descendants' own flags by default. Pass `false` to retain them, while the parent's visibility still gates the hierarchy. Direct assignment changes only the Actor's own flag.
-
-`getOccupiedMapCellsAtMapPosition(mapPosition)` computes the Actor footprint with its logical position placed exactly at `mapPosition * CellSize`. It preserves the current bounds relative to that position, including origin, translation, rotation and scale, but excludes the current movement offset within a cell. Empty bounds return the requested cell. `getOccupiedMapCells()` without an argument reports the actual current footprint, including cells crossed during movement.
-
-`texturePath` stores the Actor texture as a `/Game/Assets/...` path. The property editor opens `Assets/Characters` by default. The From Tileset checkbox follows the browse button and is checked when the stored path is under `/Game/Assets/Tilesets`. Checking it rewrites a `/Game/Assets/Characters/...` reference to the same relative path under `/Game/Assets/Tilesets`, and clearing it restores `/Game/Assets/Characters`. Reopening the Actor restores the checkbox state from that path.
+- **Materials:** `material` references a formal 2D material resource and `materialParameters` stores per-Actor overrides. Switching to another material clears old overrides, and parameter writes validate against the selected resource; see [Material resources](<Maps and Materials.md#material-resources>) for paths, defaults, lighting and masking.
+- **Material bounds:** The Lua-only `getMaterialBounds()` (`metadata = false`) returns world-space visual bounds including the material's declared maximum vertex displacement and the Actor transform. Capture effects use these bounds to avoid clipping displaced pixels without altering collision bounds or occupied map cells.
+- **Hierarchy and Blueprint graph:** `collectTree()` (`metadata = false`) returns a root-first BFS snapshot preserving child order and ownership, raising an error on duplicates or cycles. `setGraph` stores an `Engine.Graph` instance (returned by `getGraph`), and passing `nil` clears it.
+- **Visibility:** `visible` defaults to `true` (`getVisible()` reads it; `isVisibleInHierarchy()` also checks every ancestor). An invisible Actor keeps its instance, lifecycle and Tick behaviour but skips drawing, attached lights and light blocking, collision, overlap and pathfinding obstruction.
+- **Hierarchy visibility writes:** `setVisible(value, applyToChildren = true)` updates descendants' own flags by default; pass `false` to preserve them while still gating the subtree by the parent's visibility. Direct assignment updates only the Actor's own flag.
+- **Footprint queries:** `getOccupiedMapCellsAtMapPosition(mapPosition)` computes the Actor footprint placed at `mapPosition * CellSize`, keeping current origin, translation, rotation and scale while excluding in-cell movement offset (empty bounds return the requested cell). `getOccupiedMapCells()` with no argument reports the live footprint including cells crossed mid-step.
+- **Texture path in editor:** `texturePath` stores a `/Game/Assets/...` path, opening `Assets/Characters` by default. The **From Tileset** checkbox tracks whether the path sits under `/Game/Assets/Tilesets`: checking it rewrites `/Game/Assets/Characters/...` to the matching relative path under `/Game/Assets/Tilesets`, clearing it restores `/Game/Assets/Characters`, and reopening the Actor restores the checkbox from the stored path.
 
 ### Routes and operation lifetime
 
-`actor:setRoute(route)` returns an `Engine.AsyncOperation`: it emits `0` on start and completes with `1` when the route and current movement finish. The native `setRoute` Blueprint node continues through `default` immediately; use [Movement nodes](<../../../Node Functions/Movement.md>) for `Started` / `Finished` branches.
+`actor:setRoute(route)` returns an `Engine.AsyncOperation` that emits `0` on start and completes with `1` when the route and current movement finish. The native `setRoute` Blueprint node continues through `default` immediately; use [Movement nodes](<../../../Node Functions/Movement.md>) for `Started` / `Finished` branches.
 
-A new route, `stop()`, disabling movement, destroying the Actor or changing its map cancels an unfinished route operation.
+- **Cancellation triggers:** Starting a new route, calling `stop()`, disabling movement, destroying the Actor or changing its map cancels any unfinished route operation.
+- **Interrupted steps:** `stop()` and `setMoveEnabled(false)` snap to the nearest map cell. If an interrupted step lands in a different cell from departure, movement clears and occupancy updates before the arrival sequence runs once: the moving Actor's `onOverlap`, each remaining valid contact's `onOverlap`, then `_onArrivedAtMapCell()`. Stopping in the departure cell, stopping an unstarted route or repeating `stop()` emits no arrival notification.
+- **Re-entrant callbacks:** Normal and interrupted arrivals stop dispatching old-cell notifications if a callback destroys or hides the moving Actor, changes its map or moves it away from the arrival cell (normal movement also discards remaining frame time). `stop()` clears the old movement before cancellation callbacks run, so a new route started from a callback is preserved.
 
-`stop()` and `setMoveEnabled(false)` snap to the nearest map cell. If an interrupted step lands in a different cell from its departure cell, movement is cleared and occupancy is updated before the normal arrival sequence runs once: the moving Actor's `onOverlap`, each remaining valid contact's `onOverlap`, then `_onArrivedAtMapCell()`. Stopping in the departure cell, stopping an unstarted route or repeating `stop()` does not produce an arrival notification.
+These Lua-only methods manage additional Actor-scoped operations (such as door animations):
 
-Both normal and interrupted arrivals stop dispatching the old cell's notifications if a callback destroys or hides the moving Actor, changes its map or moves it away from the arrival position. Normal movement also discards the remaining time for that update in these cases. Stopping clears the old movement before cancellation callbacks run, so a route started by a callback is retained.
-
-The following Lua-only methods manage additional operations, such as door animations:
-
-| Method | Behaviour |
-|---|---|
-| `trackAsyncOperation(operation)` | Register an operation to be cancelled when the Actor is destroyed, released or changes map; cancel it immediately if the Actor is already destroyed. |
-| `cancelAsyncOperations()` | Cancel route and registered operations without stopping their underlying animations. |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `trackAsyncOperation` | `operation: Engine.AsyncOperation` | — | Lua only. Registers an operation to cancel when the Actor is destroyed, released or changes map; cancels immediately if the Actor is already destroyed. |
+| `cancelAsyncOperations` | — | — | Lua only. Cancels route and registered operations without stopping their underlying animations. |
 
 ### Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
-| `scriptMixin` | `bool` | `false` | Meta { BlueprintOnly = true } |
-| `scriptPath` | `string` | `""` | Meta { Rely = { source = "scriptMixin", op = "==", value = true }, PathVars = "Scripts/Mixins", PathRoot = "Project", PathFilter = "*.lua", BlueprintOnly = true } |
+| `scriptMixin` | `bool` | `false` | Blueprint only. |
+| `scriptPath` | `string` | `""` | Blueprint only. Visible when `scriptMixin == true`; project path under `Scripts/Mixins` (`*.lua`). |
 | `tag` | `string` | `""` | — |
 | `switchInterval` | `float` | `0.2` | — |
 | `animatable` | `bool` | `false` | — |
 | `visible` | `bool` | `true` | — |
-| `material` | `string` | `"Data/Materials/Global/Standard.json"` | Data/Materials/*.json |
+| `material` | `string` | `"Data/Materials/Global/Standard.json"` | `Data/Materials/*.json` path. |
 | `materialParameters` | `Dict[string, any]` | `{}` | — |
 | `collisionEnabled` | `bool` | `false` | — |
 | `tickable` | `bool` | `false` | — |
 | `speed` | `float` | `64` | — |
-| `autoSound` | `string` | `""` | Meta { PathVars = "/Game/Assets/Sounds" } |
-| `autoSoundInterval` | `float` | `0` | Meta { Rely = { source = "autoSound", op = "!=", value = "" } } |
-| `autoSoundParams` | `{ "Engine", "AutoSoundParams" }` | `{ volume = 100, minDistance = 64, attenuation = 1, loop = false, maxDistance = 0 }` | Meta { Rely = { source = "autoSound", op = "!=", value = "" } } |
-| `texturePath` | `string` | `""` | Meta { PathVars = "/Game/Assets/Characters" } |
-| `defaultRect` | `sf.IntRect` | `{ [1] = { [1] = 0, [2] = 0, [3] = 32, [4] = 32 } }` | Meta { RectRangeVars = "texturePath" } |
-| `defaultTranslation` | `sf.Vector2f` | `{ [1] = 0, [2] = 0 }` | — |
+| `autoSound` | `string` | `""` | Path under `/Game/Assets/Sounds`. |
+| `autoSoundInterval` | `float` | `0` | Active when `autoSound ~= ""`. |
+| `autoSoundParams` | `Engine.AutoSoundParams` | `{ volume = 100, minDistance = 64, attenuation = 1, loop = false, maxDistance = 0 }` | Active when `autoSound ~= ""`. |
+| `texturePath` | `string` | `""` | Path under `/Game/Assets/Characters` (or `/Game/Assets/Tilesets`). |
+| `defaultRect` | `sf.IntRect` | `[0, 0, 32, 32]` | Bounds validated against `texturePath`. |
+| `defaultTranslation` | `sf.Vector2f` | `[0, 0]` | — |
 | `defaultRotation` | `float` | `0` | — |
-| `defaultScale` | `sf.Vector2f` | `{ [1] = 1, [2] = 1 }` | — |
-| `defaultOrigin` | `sf.Vector2f` | `{ [1] = 0, [2] = 0 }` | — |
-| `lightComp` | `{ "Engine", "LightComponent" }` | — | component |
-| `emitterComp` | `{ "Engine", "EmitterComponent" }` | — | component; [GPU particle playback](<Time Rendering and Particles.md#emittercomponent>) |
-| `billboardComp` | `{ "Engine", "BillboardComponent" }` | — | component; [head labels](#billboardcomponent) |
+| `defaultScale` | `sf.Vector2f` | `[1, 1]` | — |
+| `defaultOrigin` | `sf.Vector2f` | `[0, 0]` | — |
+| `lightComp` | `Engine.LightComponent` | — | Component. |
+| `emitterComp` | `Engine.EmitterComponent` | — | Component; see [GPU particle playback](<Time Rendering and Particles.md#emittercomponent>). |
+| `billboardComp` | `Engine.BillboardComponent` | — | Component; see [BillboardComponent](#billboardcomponent). |
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `getCollisionEnabled` | `function` | self: { "Engine", "Actor" } = "self" | return: bool | Pure |
-| `setCollisionEnabled` | `function` | self: { "Engine", "Actor" } = "self"; enabled: bool | — | ExecSplit { [1] = "default", default = nil } |
-| `getPathfindingBlocks` | `function` | self: { "Engine", "Actor" } = "self" | return: bool | Pure |
-| `setPathfindingBlocks` | `function` | self: { "Engine", "Actor" } = "self"; blocks: bool | — | — |
-| `isDestroyed` | `function` | self: { "Engine", "Actor" } = "self" | return: bool | Pure |
-| `markDestroyed` | `function` | self: { "Engine", "Actor" } = "self"; destroyed: bool | — | — |
-| `update` | `function` | self: { "Engine", "Actor" } = "self"; deltaTime: float | — | — |
-| `lateUpdate` | `function` | self: { "Engine", "Actor" } = "self"; deltaTime: float | — | — |
-| `fixedUpdate` | `function` | self: { "Engine", "Actor" } = "self"; fixedDelta: float | — | — |
-| `getPosition` | `function` | self: { "Engine", "Actor" } = "self" | pos: sf.Vector2f | Pure |
-| `getRelativePosition` | `function` | self: { "Engine", "Actor" } = "self" | pos: sf.Vector2f | Pure |
-| `getMapPosition` | `function` | self: { "Engine", "Actor" } = "self" | pos: sf.Vector2i | Pure |
-| `getOccupiedMapCells` | `function` | self: { "Engine", "Actor" } = "self"; worldPosition: sf.Vector2f = nil | cells: sf.Vector2i[] | Pure |
-| `getOccupiedMapCellsAtMapPosition` | `function` | self: { "Engine", "Actor" } = "self"; mapPosition: sf.Vector2i | cells: sf.Vector2i[] | Pure |
-| `getRelativeMapPosition` | `function` | self: { "Engine", "Actor" } = "self" | pos: sf.Vector2i | Pure |
-| `getLocalBounds` | `function` | self: { "Engine", "Actor" } = "self" | return: sf.FloatRect | Pure |
-| `getGlobalBounds` | `function` | self: { "Engine", "Actor" } = "self" | return: sf.FloatRect | Pure |
-| `setPosition` | `function` | self: { "Engine", "Actor" } = "self"; position: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
-| `setRelativePosition` | `function` | self: { "Engine", "Actor" } = "self"; position: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
-| `setMapPosition` | `function` | self: { "Engine", "Actor" } = "self"; position: sf.Vector2u | — | ExecSplit { [1] = "default", default = nil } |
-| `setRelativeMapPosition` | `function` | self: { "Engine", "Actor" } = "self"; position: sf.Vector2u | — | ExecSplit { [1] = "default", default = nil } |
-| `move` | `function` | self: { "Engine", "Actor" } = "self"; offset: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
-| `getRotation` | `function` | self: { "Engine", "Actor" } = "self" | angle: sf.Angle | Pure |
-| `getRelativeRotation` | `function` | self: { "Engine", "Actor" } = "self" | angle: sf.Angle | Pure |
-| `setRotation` | `function` | self: { "Engine", "Actor" } = "self"; angle: sf.Angle | — | ExecSplit { [1] = "default", default = nil } |
-| `rotate` | `function` | self: { "Engine", "Actor" } = "self"; angle: sf.Angle | — | ExecSplit { [1] = "default", default = nil } |
-| `setRelativeRotation` | `function` | self: { "Engine", "Actor" } = "self"; angle: sf.Angle | — | ExecSplit { [1] = "default", default = nil } |
-| `getScale` | `function` | self: { "Engine", "Actor" } = "self" | scale: sf.Vector2f | Pure |
-| `getRelativeScale` | `function` | self: { "Engine", "Actor" } = "self" | scale: sf.Vector2f | Pure |
-| `setScale` | `function` | self: { "Engine", "Actor" } = "self"; factors: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
-| `scale` | `function` | self: { "Engine", "Actor" } = "self"; factor: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
-| `setRelativeScale` | `function` | self: { "Engine", "Actor" } = "self"; scale: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
-| `getOrigin` | `function` | self: { "Engine", "Actor" } = "self" | origin: sf.Vector2f | Pure |
-| `setOrigin` | `function` | self: { "Engine", "Actor" } = "self"; origin: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
-| `getTranslation` | `function` | self: { "Engine", "Actor" } = "self" | translation: sf.Vector2f | Pure |
-| `setTranslation` | `function` | self: { "Engine", "Actor" } = "self"; translation: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
-| `setAlignment` | `function` | self: { "Engine", "Actor" } = "self"; alignment: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
-| `getMap` | `function` | self: { "Engine", "Actor" } = "self" | map_: { "Engine", "ActorMapService" } | Pure |
-| `setMap` | `function` | self: { "Engine", "Actor" } = "self"; inMap: { "Engine", "ActorMapService" } | — | ExecSplit { [1] = "default", default = nil } |
-| `getParent` | `function` | self: { "Engine", "Actor" } = "self" | return: { "Engine", "Actor" } | Pure |
-| `setParent` | `function` | self: { "Engine", "Actor" } = "self"; parent: { "Engine", "Actor" } | — | — |
-| `getChildren` | `function` | self: { "Engine", "Actor" } = "self" | return: { "Engine", "Actor[]" } | Pure |
-| `addChild` | `function` | self: { "Engine", "Actor" } = "self"; child: { "Engine", "Actor" } | — | ExecSplit { [1] = "default", default = nil } |
-| `removeChild` | `function` | self: { "Engine", "Actor" } = "self"; child: { "Engine", "Actor" } | — | — |
-| `getVisible` | `function` | self: { "Engine", "Actor" } = "self" | visible: bool | Pure |
-| `isVisibleInHierarchy` | `function` | self: { "Engine", "Actor" } = "self" | return: bool | Pure |
-| `setVisible` | `function` | self: { "Engine", "Actor" } = "self"; visible: bool = nil; applyToChildren: bool = true | — | ExecSplit { [1] = "default", default = nil } |
-| `getAnimatable` | `function` | self: { "Engine", "Actor" } = "self" | animatable: bool | Pure |
-| `setAnimatable` | `function` | self: { "Engine", "Actor" } = "self"; animate: bool = nil; applyToChildren: bool = true | — | ExecSplit { [1] = "default", default = nil } |
-| `getSpriteTexture` | `function` | self: { "Engine", "Actor" } = "self" | texture: sf.Texture | Pure |
-| `getTexture` | `function` | self: { "Engine", "Actor" } = "self" | texture: sf.Texture | Pure |
-| `setSpriteTexture` | `function` | self: { "Engine", "Actor" } = "self"; texture: sf.Texture = nil; resetRect: bool = false | — | ExecSplit { [1] = "default", default = nil } |
-| `setTexture` | `function` | self: { "Engine", "Actor" } = "self"; texture: sf.Texture = nil; resetRect: bool = false | — | ExecSplit { [1] = "default", default = nil } |
-| `setTextureRect` | `function` | self: { "Engine", "Actor" } = "self"; rectangle: sf.IntRect | — | — |
-| `getTextureRect` | `function` | self: { "Engine", "Actor" } = "self" | return: sf.IntRect | Pure |
-| `getMaterial` | `function` | self: { "Engine", "Actor" } = "self" | material: string | Pure |
-| `setMaterial` | `function` | self: { "Engine", "Actor" } = "self"; material: string | — | ExecSplit { [1] = "default", default = nil } |
-| `getMaterialParameter` | `function` | self: { "Engine", "Actor" } = "self"; id: string | return: any | Pure |
-| `setMaterialParameter` | `function` | self: { "Engine", "Actor" } = "self"; id: string; value: any | — | — |
-| `resetMaterialParameter` | `function` | self: { "Engine", "Actor" } = "self"; id: string | — | — |
-| `setGraph` | `function` | self: { "Engine", "Actor" } = "self"; graph: { "Engine", "Graph" } | — | ExecSplit { [1] = "default", default = nil } |
-| `getGraph` | `function` | self: { "Engine", "Actor" } = "self" | return: { "Engine", "Graph" } | Pure |
-| `hasGraph` | `function` | self: { "Engine", "Actor" } = "self" | return: bool | Pure |
-| `getMapTag` | `function` | self: { "Engine", "Actor" } = "self" | return: string | Pure |
-| `setMapTag` | `function` | self: { "Engine", "Actor" } = "self"; value: string | — | — |
-| `ensureMapTag` | `function` | self: { "Engine", "Actor" } = "self" | — | — |
-| `onCreate` | `event` | — | — | ExecSplit { [1] = "default", default = nil } |
-| `onTick` | `event` | deltaTime: float | — | ExecSplit { [1] = "default", default = nil } |
-| `onLateTick` | `event` | deltaTime: float | — | ExecSplit { [1] = "default", default = nil } |
-| `onFixedTick` | `event` | fixedDelta: float | — | ExecSplit { [1] = "default", default = nil } |
-| `onDestroy` | `event` | — | — | ExecSplit { [1] = "default", default = nil } |
-| `onWorldSleep` | `event` | — | — | ExecSplit { [1] = "default", default = nil } |
-| `onWorldWake` | `event` | elapsedSeconds: float | — | ExecSplit { [1] = "default", default = nil } |
-| `onCollision` | `event` | other: { "Engine", "Actor[]" } | — | ExecSplit { [1] = "default", default = nil } |
-| `onOverlap` | `event` | other: { "Engine", "Actor[]" } | — | ExecSplit { [1] = "default", default = nil } |
-| `destroy` | `function` | self: { "Engine", "Actor" } = "self" | — | ExecSplit { [1] = "default", default = nil } |
-| `MapMove` | `function` | self: { "Engine", "Actor" } = "self"; offset: sf.Vector2i | return: bool | ExecSplit { [1] = "success", [2] = "fail", success = true, fail = false } |
-| `getTickable` | `function` | self: { "Engine", "Actor" } = "self" | tickable: bool | Pure |
-| `setTickable` | `function` | self: { "Engine", "Actor" } = "self"; tickable: bool = nil; applyToChildren: bool = true | — | ExecSplit { [1] = "default", default = nil } |
-| `intersects` | `function` | self: { "Engine", "Actor" } = "self"; other: { "Engine", "Actor" } | intersects: bool | Pure |
-| `isMoving` | `function` | self: { "Engine", "Actor" } = "self" | isMoving: bool | Pure |
-| `isInRoute` | `function` | self: { "Engine", "Actor" } = "self" | isInRoute: bool | Pure |
-| `setRoute` | `function` | self: { "Engine", "Actor" } = "self"; route: sf.Vector2i[] = {  } | return: { "Engine", "AsyncOperation" } | Meta { MoveRouteVars = { [1] = "route" } }; ExecSplit { [1] = "default", default = nil } |
-| `getRoute` | `function` | self: { "Engine", "Actor" } = "self" | route: sf.Vector2i[] | Pure |
-| `getMoveEnabled` | `function` | self: { "Engine", "Actor" } = "self" | moveEnabled: bool | Pure |
-| `setMoveEnabled` | `function` | self: { "Engine", "Actor" } = "self"; enabled: bool | — | ExecSplit { [1] = "default", default = nil } |
-| `stop` | `function` | self: { "Engine", "Actor" } = "self" | — | ExecSplit { [1] = "default", default = nil } |
-| `getVelocity` | `function` | self: { "Engine", "Actor" } = "self" | velocity: sf.Vector2f | Pure |
-| `BlueprintEvent` | `function` | object: any; objectType: any; eventName: string; keywordArguments: any = nil; onComplete: any = nil | — | — |
-| `HasBlueprintEvent` | `function` | object: any; eventName: string | return: bool | — |
-| `IsBlueprintEventEmpty` | `function` | object: any; eventName: string | return: bool | — |
-| `GenActor` | `function` | actorModel: any; texture: any = nil; textureRect: any = nil; tag: string = nil | return: any | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `getCollisionEnabled` | — | `bool` | Pure. |
+| `setCollisionEnabled` | `enabled: bool` | — | Exec (`default`). |
+| `getPathfindingBlocks` | — | `bool` | Pure. |
+| `setPathfindingBlocks` | `blocks: bool` | — | — |
+| `isDestroyed` | — | `bool` | Pure. |
+| `markDestroyed` | `destroyed: bool` | — | — |
+| `update` | `deltaTime: float` | — | — |
+| `lateUpdate` | `deltaTime: float` | — | — |
+| `fixedUpdate` | `fixedDelta: float` | — | — |
+| `getPosition` | — | `pos: sf.Vector2f` | Pure. |
+| `getRelativePosition` | — | `pos: sf.Vector2f` | Pure. |
+| `getMapPosition` | — | `pos: sf.Vector2i` | Pure. |
+| `getOccupiedMapCells` | `worldPosition: sf.Vector2f = nil` | `cells: sf.Vector2i[]` | Pure. |
+| `getOccupiedMapCellsAtMapPosition` | `mapPosition: sf.Vector2i` | `cells: sf.Vector2i[]` | Pure. |
+| `getRelativeMapPosition` | — | `pos: sf.Vector2i` | Pure. |
+| `getLocalBounds` | — | `sf.FloatRect` | Pure. |
+| `getGlobalBounds` | — | `sf.FloatRect` | Pure. |
+| `setPosition` | `position: sf.Vector2f` | — | Exec (`default`). |
+| `setRelativePosition` | `position: sf.Vector2f` | — | Exec (`default`). |
+| `setMapPosition` | `position: sf.Vector2u` | — | Exec (`default`). |
+| `setRelativeMapPosition` | `position: sf.Vector2u` | — | Exec (`default`). |
+| `move` | `offset: sf.Vector2f` | — | Exec (`default`). |
+| `getRotation` | — | `angle: sf.Angle` | Pure. |
+| `getRelativeRotation` | — | `angle: sf.Angle` | Pure. |
+| `setRotation` | `angle: sf.Angle` | — | Exec (`default`). |
+| `rotate` | `angle: sf.Angle` | — | Exec (`default`). |
+| `setRelativeRotation` | `angle: sf.Angle` | — | Exec (`default`). |
+| `getScale` | — | `scale: sf.Vector2f` | Pure. |
+| `getRelativeScale` | — | `scale: sf.Vector2f` | Pure. |
+| `setScale` | `factors: sf.Vector2f` | — | Exec (`default`). |
+| `scale` | `factor: sf.Vector2f` | — | Exec (`default`). |
+| `setRelativeScale` | `scale: sf.Vector2f` | — | Exec (`default`). |
+| `getOrigin` | — | `origin: sf.Vector2f` | Pure. |
+| `setOrigin` | `origin: sf.Vector2f` | — | Exec (`default`). |
+| `getTranslation` | — | `translation: sf.Vector2f` | Pure. |
+| `setTranslation` | `translation: sf.Vector2f` | — | Exec (`default`). |
+| `setAlignment` | `alignment: sf.Vector2f` | — | Exec (`default`). |
+| `getMap` | — | `map_: Engine.ActorMapService` | Pure. |
+| `setMap` | `inMap: Engine.ActorMapService` | — | Exec (`default`). |
+| `getParent` | — | `Engine.Actor` | Pure. |
+| `setParent` | `parent: Engine.Actor` | — | — |
+| `getChildren` | — | `Engine.Actor[]` | Pure. |
+| `addChild` | `child: Engine.Actor` | — | Exec (`default`). |
+| `removeChild` | `child: Engine.Actor` | — | — |
+| `getVisible` | — | `visible: bool` | Pure. |
+| `isVisibleInHierarchy` | — | `bool` | Pure. |
+| `setVisible` | `visible: bool = nil`, `applyToChildren: bool = true` | — | Exec (`default`). |
+| `getAnimatable` | — | `animatable: bool` | Pure. |
+| `setAnimatable` | `animate: bool = nil`, `applyToChildren: bool = true` | — | Exec (`default`). |
+| `getSpriteTexture` | — | `texture: sf.Texture` | Pure. |
+| `getTexture` | — | `texture: sf.Texture` | Pure. |
+| `setSpriteTexture` | `texture: sf.Texture = nil`, `resetRect: bool = false` | — | Exec (`default`). |
+| `setTexture` | `texture: sf.Texture = nil`, `resetRect: bool = false` | — | Exec (`default`). |
+| `setTextureRect` | `rectangle: sf.IntRect` | — | — |
+| `getTextureRect` | — | `sf.IntRect` | Pure. |
+| `getMaterial` | — | `material: string` | Pure. |
+| `setMaterial` | `material: string` | — | Exec (`default`). |
+| `getMaterialParameter` | `id: string` | `any` | Pure. |
+| `setMaterialParameter` | `id: string`, `value: any` | — | — |
+| `resetMaterialParameter` | `id: string` | — | — |
+| `setGraph` | `graph: Engine.Graph` | — | Exec (`default`). |
+| `getGraph` | — | `Engine.Graph` | Pure. |
+| `hasGraph` | — | `bool` | Pure. |
+| `getMapTag` | — | `string` | Pure. |
+| `setMapTag` | `value: string` | — | — |
+| `ensureMapTag` | — | — | — |
+| `onCreate` | — | — | Event. Exec (`default`). |
+| `onTick` | `deltaTime: float` | — | Event. Exec (`default`). |
+| `onLateTick` | `deltaTime: float` | — | Event. Exec (`default`). |
+| `onFixedTick` | `fixedDelta: float` | — | Event. Exec (`default`). |
+| `onDestroy` | — | — | Event. Exec (`default`). |
+| `onWorldSleep` | — | — | Event. Exec (`default`). |
+| `onWorldWake` | `elapsedSeconds: float` | — | Event. Exec (`default`). |
+| `onCollision` | `other: Engine.Actor[]` | — | Event. Exec (`default`). |
+| `onOverlap` | `other: Engine.Actor[]` | — | Event. Exec (`default`). |
+| `destroy` | — | — | Exec (`default`). |
+| `MapMove` | `offset: sf.Vector2i` | `bool` | Exec branches: `success` (`true`), `fail` (`false`). |
+| `getTickable` | — | `tickable: bool` | Pure. |
+| `setTickable` | `tickable: bool = nil`, `applyToChildren: bool = true` | — | Exec (`default`). |
+| `intersects` | `other: Engine.Actor` | `intersects: bool` | Pure. |
+| `isMoving` | — | `isMoving: bool` | Pure. |
+| `isInRoute` | — | `isInRoute: bool` | Pure. |
+| `setRoute` | `route: sf.Vector2i[] = {}` | `Engine.AsyncOperation` | Exec (`default`). Editor metadata: `MoveRouteVars = { "route" }`. |
+| `getRoute` | — | `route: sf.Vector2i[]` | Pure. |
+| `getMoveEnabled` | — | `moveEnabled: bool` | Pure. |
+| `setMoveEnabled` | `enabled: bool` | — | Exec (`default`). |
+| `stop` | — | — | Exec (`default`). |
+| `getVelocity` | — | `velocity: sf.Vector2f` | Pure. |
+| `BlueprintEvent` | `object: any`, `objectType: any`, `eventName: string`, `keywordArguments: any = nil`, `onComplete: any = nil` | — | Static. |
+| `HasBlueprintEvent` | `object: any`, `eventName: string` | `bool` | Static. |
+| `IsBlueprintEventEmpty` | `object: any`, `eventName: string` | `bool` | Static. |
+| `GenActor` | `actorModel: any`, `texture: any = nil`, `textureRect: any = nil`, `tag: string = nil` | `any` | Static. |
 
-`onWorldSleep` runs when world streaming removes an Actor from Active simulation. `onWorldWake` runs when the Actor becomes Active again and reports the dormant duration. Both base implementations are empty, and ordinary maps emit neither event.
+`onWorldSleep` fires when world streaming removes an Actor from Active simulation; `onWorldWake` fires when it returns to Active simulation with the elapsed dormant duration. Both base implementations are empty, and ordinary maps emit neither event.
 
 ## BPBase
 
+Static Blueprint event and native graph execution helpers.
+
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `BlueprintEvent` | `function` | object: any; objectType: any; eventName: string; keywordArguments: any = nil; onComplete: any = nil | — | — |
-| `HasBlueprintEvent` | `function` | object: any; eventName: string | return: bool | — |
-| `IsBlueprintEventEmpty` | `function` | object: any; eventName: string | return: bool | — |
-| `ExecuteParentEvent` | `function` | object: any; classType: any; eventName: string; arguments: any = nil; keywordArguments: any = nil; localGraph: any = nil; onComplete: any = nil | return: bool | — |
-| `ExecuteGraph` | `function` | graph: Engine.Graph; eventName: string; keywordArguments: any = nil; localGraph: any = nil; onComplete: any = nil | return: bool | runtime API; metadata = false |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `BlueprintEvent` | `object: any`, `objectType: any`, `eventName: string`, `keywordArguments: any = nil`, `onComplete: any = nil` | — | Static. |
+| `HasBlueprintEvent` | `object: any`, `eventName: string` | `bool` | Static. |
+| `IsBlueprintEventEmpty` | `object: any`, `eventName: string` | `bool` | Static. |
+| `ExecuteParentEvent` | `object: any`, `classType: any`, `eventName: string`, `arguments: any = nil`, `keywordArguments: any = nil`, `localGraph: any = nil`, `onComplete: any = nil` | `bool` | Static. |
+| `ExecuteGraph` | `graph: Engine.Graph`, `eventName: string`, `keywordArguments: any = nil`, `localGraph: any = nil`, `onComplete: any = nil` | `bool` | Static. Lua only (`metadata = false`). |
 
-`ExecuteGraph` runs a native `Engine.Graph` event, and nil or non-Graph values raise a type error. Repeated execution is rejected while the same graph and event are locked or have pending latent work.
+`ExecuteGraph` runs a native `Engine.Graph` event; passing `nil` or a non-`Graph` raises a type error. Re-entering while the same graph and event are locked or have pending latent work is rejected.
 
 ## Character
 
-Direct metadata bases: `{ "Engine", "Actor" }`
+**Inherits:** `Engine.Actor`
 
-InvalidVars: `{ "defaultRect" }`
+Directional four-frame animated Actor (`defaultRect` is excluded from editable Blueprint properties via `InvalidVars: { "defaultRect" }`).
 
-The read-only class constants `Engine.Character.SPRITE_FRAME_COLUMNS` and `SPRITE_DIRECTION_ROWS` are both `4`: one counts animation columns, the other counts directional rows. The default frame rectangle divides the texture width and height by the corresponding constant. Custom frame rectangles remain supported.
+The read-only class constants `Engine.Character.SPRITE_FRAME_COLUMNS` and `SPRITE_DIRECTION_ROWS` are both `4`, counting animation columns and directional rows respectively. The default frame rectangle divides texture width and height by these constants; custom frame rectangles remain supported.
 
 ### Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
-| `direction` | `{ enum = "Enums.Engine.Direction" }` | `0` | — |
+| `direction` | `Engine.Direction` | `0` | Blueprint enum: `Enums.Engine.Direction`. |
 | `directionFix` | `bool` | `false` | — |
 | `animateWithoutMoving` | `bool` | `false` | — |
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `setSpriteTexture` | `function` | self: { "Engine", "Character" } = "self"; texture: sf.Texture = nil; resetRect: bool = false | — | ExecSplit { [1] = "default", default = nil } |
-| `setTexture` | `function` | self: { "Engine", "Character" } = "self"; texture: sf.Texture = nil; resetRect: bool = false | — | ExecSplit { [1] = "default", default = nil } |
-| `setTextureRect` | `function` | self: { "Engine", "Character" } = "self"; rectangle: sf.IntRect | — | ExecSplit { [1] = "default", default = nil } |
-| `MapMove` | `function` | self: { "Engine", "Character" } = "self"; offset: sf.Vector2i | return: bool | ExecSplit { [1] = "success", [2] = "fail", success = true, fail = false } |
-| `update` | `function` | self: { "Engine", "Character" } = "self"; deltaTime: float | — | — |
-| `GenActor` | `function` | actorModel: any; texture: any = nil; textureRect: any = nil; tag: string = nil | return: any | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `setSpriteTexture` | `texture: sf.Texture = nil`, `resetRect: bool = false` | — | Exec (`default`). |
+| `setTexture` | `texture: sf.Texture = nil`, `resetRect: bool = false` | — | Exec (`default`). |
+| `setTextureRect` | `rectangle: sf.IntRect` | — | Exec (`default`). |
+| `MapMove` | `offset: sf.Vector2i` | `bool` | Exec branches: `success` (`true`), `fail` (`false`). |
+| `update` | `deltaTime: float` | — | — |
+| `GenActor` | `actorModel: any`, `texture: any = nil`, `textureRect: any = nil`, `tag: string = nil` | `any` | Static. |
 
 ## Component
 
+Base class for attachable Actor components.
+
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `onAttach` | `function` | self: { "Engine", "Component" } = "self"; owner: any | return: any[] | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `onAttach` | `owner: any` | `any[]` | — |
 
 ## BillboardComponent
 
-For editor configuration, see [Billboard Component](<../../../../Editor User Guide/Actor Components/Billboard.md>).
+**Inherits:** `Engine.Component`
 
-`Engine.BillboardComponent` derives from `Component` and is assigned to `Actor.billboardComp`.
+Attached to `Actor.billboardComp` to display stacked upright text and image labels above an Actor's head. For editor configuration, see [Billboard Component](<../../../../Editor User Guide/Actor Components/Billboard.md>).
 
-| Property | Type | Default | Meaning |
+| Property | Type | Default | Description |
 |---|---|---|---|
-| `items` | `Engine.BillboardItem[]` | `[]` | Image and text items, ordered from top to bottom. |
-| `showRange` | `float` | `128` | Maximum player-to-Actor world-position distance in map logical pixels, inclusive. |
+| `items` | `Engine.BillboardItem[]` | `[]` | Image and text items ordered from top to bottom. |
+| `showRange` | `float` | `128` | Maximum player-to-Actor world-position distance in map logical pixels (inclusive). |
 
 ### BillboardItem
 
-| Property | Type | Default | Meaning |
+| Property | Type | Default | Description |
 |---|---|---|---|
-| `kind` | `string` | `"text"` | `text` or `image`. |
+| `kind` | `string` | `"text"` | `"text"` or `"image"`. |
 | `text` | `string` | `""` | Text content. |
 | `fontSize` | `uint` | `12` | Text font size. |
-| `color` | `sf.Color` | `[255,255,255,255]` | Text RGBA colour. |
+| `color` | `sf.Color` | `[255, 255, 255, 255]` | Text RGBA colour. |
 | `image` | `string` | `""` | Image resource path. |
 
-Text uses the system default font; images use their original pixel size. Items share the Actor head's horizontal centreline, including each line of multiline text, with no extra spacing. At rest, the bottom item touches the top centre of the Actor's image bounds. The stack remains upright regardless of Actor rotation or flipping.
+Text renders with the system default font and images render at native pixel size. Items align along the Actor head's horizontal centreline (including each line of multiline text) with no extra spacing; at rest, the bottom item meets the top centre of the Actor's image bounds. The stack stays upright regardless of Actor rotation or flipping.
 
 ### Visibility and animation
 
-Display requires the player to be within `showRange` and the Actor bounds to intersect the Camera view. Actor and ancestor visibility, map region activity and layer visibility apply; `tickable` does not affect the display. The stack draws after its Actor and attached emitter, allowing later Actors and layers to cover it, and is clipped by the map window.
+Display requires the player to be within `showRange` and the Actor bounds to intersect the Camera view, subject to Actor/ancestor visibility, map region activity and layer visibility (`tickable` does not affect display). The stack draws after its Actor and attached emitter — allowing later Actors and layers to cover it — and clips to the map window.
 
-Entrance and exit both rise and fade over `0.35` seconds, controlled by four system curves. Default keys use linear interpolation and constant extrapolation:
+Entrance and exit rise and fade over `0.35` seconds using four system curves (default keys use linear interpolation and constant extrapolation):
 
-| Curve resource | Value at 0 → 0.35 seconds |
+| Curve resource | Value over `0–0.35` s |
 |---|---|
-| `Global/BillboardYIn` | `16 → 0` logical pixels |
-| `Global/BillboardAlphaIn` | `0 → 255` |
-| `Global/BillboardYOut` | `0 → -16` logical pixels |
-| `Global/BillboardAlphaOut` | `255 → 0` |
+| `Global/BillboardYIn` | `16` → `0` logical pixels |
+| `Global/BillboardAlphaIn` | `0` → `255` |
+| `Global/BillboardYOut` | `0` → `-16` logical pixels |
+| `Global/BillboardAlphaOut` | `255` → `0` |
 
-Animation opacity multiplies item alpha. Reversing a transition continues smoothly from its current position and opacity over a new `0.35` seconds. Leaving the Camera view, hiding or sleeping resets the display; returning starts a fresh entrance.
+Animation opacity multiplies item alpha. Reversing a transition continues smoothly from its current position and opacity over a new `0.35` seconds; leaving the Camera view, hiding or sleeping resets the display so returning starts a fresh entrance.
 
 ## LightComponent
 
-For editor configuration, see [Light Component](<../../../../Editor User Guide/Actor Components/Light.md>).
+**Inherits:** `Engine.Component`
 
-Direct metadata bases: `{ "Engine", "Component" }`
+Attached to `Actor.lightComp` to emit dynamic point light from an Actor. For editor configuration, see [Light Component](<../../../../Editor User Guide/Actor Components/Light.md>).
 
 ### Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
-| `lightColour` | `sf.Color` | `{ [1] = 255, [2] = 255, [3] = 255, [4] = 255 }` | — |
+| `lightColour` | `sf.Color` | `[255, 255, 255, 255]` | — |
 | `lightRadius` | `float` | `16` | — |
-| `lightOffset` | `sf.Vector2f` | `{ [1] = 0, [2] = 0 }` | — |
+| `lightOffset` | `sf.Vector2f` | `[0, 0]` | Measured from the centre of the Actor's local bounds; follows the full Actor transform. |
 
-`lightOffset` is measured from the centre of the Actor's local bounds and follows its complete transform. A wall-mounted emitter needs a separate Actor, with this offset placed at the flame on the room side, because the renderer does not search for a passable cell.
+> **Note:** A wall-mounted emitter needs a separate Actor whose `lightOffset` places the light on the room side, because the renderer does not search for a neighbouring passable cell.

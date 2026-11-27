@@ -1,135 +1,145 @@
 # Engine：交互与声明式 UI 控件
 
+本页记录交互式 UI 控件（`TextBox`、`CheckBox`、`DropBox`、`TabView`、`GamepadHintBar`、`ProgressBar`、`Slider`）、扇形基础图元（`SectorShape`）以及声明式 UI 实例化句柄（`AssetInstance`）。实例方法表省略隐式 `self` 接收者（蓝图节点将其公开为首个目标引脚，未连接时默认指向图所属对象）；静态构造函数（`new`）无接收者。
+
 ## TextBox
 
-方法表列出 Lua 业务参数。每个蓝图实例方法节点还保留首个 `self: Engine.TextBox` 输入，未设置时默认使用图的所属对象。静态 `new` 构造函数没有接收者。
+**继承**：`Engine.ControlBase`、`Engine.FunctionalBase`
 
-直接 metadata 基类：`{ "Engine", "ControlBase" }`、`{ "Engine", "FunctionalBase" }`
+单行 UTF-8 文本输入控件，初始处于非编辑状态。点击、轻触或按下确认键进入编辑模式；仅获得焦点不会启动编辑。
 
-TextBox 是默认不处于编辑状态的单行 UTF-8 输入框。点击、触摸或确认操作会开始编辑，仅获得焦点不会。桌面端编辑支持闪烁光标、选区、横向滚动、按字素移动与删除、Home、End 以及剪贴板快捷键。
+- **桌面端编辑**：支持闪烁光标、文本选区、水平滚动、按字素（grapheme）移动与删除、Home/End 键及剪贴板快捷键。Windows 上内嵌模式与独立窗口均支持字符输入与输入法（IME）组合；桥接连接断开时按失焦规则处理已提交文本。
+- **确认与取消**：按下 Enter 或调用 `finishEdit` 提交编辑后的文本；按下 Escape、已连接手柄的 B/取消键或调用 `cancelEdit` 恢复进入编辑前的取值（两者均不会触发表单提交）。失去焦点时保留已提交文本并丢弃未完成的输入法组合。隐藏、禁用、解绑或销毁控件均会结束编辑。同一时间仅允许一个 `TextBox` 处于编辑状态。
+- **移动端与 HarmonyOS**：iOS、Android 及 HarmonyOS 手机与平板弹出系统输入对话框（HarmonyOS 二合一设备沿用桌面端编辑）。原生“完成”提交文本，“取消”恢复打开对话框前的取值；应用切入后台时关闭输入会话，返回前台后不自动重新打开。
+- **回调与文本清理**：`setOnTextChanged` 在已提交值变化时触发（含 `setString` 与取消恢复），输入法组合阶段不会改变 `getString()`。换行符与制表符转换为空格，其他控制字符会被移除。表单校验由 Controller 负责。
 
-Enter 或 `finishEdit` 保留编辑后的值，Escape、已连接手柄的 B/Cancel 按钮或 `cancelEdit` 恢复激活时的值，两者都不会提交外层表单。失焦会保留已提交的文本并丢弃未完成的组合文本。隐藏、禁用、移除或销毁控件都会结束编辑。同一时刻只有一个 TextBox 处于编辑状态。
+### 函数与事件
 
-iOS、Android 以及 HarmonyOS 手机和平板使用系统输入对话框，HarmonyOS 2in1 使用桌面端编辑。原生的完成按钮更新文本，取消按钮恢复对话框打开前的值。应用进入后台会关闭会话，返回时不会自动重新打开。
-
-| 方法 | 参数 | 返回 |
-|---|---|---|
-| `new` | size: sf.Vector2f; windowSkin: sf.Image; textConfig: Engine.PlainTextConfig; text: string = "" | TextBox |
-| `getString` / `setString` | — / text: string | string / — |
-| `isEditing` / `beginEdit` | — | bool |
-| `finishEdit` / `cancelEdit` | — | — |
-| `setInputDialogLabels` | title: string; done: string; cancel: string | — |
-| `setOnTextChanged` | callback: function(text: string) or nil | — |
-| `setOnEditingChanged` | callback: function(editing: bool) or nil | — |
-| `getSize` / `resize` | — / size: sf.Vector2f | sf.Vector2f / — |
-| `setWindowSkin` / `setTextConfig` | windowSkin: sf.Image / textConfig: Engine.PlainTextConfig | — |
-
-`setOnTextChanged` 会上报已提交值的变化，`setString` 与取消回滚同样计入；输入法组合不会改变 `getString()`。换行和制表符会变成空格，其他控制字符会被移除。表单校验由 Controller 负责。
-
-在 Windows 上，嵌入运行与独立窗口都支持字符输入和 IME 组合。桥接连接断开时会结束编辑，已提交文本的处理规则与失焦相同。
+| 方法 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `new` | `size: sf.Vector2f`, `windowSkin: sf.Image`, `textConfig: Engine.PlainTextConfig`, `text: string = ""` | `Engine.TextBox` | 静态方法。 |
+| `getString` | — | `string` | — |
+| `setString` | `text: string` | — | — |
+| `isEditing` | — | `bool` | — |
+| `beginEdit` | — | `bool` | — |
+| `finishEdit` | — | — | — |
+| `cancelEdit` | — | — | — |
+| `setInputDialogLabels` | `title: string`, `done: string`, `cancel: string` | — | — |
+| `setOnTextChanged` | `callback: function(text: string) \| nil` | — | — |
+| `setOnEditingChanged` | `callback: function(editing: bool) \| nil` | — | — |
+| `getSize` | — | `sf.Vector2f` | — |
+| `resize` | `size: sf.Vector2f` | — | — |
+| `setWindowSkin` | `windowSkin: sf.Image` | — | — |
+| `setTextConfig` | `textConfig: Engine.PlainTextConfig` | — | — |
 
 ## CheckBox
 
-直接 metadata 基类：`{ "Engine", "ControlBase" }`、`{ "Engine", "FunctionalBase" }`
+**继承**：`Engine.ControlBase`、`Engine.FunctionalBase`
+
+使用窗口皮肤与纯文本配置绘制的二态复选框控件。
 
 ### 函数与事件
 
-| 名称 | 种类 | 参数 | 返回 | 执行语义与 metadata |
-|---|---|---|---|---|
-| `getSize` | `function` | self: { "Engine", "CheckBox" } = "self" | return: sf.Vector2f | Pure |
-| `resize` | `function` | self: { "Engine", "CheckBox" } = "self"; size: sf.Vector2f | — | — |
-| `isChecked` | `function` | self: { "Engine", "CheckBox" } = "self" | return: bool | Pure |
-| `setChecked` | `function` | self: { "Engine", "CheckBox" } = "self"; checked: bool | — | — |
-| `toggle` | `function` | self: { "Engine", "CheckBox" } = "self" | — | — |
-| `setWindowSkin` | `function` | self: { "Engine", "CheckBox" } = "self"; windowSkin: sf.Image | — | — |
-| `setTextConfig` | `function` | self: { "Engine", "CheckBox" } = "self"; textConfig: { "Engine", "PlainTextConfig" } | — | — |
-| `setOnCheckedChanged` | `function` | self: { "Engine", "CheckBox" } = "self"; callback: function | — | — |
-| `getLocalBounds` | `function` | self: { "Engine", "CheckBox" } = "self" | return: sf.FloatRect | Pure |
-| `update` | `function` | self: { "Engine", "CheckBox" } = "self"; deltaTime: float | — | — |
-| `onConfirm` | `function` | self: { "Engine", "CheckBox" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `onClick` | `function` | self: { "Engine", "CheckBox" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `onMouseButtonDown` | `function` | self: { "Engine", "CheckBox" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | return: bool | — |
-| `onKeyDown` | `function` | self: { "Engine", "CheckBox" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `draw` | `function` | self: { "Engine", "CheckBox" } = "self"; target: sf.RenderTarget; states: sf.RenderStates | — | — |
+| 方法 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `getSize` | — | `sf.Vector2f` | 纯函数（Pure）。 |
+| `resize` | `size: sf.Vector2f` | — | — |
+| `isChecked` | — | `bool` | 纯函数（Pure）。 |
+| `setChecked` | `checked: bool` | — | — |
+| `toggle` | — | — | — |
+| `setWindowSkin` | `windowSkin: sf.Image` | — | — |
+| `setTextConfig` | `textConfig: Engine.PlainTextConfig` | — | — |
+| `setOnCheckedChanged` | `callback: function` | — | — |
+| `getLocalBounds` | — | `sf.FloatRect` | 纯函数（Pure）。 |
+| `update` | `deltaTime: float` | — | — |
+| `onConfirm` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `onClick` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `onMouseButtonDown` | `arguments: Engine.UiInputEventArguments` | `bool` | — |
+| `onKeyDown` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `draw` | `target: sf.RenderTarget`, `states: sf.RenderStates` | — | — |
 
 ## DropBox
 
-直接 metadata 基类：`{ "Engine", "ControlBase" }`、`{ "Engine", "FunctionalBase" }`
+**继承**：`Engine.ControlBase`、`Engine.FunctionalBase`
 
-### 浮层与尺寸测量
+下拉选择控件，收起时显示按钮，展开时绘制可滚动的浮层选项列表。
 
-DropBox 有 Canvas 祖先时，展开的列表绘制在最外层 Canvas 的浮层中，位于该 Canvas 的普通内容和动画之后。因此它不受中间各层 Canvas 裁剪的限制，也不会改变父布局中其他控件的尺寸或位置。
+### 浮层与尺寸计算
 
-展开列表的可见高度限制在根 Canvas 内容矩形与游戏屏幕的交集之内。完整列表在下方放得下时向下展开，在下方放不下而上方的空间足够时改为向上展开。两侧都放不下时，改用空间较大的一侧，并让列表在内部滚动。
+- **浮层绘制**：存在 `Canvas` 祖先时，展开列表绘制在最外层祖先 `Canvas` 的浮层（overlay）上、位于常规内容与动画之后，因此不受嵌套 `Canvas` 裁剪影响，也不会改变父布局中其他控件的尺寸或位置。
+- **展开方向与高度**：列表可见高度限制在根 `Canvas` 内容矩形与游戏屏幕的交集内。完整列表能向下放下时向下展开，否则若能向上放下则向上展开；两侧均放不下时选择空间更大的一侧并启用内部滚动。
+- **边界**：`getSize()` 始终返回收起状态的布局尺寸。`getLocalBounds()` 在收起时返回该矩形，展开时返回其与可见弹窗的并集（向上展开可能使局部 Y 坐标为负）。继承的绝对边界与默认触摸命中边界随之同步。
 
-`getSize()` 始终返回折叠状态的布局尺寸。`getLocalBounds()` 在折叠时返回该矩形，展开时返回它与可见列表的并集；向上展开会让局部 Y 坐标变为负数。继承的绝对边界和默认触摸命中范围都跟随这一可见范围。
+### 弹窗滚动与选择
 
-### 列表滚动与选择
+普通鼠标滚轮按行高步进滚动，精确滚轮与移动端/Web 触摸拖动则直接应用偏移量。滚动仅移动弹窗视口，不会改变光标或已提交选项，松开拖动也不会确认条目。
 
-普通鼠标滚轮以行为单位滚动到目标位置，精确滚轮和移动端与 Web 的触摸拖动则直接应用各自的偏移量。这些输入只移动列表视口，不改变游标或已确认的选择，松开拖动也绝不会确认选项。方向键移动游标，并在需要时把它滚动到可见位置。鼠标悬停会预览可见选项，鼠标点击确认，移动端与 Web 点击采用下文的两步确认。所有索引仍然对应完整的 `items` 数组。
+方向键移动光标并将其滚入可见范围。鼠标悬停预览可见条目，单击即确认；移动端与 Web 轻触采用两段式确认。所有索引均指向完整的 `items` 数组。
 
 ### 触摸确认
 
-移动端与 Web 展开的 DropBox 采用两步确认：点击未高亮的选项时，只移动高亮并播放游标音效，不改变 `selectedIndex`，也不触发任一选择回调。点击当前高亮项才会确认，包括展开时已高亮的选项。取消会丢弃预览，并保留原来的 `selectedIndex`。
+在移动端与 Web 端，展开的 `DropBox` 采用两段式确认：轻触未高亮条目仅移动高亮并播放光标音效，不改变 `selectedIndex` 也不触发选择回调；轻触当前高亮条目（含初始高亮项）才确认选择。取消操作会丢弃预览并保持原 `selectedIndex`。
 
 ### 选择回调
 
-`setOnSelectedIndexChanged(callback)` 只在 `setSelectedIndex` 解析出不同的选择时触发，并传入新索引；在确认过程中，它先于确认回调执行。`setOnSelectionConfirmed(callback)` 在已展开且非空的 DropBox 确认时传入当前索引并触发，即使索引没有改变。通过代码选择或替换选项、取消，以及确认空列表都不会触发它。向任一设置方法传入 `nil` 都可清除对应回调。
+- `setOnSelectedIndexChanged(callback)` 仅在 `setSelectedIndex` 产生不同选项时携带新索引触发；确认过程中先于确认回调运行。
+- `setOnSelectionConfirmed(callback)` 在展开且非空的 `DropBox` 确认时携带当前索引触发（即使索引未变化）。代码设值、替换条目、取消或空列表确认不会触发此回调。
+- 向任一 setter 传入 `nil` 可清除对应回调。
 
 ### 函数与事件
 
-| 名称 | 种类 | 参数 | 返回 | 执行语义与 metadata |
-|---|---|---|---|---|
-| `getSize` | `function` | self: { "Engine", "DropBox" } = "self" | return: sf.Vector2f | Pure |
-| `getLocalBounds` | `function` | self: { "Engine", "DropBox" } = "self" | return: sf.FloatRect | Pure |
-| `resize` | `function` | self: { "Engine", "DropBox" } = "self"; size: sf.Vector2f | — | — |
-| `setWindowSkin` | `function` | self: { "Engine", "DropBox" } = "self"; windowSkin: sf.Image; repeated: bool = false | — | — |
-| `setTextConfig` | `function` | self: { "Engine", "DropBox" } = "self"; textConfig: { "Engine", "PlainTextConfig" } | — | — |
-| `getItems` | `function` | self: { "Engine", "DropBox" } = "self" | return: string[] | Pure |
-| `setItems` | `function` | self: { "Engine", "DropBox" } = "self"; items: string[] | — | — |
-| `getSelectedIndex` | `function` | self: { "Engine", "DropBox" } = "self" | return: int | Pure |
-| `setSelectedIndex` | `function` | self: { "Engine", "DropBox" } = "self"; index: int | — | — |
-| `getSelectedItem` | `function` | self: { "Engine", "DropBox" } = "self" | return: string | Pure |
-| `isExpanded` | `function` | self: { "Engine", "DropBox" } = "self" | return: bool | Pure |
-| `setExpanded` | `function` | self: { "Engine", "DropBox" } = "self"; expanded: bool | — | — |
-| `open` | `function` | self: { "Engine", "DropBox" } = "self" | — | — |
-| `cancel` | `function` | self: { "Engine", "DropBox" } = "self" | — | — |
-| `setOnSelectedIndexChanged` | `function` | self: { "Engine", "DropBox" } = "self"; callback: function | — | — |
-| `setOnSelectionConfirmed` | `function` | self: { "Engine", "DropBox" } = "self"; callback: function | — | — |
-| `setOnExpandedChanged` | `function` | self: { "Engine", "DropBox" } = "self"; callback: function | — | — |
-| `setOpenSound` | `function` | self: { "Engine", "DropBox" } = "self"; filename: string | — | — |
-| `getOpenSound` | `function` | self: { "Engine", "DropBox" } = "self" | return: string | Pure |
-| `setCursorSound` | `function` | self: { "Engine", "DropBox" } = "self"; filename: string | — | — |
-| `getCursorSound` | `function` | self: { "Engine", "DropBox" } = "self" | return: string | Pure |
-| `setSelectSound` | `function` | self: { "Engine", "DropBox" } = "self"; filename: string | — | — |
-| `getSelectSound` | `function` | self: { "Engine", "DropBox" } = "self" | return: string | Pure |
-| `setCancelSound` | `function` | self: { "Engine", "DropBox" } = "self"; filename: string | — | — |
-| `getCancelSound` | `function` | self: { "Engine", "DropBox" } = "self" | return: string | Pure |
-| `update` | `function` | self: { "Engine", "DropBox" } = "self"; deltaTime: float | — | — |
-| `onConfirm` | `function` | self: { "Engine", "DropBox" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `onCancel` | `function` | self: { "Engine", "DropBox" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `onClick` | `function` | self: { "Engine", "DropBox" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `onMouseButtonDown` | `function` | self: { "Engine", "DropBox" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | return: bool | — |
-| `onMouseMoved` | `function` | self: { "Engine", "DropBox" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `onMouseWheelScrolled` | `function` | self: { "Engine", "DropBox" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `onKeyDown` | `function` | self: { "Engine", "DropBox" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `draw` | `function` | self: { "Engine", "DropBox" } = "self"; target: sf.RenderTarget; states: sf.RenderStates | — | — |
+| 方法 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `getSize` | — | `sf.Vector2f` | 纯函数（Pure）。 |
+| `getLocalBounds` | — | `sf.FloatRect` | 纯函数（Pure）。 |
+| `resize` | `size: sf.Vector2f` | — | — |
+| `setWindowSkin` | `windowSkin: sf.Image`, `repeated: bool = false` | — | — |
+| `setTextConfig` | `textConfig: Engine.PlainTextConfig` | — | — |
+| `getItems` | — | `string[]` | 纯函数（Pure）。 |
+| `setItems` | `items: string[]` | — | — |
+| `getSelectedIndex` | — | `int` | 纯函数（Pure）。 |
+| `setSelectedIndex` | `index: int` | — | — |
+| `getSelectedItem` | — | `string` | 纯函数（Pure）。 |
+| `isExpanded` | — | `bool` | 纯函数（Pure）。 |
+| `setExpanded` | `expanded: bool` | — | — |
+| `open` | — | — | — |
+| `cancel` | — | — | — |
+| `setOnSelectedIndexChanged` | `callback: function` | — | — |
+| `setOnSelectionConfirmed` | `callback: function` | — | — |
+| `setOnExpandedChanged` | `callback: function` | — | — |
+| `setOpenSound` | `filename: string` | — | — |
+| `getOpenSound` | — | `string` | 纯函数（Pure）。 |
+| `setCursorSound` | `filename: string` | — | — |
+| `getCursorSound` | — | `string` | 纯函数（Pure）。 |
+| `setSelectSound` | `filename: string` | — | — |
+| `getSelectSound` | — | `string` | 纯函数（Pure）。 |
+| `setCancelSound` | `filename: string` | — | — |
+| `getCancelSound` | — | `string` | 纯函数（Pure）。 |
+| `update` | `deltaTime: float` | — | — |
+| `onConfirm` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `onCancel` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `onClick` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `onMouseButtonDown` | `arguments: Engine.UiInputEventArguments` | `bool` | — |
+| `onMouseMoved` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `onMouseWheelScrolled` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `onKeyDown` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `draw` | `target: sf.RenderTarget`, `states: sf.RenderStates` | — | — |
 
 ## TabView
 
-直接 metadata 基类：`{ "Engine", "ControlBase" }`、`{ "Engine", "FunctionalBase" }`
+**继承**：`Engine.ControlBase`、`Engine.FunctionalBase`
+
+固定页签数量的水平分页条，支持可选的键盘/手柄边缘提示且不获取键盘焦点。
 
 ### 选择与导航
 
-TabView 的选项数量固定且不能为零，索引从零开始并在越界时取最近的有效值，选中项始终可见。中间区域等分给各个标签页，两侧各留 16 个逻辑像素作为提示区。控件从不获取键盘焦点。声明式资产通过必填且非空的 `items: string[]` 属性确定这一固定数量，`tabCount` 不是资产属性。
-
-`setItems(items)` 在数量相同时替换标签文字，不改变当前选择与回调；数量不符时控件保持原样。`setOnSelectedIndexChanged(callback)` 绑定选择回调，传入 `nil` 可清除。`setSelectedIndex` 真正改变选择时只调用回调，不播放音效；`selectPrevious`、`selectNext` 以及真正生效的 Q/E、LB/RB、鼠标移动或触摸点击切换，会先播放一次配置好的游标音效，再调用回调。选择未变或已到边界时两者都不发生，标签页也不会循环。
-
-持有焦点的内容调用 `handleNavigationInput()`。TabView 可见且处于激活状态时，它会消耗 Q、E、LB 和 RB；重复的同方向输入只移动一次，相反方向则互相抵消。鼠标移动会选择中间的标签页。在该区域左键点击会被消耗但不选择，右键、中键以及两侧提示区的输入继续传递。触摸移动不会选择，但点击会。
+- **布局与构造**：`TabView` 拥有固定的非零条目数、从零开始且自动限幅的索引以及始终可见的选中项。中间区域等分各页签槽位，左右两侧各预留 `16` 逻辑像素用于显示按键提示。该控件永不获取键盘焦点。声明式资产依据必填非空属性 `items: string[]` 确定固定数量（`tabCount` 不是资产属性）。
+- **更新条目与切换选中**：数量一致时 `setItems(items)` 替换文本标签而不改变选中项或回调（数量不匹配时保持原状）。`setOnSelectedIndexChanged(callback)` 设置或清除（传 `nil`）回调。`setSelectedIndex` 发生实际变化时静默调用回调；`selectPrevious`、`selectNext` 以及有效的 Q/E、LB/RB、鼠标移动或触摸轻触先播放一次光标音效再调用回调。未发生变化或到达边界时均不播放音效也不触发回调，且页签不循环首尾衔接。
+- **输入处理**：持有焦点的业务内容调用 `handleNavigationInput()`，在 `TabView` 可见且活跃时消费 Q、E、LB 与 RB（同向重复输入只移动一次，反向输入互相抵消）。鼠标移入中间槽位即切换选中，左键点击该区域会被消费但不重复触发选择，右键、中键及两侧提示区事件照常透传。触摸轻触可切换页签，触摸拖动不切换。
 
 ### 按键提示
 
-`setKeyHint(leftHint, rightHint)` 接收两个 `Engine.KeyHint` 值，其可选字段 `Keyboard` 与 `Joystick` 分别存放非 `Unknown` 的 `sf.Keyboard.Key` 和 `Engine.JoystickButton` 取值方法返回的按钮值。空提示会清除对应的一侧，缺少当前设备字段的提示则隐藏。输入无效时，两侧提示都保持原样。
+`setKeyHint(leftHint, rightHint)` 接收两个 `Engine.KeyHint`，可选字段为 `Keyboard`（非 Unknown 的 `sf.Keyboard.Key`）与 `Joystick`（`Engine.JoystickButton` getter 返回值）。空提示清除对应侧，缺少当前设备字段则隐藏，非法输入保持两侧原状。
 
 ```lua
 tabView:setKeyHint(
@@ -138,169 +148,171 @@ tabView:setKeyHint(
 )
 ```
 
-提示只在可以移动的位置显示。连接手柄时使用 `Joystick` 提示；未连接手柄时，桌面端、HarmonyOS 2in1 和 HarmonyOS 平板使用 `Keyboard` 提示，Android、iOS 和 HarmonyOS 手机则隐藏提示。提示不会重新绑定输入，也不会禁用输入。
+仅在对应方向可继续切换时显示提示：连接手柄时显示 `Joystick`，否则桌面端、HarmonyOS 二合一设备与 HarmonyOS 平板显示 `Keyboard`，Android、iOS 及 HarmonyOS 手机隐藏提示。按键提示不会重绑定或禁用输入。
 
 ### 函数与事件
 
-| 名称 | 种类 | 参数 | 返回 | 执行语义与 metadata |
-|---|---|---|---|---|
-| `getSize` | `function` | self: { "Engine", "TabView" } = "self" | return: sf.Vector2f | Pure |
-| `resize` | `function` | self: { "Engine", "TabView" } = "self"; size: sf.Vector2f | — | — |
-| `setWindowSkin` | `function` | self: { "Engine", "TabView" } = "self"; windowSkin: sf.Image | — | — |
-| `setTextConfig` | `function` | self: { "Engine", "TabView" } = "self"; textConfig: { "Engine", "PlainTextConfig" } | — | — |
-| `getItems` | `function` | self: { "Engine", "TabView" } = "self" | return: string[] | Pure |
-| `setItems` | `function` | self: { "Engine", "TabView" } = "self"; items: string[] | — | — |
-| `setOnSelectedIndexChanged` | `function` | self: { "Engine", "TabView" } = "self"; callback: function \| nil | — | — |
-| `getSelectedIndex` | `function` | self: { "Engine", "TabView" } = "self" | return: int | Pure |
-| `setSelectedIndex` | `function` | self: { "Engine", "TabView" } = "self"; index: int | — | — |
-| `getSelectedItem` | `function` | self: { "Engine", "TabView" } = "self" | return: string | Pure |
-| `selectPrevious` | `function` | self: { "Engine", "TabView" } = "self" | return: bool | — |
-| `selectNext` | `function` | self: { "Engine", "TabView" } = "self" | return: bool | — |
-| `handleNavigationInput` | `function` | self: { "Engine", "TabView" } = "self" | return: bool | — |
-| `setCursorSound` | `function` | self: { "Engine", "TabView" } = "self"; filename: string | — | — |
-| `getCursorSound` | `function` | self: { "Engine", "TabView" } = "self" | return: string | Pure |
-| `setKeyHint` | `function` | self: { "Engine", "TabView" } = "self"; leftHint: { "Engine", "KeyHint" }; rightHint: { "Engine", "KeyHint" } | — | — |
-| `getLocalBounds` | `function` | self: { "Engine", "TabView" } = "self" | return: sf.FloatRect | Pure |
-| `update` | `function` | self: { "Engine", "TabView" } = "self"; deltaTime: float | — | — |
-| `onClick` | `function` | self: { "Engine", "TabView" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `onMouseButtonDown` | `function` | self: { "Engine", "TabView" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | return: bool | — |
-| `onMouseMoved` | `function` | self: { "Engine", "TabView" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `draw` | `function` | self: { "Engine", "TabView" } = "self"; target: sf.RenderTarget; states: sf.RenderStates | — | — |
+| 方法 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `getSize` | — | `sf.Vector2f` | 纯函数（Pure）。 |
+| `resize` | `size: sf.Vector2f` | — | — |
+| `setWindowSkin` | `windowSkin: sf.Image` | — | — |
+| `setTextConfig` | `textConfig: Engine.PlainTextConfig` | — | — |
+| `getItems` | — | `string[]` | 纯函数（Pure）。 |
+| `setItems` | `items: string[]` | — | — |
+| `setOnSelectedIndexChanged` | `callback: function \| nil` | — | — |
+| `getSelectedIndex` | — | `int` | 纯函数（Pure）。 |
+| `setSelectedIndex` | `index: int` | — | — |
+| `getSelectedItem` | — | `string` | 纯函数（Pure）。 |
+| `selectPrevious` | — | `bool` | — |
+| `selectNext` | — | `bool` | — |
+| `handleNavigationInput` | — | `bool` | — |
+| `setCursorSound` | `filename: string` | — | — |
+| `getCursorSound` | — | `string` | 纯函数（Pure）。 |
+| `setKeyHint` | `leftHint: Engine.KeyHint`, `rightHint: Engine.KeyHint` | — | — |
+| `getLocalBounds` | — | `sf.FloatRect` | 纯函数（Pure）。 |
+| `update` | `deltaTime: float` | — | — |
+| `onClick` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `onMouseButtonDown` | `arguments: Engine.UiInputEventArguments` | `bool` | — |
+| `onMouseMoved` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `draw` | `target: sf.RenderTarget`, `states: sf.RenderStates` | — | — |
 
 ## GamepadHintBar
 
-直接 metadata 基类：`{ "Engine", "ControlBase" }`、`{ "Engine", "FunctionalBase" }`
+**继承**：`Engine.ControlBase`、`Engine.FunctionalBase`
 
-GamepadHintBar 最多显示三条手柄提示，在自身尺寸内居中。它仅在连接手柄时绘制与响应。每条提示是一个 `Engine.GamepadHint`，包含 `Button`（`Engine.JoystickButton` 取值方法返回的按钮值）、`LongPress` 与 `Text`，`setHints` 会拒绝超过三条。默认窗口通过共用的 `WindowChrome` 资产把它放在底部边框，由 `WindowBase` 绑定回调。
+连接手柄时居中显示最多 3 项手柄按键提示（`setHints` 超过 3 项时拒绝）。每项为 `Engine.GamepadHint`，包含 `Button`（`Engine.JoystickButton` getter 返回值）、`LongPress` 与 `Text`。默认窗口通过共享 `WindowChrome` 资产将其置于底部边框，由 `WindowBase` 绑定回调。
 
-短按提示在直径 16 逻辑像素的白色圆底上绘制当前手柄的按键图案，随后是文本。长按提示叠加一个绿色顺时针扇形，在一秒内填满。按住按键满一秒时，会以从零开始的下标触发一次 `setOnHintTriggered`；释放则重置进度。`setHintEnabled` 会使提示变灰、停止进度并阻止触发。
+短按提示在 `16` 逻辑像素的白色圆盘上绘制当前手柄字形并附带标签文本；长按提示额外绘制在 1 秒内顺时针填充的绿色扇形，满 1 秒时以从零开始的索引触发一次 `setOnHintTriggered`（中途松开则重置进度）。`setHintEnabled` 可置灰指定提示、停止其进度并阻止触发。
 
 ### 属性
 
-除 `size` 与纯文本配置外未声明可编辑属性。
+除 `size` 与纯文本配置外不声明额外可编辑属性。
 
 ### 函数与事件
 
-| 名称 | 种类 | 参数 | 返回 | 执行与 metadata |
-|---|---|---|---|---|
-| `getSize` | `function` | self: { "Engine", "GamepadHintBar" } = "self" | return: sf.Vector2f | Pure |
-| `resize` | `function` | self: { "Engine", "GamepadHintBar" } = "self"; size: sf.Vector2f | — | — |
-| `setTextConfig` | `function` | self: { "Engine", "GamepadHintBar" } = "self"; textConfig: { "Engine", "PlainTextConfig" } | — | — |
-| `setHints` | `function` | self: { "Engine", "GamepadHintBar" } = "self"; hints: { "Engine", "GamepadHint" }[] | — | — |
-| `getHintCount` | `function` | self: { "Engine", "GamepadHintBar" } = "self" | return: int | Pure |
-| `setHintEnabled` | `function` | self: { "Engine", "GamepadHintBar" } = "self"; index: int; enabled: bool | — | — |
-| `isHintEnabled` | `function` | self: { "Engine", "GamepadHintBar" } = "self"; index: int | return: bool | Pure |
-| `isGamepadConnected` | `function` | self: { "Engine", "GamepadHintBar" } = "self" | return: bool | Pure |
-| `setOnHintTriggered` | `function` | self: { "Engine", "GamepadHintBar" } = "self"; callback: function \| nil | — | — |
-| `getLocalBounds` | `function` | self: { "Engine", "GamepadHintBar" } = "self" | return: sf.FloatRect | Pure |
-| `update` | `function` | self: { "Engine", "GamepadHintBar" } = "self"; deltaTime: float | — | — |
-| `draw` | `function` | self: { "Engine", "GamepadHintBar" } = "self"; target: sf.RenderTarget; states: sf.RenderStates | — | — |
+| 方法 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `getSize` | — | `sf.Vector2f` | 纯函数（Pure）。 |
+| `resize` | `size: sf.Vector2f` | — | — |
+| `setTextConfig` | `textConfig: Engine.PlainTextConfig` | — | — |
+| `setHints` | `hints: Engine.GamepadHint[]` | — | — |
+| `getHintCount` | — | `int` | 纯函数（Pure）。 |
+| `setHintEnabled` | `index: int`, `enabled: bool` | — | — |
+| `isHintEnabled` | `index: int` | `bool` | 纯函数（Pure）。 |
+| `isGamepadConnected` | — | `bool` | 纯函数（Pure）。 |
+| `setOnHintTriggered` | `callback: function \| nil` | — | — |
+| `getLocalBounds` | — | `sf.FloatRect` | 纯函数（Pure）。 |
+| `update` | `deltaTime: float` | — | — |
+| `draw` | `target: sf.RenderTarget`, `states: sf.RenderStates` | — | — |
 
 ## SectorShape
 
-直接 metadata 基类：`{ "sf", "Drawable" }`、`{ "sf", "Transformable" }`
+**继承**：`sf.Drawable`、`sf.Transformable`
 
-SectorShape 是基础图形而非 UI 控件，因此不出现在 Palette 中。它从 12 点方向顺时针填充扇形，角度限制在 0–360 度。`GamepadHintBar` 与 `Button` 用它绘制长按进度。
+基础图形图元（不属于 UI 控件，不出现在 Palette 中），从 12 点钟方向顺时针填充扇形，角度限幅在 `0–360` 度之间。`GamepadHintBar` 与 `Button` 使用该图元绘制长按进度指示器。
 
 ### 函数与事件
 
-| 名称 | 种类 | 参数 | 返回 | 执行与 metadata |
-|---|---|---|---|---|
-| `new` | `function` | radius: float = 0.0; fillColour: sf.Color = 白色 | SectorShape | — |
-| `getRadius` | `function` | self: { "Engine", "SectorShape" } = "self" | float | Pure |
-| `setRadius` | `function` | self: { "Engine", "SectorShape" } = "self"; radius: float | — | — |
-| `getAngle` | `function` | self: { "Engine", "SectorShape" } = "self" | sf.Angle | Pure |
-| `setAngle` | `function` | self: { "Engine", "SectorShape" } = "self"; angle: sf.Angle | — | — |
-| `getFillColour` | `function` | self: { "Engine", "SectorShape" } = "self" | sf.Color | Pure |
-| `setFillColour` | `function` | self: { "Engine", "SectorShape" } = "self"; colour: sf.Color | — | — |
-| `getLocalBounds` | `function` | self: { "Engine", "SectorShape" } = "self" | return: sf.FloatRect | Pure |
-| `getGlobalBounds` | `function` | self: { "Engine", "SectorShape" } = "self" | return: sf.FloatRect | Pure |
+| 方法 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `new` | `radius: float = 0.0`, `fillColour: sf.Color = white` | `Engine.SectorShape` | 静态方法。 |
+| `getRadius` | — | `float` | 纯函数（Pure）。 |
+| `setRadius` | `radius: float` | — | — |
+| `getAngle` | — | `sf.Angle` | 纯函数（Pure）。 |
+| `setAngle` | `angle: sf.Angle` | — | — |
+| `getFillColour` | — | `sf.Color` | 纯函数（Pure）。 |
+| `setFillColour` | `colour: sf.Color` | — | — |
+| `getLocalBounds` | — | `sf.FloatRect` | 纯函数（Pure）。 |
+| `getGlobalBounds` | — | `sf.FloatRect` | 纯函数（Pure）。 |
 
 ## ProgressBar
 
-直接 metadata 基类：`{ "Engine", "ControlBase" }`
+**继承**：`Engine.ControlBase`
 
-进度范围为 0 到 1，超出范围会被限制，非有限值按 0 处理。背景始终覆盖整个控件，填充层随进度增加显示图片对应的左侧部分，不会把整张填充图片压缩到当前宽度。显示缩放与呈现透明度同时作用于两层。
+水平进度条控件，包含独立的背景层与填充层，各层均可使用纯色或裁剪纹理。
 
-两层分别持有自己的 `sf.Texture` 资源。向对应的图片设置方法传入 `nil` 会清除图片并恢复纯色绘制。图片 Rect 使用源图像素坐标，`nil` 表示整张图片。每层的颜色与图片相乘，要保留原色时应设为白色。替换或清除图片不改变尺寸与进度。
+- **进度范围**：取值范围为 `0` 到 `1`，越界值自动限幅，非有限值归零。背景铺满整个控件，填充层按比例裁剪显示左侧区域（不压缩变形）。显示缩放与表现透明度同时作用于两层。
+- **纹理与着色**：两层各自持有 `sf.Texture`，传入 `nil` 清除纹理并恢复纯色绘制。纹理矩形采用源图像像素坐标（`nil` 表示完整纹理）。各层颜色与纹理相乘（白色保持原色）。更换或清除纹理不会改变控件尺寸与当前进度。
 
 ### 函数与事件
 
-| 名称 | 种类 | 参数 | 返回 | 执行语义与 metadata |
-|---|---|---|---|---|
-| `getSize` | `function` | self: { "Engine", "ProgressBar" } = "self" | return: sf.Vector2f | Pure |
-| `resize` | `function` | self: { "Engine", "ProgressBar" } = "self"; size: sf.Vector2f | — | — |
-| `getProgress` | `function` | self: { "Engine", "ProgressBar" } = "self" | return: float | Pure |
-| `setProgress` | `function` | self: { "Engine", "ProgressBar" } = "self"; progress: float | — | — |
-| `getBackgroundColor` | `function` | self: { "Engine", "ProgressBar" } = "self" | return: sf.Color | Pure |
-| `setBackgroundColor` | `function` | self: { "Engine", "ProgressBar" } = "self"; color: sf.Color | — | — |
-| `getFillColor` | `function` | self: { "Engine", "ProgressBar" } = "self" | return: sf.Color | Pure |
-| `setFillColor` | `function` | self: { "Engine", "ProgressBar" } = "self"; color: sf.Color | — | — |
-| `getBackgroundTexture` | `function` | self: { "Engine", "ProgressBar" } = "self" | return: sf.Texture or nil | Pure |
-| `setBackgroundTexture` | `function` | self: { "Engine", "ProgressBar" } = "self"; texture: sf.Texture or nil | — | — |
-| `getFillTexture` | `function` | self: { "Engine", "ProgressBar" } = "self" | return: sf.Texture or nil | Pure |
-| `setFillTexture` | `function` | self: { "Engine", "ProgressBar" } = "self"; texture: sf.Texture or nil | — | — |
-| `getBackgroundTextureRect` | `function` | self: { "Engine", "ProgressBar" } = "self" | return: sf.IntRect or nil | Pure |
-| `setBackgroundTextureRect` | `function` | self: { "Engine", "ProgressBar" } = "self"; rect: sf.IntRect or nil | — | — |
-| `getFillTextureRect` | `function` | self: { "Engine", "ProgressBar" } = "self" | return: sf.IntRect or nil | Pure |
-| `setFillTextureRect` | `function` | self: { "Engine", "ProgressBar" } = "self"; rect: sf.IntRect or nil | — | — |
-| `getLocalBounds` | `function` | self: { "Engine", "ProgressBar" } = "self" | return: sf.FloatRect | Pure |
-| `draw` | `function` | self: { "Engine", "ProgressBar" } = "self"; target: sf.RenderTarget; states: sf.RenderStates | — | — |
+| 方法 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `getSize` | — | `sf.Vector2f` | 纯函数（Pure）。 |
+| `resize` | `size: sf.Vector2f` | — | — |
+| `getProgress` | — | `float` | 纯函数（Pure）。 |
+| `setProgress` | `progress: float` | — | — |
+| `getBackgroundColor` | — | `sf.Color` | 纯函数（Pure）。 |
+| `setBackgroundColor` | `color: sf.Color` | — | — |
+| `getFillColor` | — | `sf.Color` | 纯函数（Pure）。 |
+| `setFillColor` | `color: sf.Color` | — | — |
+| `getBackgroundTexture` | — | `sf.Texture \| nil` | 纯函数（Pure）。 |
+| `setBackgroundTexture` | `texture: sf.Texture \| nil` | — | — |
+| `getFillTexture` | — | `sf.Texture \| nil` | 纯函数（Pure）。 |
+| `setFillTexture` | `texture: sf.Texture \| nil` | — | — |
+| `getBackgroundTextureRect` | — | `sf.IntRect \| nil` | 纯函数（Pure）。 |
+| `setBackgroundTextureRect` | `rect: sf.IntRect \| nil` | — | — |
+| `getFillTextureRect` | — | `sf.IntRect \| nil` | 纯函数（Pure）。 |
+| `setFillTextureRect` | `rect: sf.IntRect \| nil` | — | — |
+| `getLocalBounds` | — | `sf.FloatRect` | 纯函数（Pure）。 |
+| `draw` | `target: sf.RenderTarget`, `states: sf.RenderStates` | — | — |
 
 ## Slider
 
-直接 metadata 基类：`{ "Engine", "ControlBase" }`、`{ "Engine", "FunctionalBase" }`
+**继承**：`Engine.ControlBase`、`Engine.FunctionalBase`
+
+支持自定义轨道与滑块纹理的整数范围滑条控件。
 
 ### 触摸交互
 
-Slider 被触摸捕获时，会依据指针 X 坐标在可见范围内的位置设置数值，随后持续更新并钳制到有效区间，直到释放为止，即使指针移出命中范围也是如此。`setTouchHitBounds` 只改变触摸命中范围，不改变可见范围或鼠标命中范围。
+捕获触摸后，`Slider` 依据指针 X 坐标相对于可视边界的位置实时更新并限幅取值，即使拖动超出命中区域仍持续响应直至松手。`setTouchHitBounds` 仅调整触摸命中区，不影响视觉或鼠标边界。
 
 ### 函数与事件
 
-| 名称 | 种类 | 参数 | 返回 | 执行语义与 metadata |
-|---|---|---|---|---|
-| `setVisible` | `function` | self: { "Engine", "Slider" } = "self"; visible: bool | — | — |
-| `getSize` | `function` | self: { "Engine", "Slider" } = "self" | return: sf.Vector2f | Pure |
-| `resize` | `function` | self: { "Engine", "Slider" } = "self"; size: sf.Vector2f | — | — |
-| `getValue` | `function` | self: { "Engine", "Slider" } = "self" | return: int | Pure |
-| `setValue` | `function` | self: { "Engine", "Slider" } = "self"; value: int | — | — |
-| `setRange` | `function` | self: { "Engine", "Slider" } = "self"; minValue: int; maxValue: int | — | — |
-| `getRange` | `function` | self: { "Engine", "Slider" } = "self" | minimum: int; maximum: int | Pure |
-| `setValueFromRatio` | `function` | self: { "Engine", "Slider" } = "self"; ratio: float | — | — |
-| `setValueFromBoundsPosition` | `function` | self: { "Engine", "Slider" } = "self"; bounds: sf.FloatRect; position: sf.Vector2f | — | — |
-| `adjust` | `function` | self: { "Engine", "Slider" } = "self"; delta: int | — | — |
-| `getHandlePosition` | `function` | self: { "Engine", "Slider" } = "self" | return: int | Pure |
-| `setLineTexture` | `function` | self: { "Engine", "Slider" } = "self"; texture: sf.Texture | — | — |
-| `setHandleTexture` | `function` | self: { "Engine", "Slider" } = "self"; texture: sf.Texture | — | — |
-| `setOnValueChanged` | `function` | self: { "Engine", "Slider" } = "self"; callback: function | — | — |
-| `getLocalBounds` | `function` | self: { "Engine", "Slider" } = "self" | return: sf.FloatRect | Pure |
-| `update` | `function` | self: { "Engine", "Slider" } = "self"; deltaTime: float | — | — |
-| `onClick` | `function` | self: { "Engine", "Slider" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `onMouseButtonDown` | `function` | self: { "Engine", "Slider" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | return: bool | — |
-| `onMouseMoved` | `function` | self: { "Engine", "Slider" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `onKeyDown` | `function` | self: { "Engine", "Slider" } = "self"; arguments: { "Engine", "UiInputEventArguments" } | — | — |
-| `draw` | `function` | self: { "Engine", "Slider" } = "self"; target: sf.RenderTarget; states: sf.RenderStates | — | — |
+| 方法 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `setVisible` | `visible: bool` | — | — |
+| `getSize` | — | `sf.Vector2f` | 纯函数（Pure）。 |
+| `resize` | `size: sf.Vector2f` | — | — |
+| `getValue` | — | `int` | 纯函数（Pure）。 |
+| `setValue` | `value: int` | — | — |
+| `setRange` | `minValue: int`, `maxValue: int` | — | — |
+| `getRange` | — | `minimum: int`, `maximum: int` | 纯函数（Pure）。 |
+| `setValueFromRatio` | `ratio: float` | — | — |
+| `setValueFromBoundsPosition` | `bounds: sf.FloatRect`, `position: sf.Vector2f` | — | — |
+| `adjust` | `delta: int` | — | — |
+| `getHandlePosition` | — | `int` | 纯函数（Pure）。 |
+| `setLineTexture` | `texture: sf.Texture` | — | — |
+| `setHandleTexture` | `texture: sf.Texture` | — | — |
+| `setOnValueChanged` | `callback: function` | — | — |
+| `getLocalBounds` | — | `sf.FloatRect` | 纯函数（Pure）。 |
+| `update` | `deltaTime: float` | — | — |
+| `onClick` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `onMouseButtonDown` | `arguments: Engine.UiInputEventArguments` | `bool` | — |
+| `onMouseMoved` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `onKeyDown` | `arguments: Engine.UiInputEventArguments` | — | — |
+| `draw` | `target: sf.RenderTarget`, `states: sf.RenderStates` | — | — |
 
 ## AssetInstance
 
-生成 View 通过 `.instance` 暴露这个原生对象。原生 `requireAsset` 返回 `Engine.AssetInstance`，`UiController:requireAsset` 返回生成的子 View。详见 [声明式 UI 运行时契约](<../../../声明式 UI/运行时契约.md>)。
+通过生成的声明式 UI View 的 `.instance` 字段访问的原生实例句柄。原生 `requireAsset` 返回 `Engine.AssetInstance`，而 `UiController:requireAsset` 返回生成的子 View；详见[声明式 UI 运行时契约](<../../../声明式 UI/运行时契约.md>)。
 
-`setProperty` 要求属性的运行时类型。设置 Image 的 `drawAs` 时，传入 `Engine.ImageDrawAs.Image` 或 `Engine.ImageDrawAs.Tile`；这里不接受 JSON 中使用的字符串。WrapBox 模板形成独立实例边界，应通过 WrapBox 的 `get(i)` 访问重复项根控件，不能在外层资产中查找模板名。
-
-`reflowControl(localName, logicalSize)` 为具名的本资产系统控件应用正的 `sf.Vector2u` 尺寸，对其资产中定义的后代执行布局，并保留该控件的位置。它不跨越嵌套资产边界，子资产内部的控件应通过子实例处理。父级下次重新布局并应用资产定义的 Slot 时，会替换这次尺寸覆盖。
+- **强类型属性**：`setProperty` 要求传入对应属性声明的运行时类型——例如 `drawAs` 必须传入 `Engine.ImageDrawAs.Image` 或 `Engine.ImageDrawAs.Tile`（拒绝 JSON 字符串）。`WrapBox` 模板构成独立的实例边界，访问重复生成的子节点应通过 `wrapBox:get(i)`，而非在外层资产中查找模板节点名。
+- **局部重排**：`reflowControl(localName, logicalSize)` 为指定的本地系统控件应用正值 `sf.Vector2u` 尺寸并在保持其位置的前提下重排其子层级。调用不会跨越嵌套资产边界（请改为对子实例调用 `reflowControl`）；该覆盖尺寸会一直保持，直至父级重排重新应用原始 Slot 布局。
 
 ### 函数与事件
 
-| 名称 | 种类 | 参数 | 返回 | 执行语义与 metadata |
-|---|---|---|---|---|
-| `getRoot` | `function` | self: { "Engine", "AssetInstance" } = "self" | return: { "Engine", "ControlBase" } | Pure |
-| `requireControl` | `function` | self: { "Engine", "AssetInstance" } = "self"; localName: string | return: { "Engine", "ControlBase" } | Pure |
-| `getNodeByName` | `function` | self: { "Engine", "AssetInstance" } = "self"; name: string | return: { "Engine", "ControlBase" } | Pure |
-| `requireAsset` | `function` | self: { "Engine", "AssetInstance" } = "self"; localName: string | return: { "Engine", "AssetInstance" } | Pure |
-| `setProperty` | `function` | self: { "Engine", "AssetInstance" } = "self"; localName: string; propertyId: string; value: Union[nil, bool, int, float, string, sf.Vector2f, sf.Vector2u, sf.IntRect, sf.Color, Engine.ImageDrawAs, string[]] | — | — |
-| `setText` | `function` | self: { "Engine", "AssetInstance" } = "self"; localName: string; text: string | — | — |
-| `reflow` | `function` | self: { "Engine", "AssetInstance" } = "self"; logicalSize: sf.Vector2u = nil | — | — |
-| `reflowControl` | `function` | self: { "Engine", "AssetInstance" } = "self"; localName: string; logicalSize: sf.Vector2u | — | — |
-| `hasAnimation` | `function` | self: { "Engine", "AssetInstance" } = "self"; name: string; target: string = nil | return: bool | Pure |
-| `playAnimation` | `function` | self: { "Engine", "AssetInstance" } = "self"; name: string; target: string = nil; onFinished: function = nil | return: bool | — |
-| `stopAnimation` | `function` | self: { "Engine", "AssetInstance" } = "self"; name: string; target: string = nil | — | — |
+| 方法 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `getRoot` | — | `Engine.ControlBase` | 纯函数（Pure）。 |
+| `requireControl` | `localName: string` | `Engine.ControlBase` | 纯函数（Pure）。 |
+| `getNodeByName` | `name: string` | `Engine.ControlBase` | 纯函数（Pure）。 |
+| `requireAsset` | `localName: string` | `Engine.AssetInstance` | 纯函数（Pure）。 |
+| `setProperty` | `localName: string`, `propertyId: string`, `value: Union[nil, bool, int, float, string, sf.Vector2f, sf.Vector2u, sf.IntRect, sf.Color, Engine.ImageDrawAs, string[]]` | — | — |
+| `setText` | `localName: string`, `text: string` | — | — |
+| `reflow` | `logicalSize: sf.Vector2u = nil` | — | — |
+| `reflowControl` | `localName: string`, `logicalSize: sf.Vector2u` | — | — |
+| `hasAnimation` | `name: string`, `target: string = nil` | `bool` | 纯函数（Pure）。 |
+| `playAnimation` | `name: string`, `target: string = nil`, `onFinished: function = nil` | `bool` | — |
+| `stopAnimation` | `name: string`, `target: string = nil` | — | — |

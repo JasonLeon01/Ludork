@@ -1,10 +1,8 @@
 # Binding a Class
 
-Expose one C++20 class consistently to native Lua, LuaLS and the Blueprint metadata catalogue.
+Annotate a C++20 class with `BIND_*` macros to expose it consistently to native Lua, LuaLS declarations and the Blueprint metadata catalogue.
 
-## Steps
-
-### Declare the class
+## Declare the class
 
 ```cpp
 #pragma once
@@ -27,9 +25,7 @@ public:
 };
 ```
 
-Header dependencies and runtime value types follow [Build and Module Layout](<Build and Module Layout.md#core-headers-and-runtime-boundary>). `BIND_METHOD(name = "...")` selects the Lua method name and also applies to `metadata = false` methods.
-
-Place the declaration in the module's `include/Counter.hpp` and the member definitions in `src/Counter.cpp`:
+Header dependencies and runtime value types follow [Core headers and Runtime boundary](<Build and Module Layout.md#core-headers-and-runtime-boundary>). Place the declaration in the module's `include/Counter.hpp` and member definitions in `src/Counter.cpp`:
 
 ```cpp
 #include "Counter.hpp"
@@ -45,7 +41,7 @@ void Counter::add(int amount) {
 }
 ```
 
-CMake discovers `include/**/*.hpp` and `src/**/*.cpp`. Rebuild the module to regenerate its bindings. For a `Counter` class in `Engine`, Lua code can use:
+CMake discovers `include/**/*.hpp` and `src/**/*.cpp`. Rebuild the module to regenerate its bindings. For a `Counter` class in `Engine`, Lua code calls:
 
 ```lua
 local Engine = require("Engine")
@@ -56,28 +52,24 @@ counter:add(3)
 Logging.info(counter:getValue())
 ```
 
-The module root is the only public runtime location for the class. The `name` option selects the Lua identifier for that root field.
+### Naming, callbacks, inheritance and metadata visibility
 
-`BIND_CLASS(callbacks = true)` dispatches this class's non-static virtual bound methods through Lua. The opt-in is not inherited, but an override of a method the base class selected as a callback remains active.
-
-`BIND_METHOD(callback = false)` excludes the current class's method without removing an inherited callback. Selection is independent of metadata and events. String lists and non-virtual constructor callbacks are unsupported.
-
-Bindgen infers conversion bases from the C++ declaration. `cast_bases = {"BaseA", "BaseB"}` adds ancestors, or supplies them when `bind_bases = false`. The option requires an ordered list of non-empty type names rather than a comma-separated string.
-
-A conversion base with a registered Lua type also contributes its native methods and properties, including on userdata returned directly from C++. Bindgen emits `BindBase` for these bases and `BindCast` for interfaces without a Lua type. `bind_bases = false` disables inference from declared bases; it does not hide members of explicitly supplied registered bases. `runtime_bases` still controls the separate Ludork class composition hierarchy.
-
-Every logical public `BIND_METHOD` enters editor metadata by default. Mark an internal method or a secondary adapter overload as `metadata = false` when it must remain available to native Lua and LuaLS without creating another Blueprint node:
+- **Module-root visibility:** The module root is the only public runtime location for the class. Use `name = "..."` on `BIND_CLASS` to choose its Lua root identifier, and `BIND_METHOD(name = "...")` to select a Lua method name (including on `metadata = false` methods).
+- **Virtual callbacks:** `BIND_CLASS(callbacks = true)` dispatches this class's non-static virtual bound methods through Lua. This opt-in is not inherited, although an override of a method already selected by a base class remains active. Use `BIND_METHOD(callback = false)` to exclude one method on the current class without removing an inherited callback. Selection is independent of metadata and events; string lists and non-virtual constructor callbacks are unsupported.
+- **Conversion bases:** Bindgen infers conversion bases from the C++ inheritance list. Pass `cast_bases = {"BaseA", "BaseB"}` as an ordered list of non-empty type names (never a comma-separated string) to add ancestors or supply bases when `bind_bases = false`.
+- **Registered bases and `runtime_bases`:** A conversion base with a registered Lua type also contributes its native methods and properties, including on userdata returned directly from C++. Bindgen emits `BindBase` for registered bases and `BindCast` for interfaces without a Lua type. `bind_bases = false` disables inference from declared bases without hiding members of explicitly supplied registered bases, while `runtime_bases` controls the separate Ludork class composition hierarchy.
+- **Metadata exclusion:** Every logical public `BIND_METHOD` enters editor metadata by default. Mark internal helpers or secondary adapter overloads with `metadata = false` so they stay available to native Lua and LuaLS without generating extra Blueprint nodes:
 
 ```cpp
 BIND_METHOD(metadata = false)
 void _updateCache();
 ```
 
-The flag removes neither the runtime registration nor the LuaLS stub. Method names exposed in metadata must be unique within a type.
+Method names exposed in Blueprint metadata must be unique within a type.
 
-### Declare properties
+## Declare properties
 
-`BIND_PROPERTY()` exposes a data member. Safe boolean, numeric, string and `{}` initialisers can become metadata defaults. Use annotation-native pure data for an explicit default. Put property editor semantics that cannot be inferred from the type inside `BIND_PROPERTY(meta(...))`.
+`BIND_PROPERTY()` exposes an instance data member. Safe boolean, numeric, string and `{}` initialisers become metadata defaults automatically. Use annotation-native pure data for explicit defaults, and put editor semantics that cannot be inferred from the C++ type inside `meta(...)`:
 
 ```cpp
 BIND_PROPERTY(
@@ -85,9 +77,9 @@ BIND_PROPERTY(
 sf::Vector2f defaultOrigin{0.0f, 0.0f};
 ```
 
-Positional entries form arrays and named entries form objects. Bindgen reads this annotation syntax directly, so it does not need to be a valid C++ expression. The same singular `default` syntax applies to a getter-backed property declared with `BIND_METHOD(property = ...)`.
+Positional entries form arrays and named entries form objects. Bindgen parses this brace syntax directly, so it does not need to be a valid C++ expression. The same singular `default` syntax applies to getter-backed properties declared with `BIND_METHOD(property = ...)`.
 
-Structured pure-data values inside `meta(...)` use the same brace DSL. Either form may be nested:
+Structured pure-data values inside `meta(...)` use the same nestable brace syntax:
 
 ```cpp
 BIND_PROPERTY(
@@ -101,11 +93,15 @@ void setRoute(
     const std::optional<std::vector<sf::Vector2i>>& route = {});
 ```
 
-Use lowercase `true` and `false` in this data. Brace syntax, protocol `nil` and quoted-JSON rejection follow [Macro Reference](<Macro Reference.md>).
+Use lowercase `true` and `false`. Brace syntax, protocol `nil` and quoted-JSON rejection are detailed in [Macro Reference](<Macro Reference.md>).
 
-Ordinary properties and methods do not declare `DisplayName` or `DisplayDesc`. The editor formats identifiers automatically, so `defaultOrigin` is displayed as `Default Origin` while the C++ and Lua member name remains `defaultOrigin`. A true operator alias may use a direct literal display name such as `+`. It must not use `LOC(...)` or a default description.
+### Display names
 
-A no-argument getter can expose a property:
+Ordinary properties and methods do not declare `DisplayName` or `DisplayDesc`. The editor formats identifiers automatically (`defaultOrigin` displays as `Default Origin` while the C++ and Lua name stays `defaultOrigin`). A true operator alias may declare a literal display name such as `+`, but must not use `LOC(...)` or a default description.
+
+### Getter-backed properties
+
+A no-argument getter can expose a computed property:
 
 ```cpp
 BIND_METHOD(property = "volume", setter = "setVolume")
@@ -114,19 +110,18 @@ float getVolume() const;
 void setVolume(float value);
 ```
 
-The getter return type becomes the property type unless `type` overrides it. This form exposes one property and does not also expose getter and setter nodes.
+The getter return type becomes the property type unless `type` overrides it. This declaration exposes one property and does not also generate getter and setter nodes.
 
-A computed property may also declare `component = true`, preserving the same component metadata as a data member while routing assignment through its setter. `Actor.emitterComp` uses this form to release the previous effect immediately when it is replaced or assigned `nil`, including while its Actor is dormant.
+A computed property may also set `component = true`, preserving component metadata while routing assignments through the setter. `Actor.emitterComp` uses this form to release the previous effect immediately when replaced or assigned `nil`, including while its Actor is dormant.
 
-### Review constructors and exclusions
+## Review constructors and exclusions
 
-`BIND_INIT` marks constructors. Leave a declaration without a binding marker when it must not be exposed. Use `BIND_CLASS_PROPERTY` for class-level values and `BIND_MODULE_PROPERTY` for module-level values.
+- **Constructors and static properties:** Mark constructors with `BIND_INIT` (invoked as `.new(...)` in Lua), class-level values with `BIND_CLASS_PROPERTY` (C++ static storage) and module-level values with `BIND_MODULE_PROPERTY`. Leave declarations unmarked to exclude them from bindings.
+- **Value copying:** A complete record marked `copyable = true` gains `copy()` and `deepcopy()` when every member has verified independent value semantics. Scalars, strings, containers and nested independent values qualify; pointers, Lua references and shared resources do not become deep-copyable from `copyable` alone. Complete native copies include private state only when an explicit complete type policy establishes that it is safe.
 
-Bound constructors use `.new(...)`. Instance properties access native instance storage; class properties access C++ static storage. A complete record marked `copyable = true` gains `copy()` and `deepcopy()` when all members have verified independent value semantics. Scalars, strings, containers and nested independent values can qualify; pointers, Lua references and shared resources do not become deep-copyable from `copyable` alone. The complete native copy includes private state only when an explicit complete type policy establishes that it is safe.
+## Bind scoped enums
 
-### Bind scoped enums
-
-Use `BIND_ENUM` when a fixed native value set must be shared with Lua:
+Use `BIND_ENUM` to share a fixed native value set with Lua:
 
 ```cpp
 BIND_ENUM()
@@ -136,18 +131,18 @@ enum class WeatherType {
 };
 ```
 
-Bindgen exposes `Module.WeatherType` and generates the matching `Enums.Module.WeatherType` module; `name` selects both names. Blueprint fields and signatures use `{ enum = "Enums.Module.WeatherType" }`; Lua calls and saved Blueprint values use the underlying integers. Do not duplicate enumerators as module properties. See [Generated enum modules](<Generated Metadata and Stubs.md#generated-enum-modules>) for source annotations, stubs and cross-build requirements.
+Bindgen exposes `Module.WeatherType` and generates the matching `Enums.Module.WeatherType` module; `name` selects both names. Blueprint fields and signatures use `{ enum = "Enums.Module.WeatherType" }`, while Lua calls and saved Blueprint values carry the underlying integers. Do not duplicate enumerators as module properties. See [Generated enum modules](<Generated Metadata and Stubs.md#generated-enum-modules>) for annotations, stubs and cross-build requirements.
 
-An existing const map can supply a scalar enum without introducing a C++ enum:
+An existing `const` map with string keys and numeric, string or boolean values can also export a scalar enum without defining a C++ `enum`:
 
 ```cpp
 BIND_MODULE_PROPERTY(enum = true)
 extern const std::unordered_map<std::string, std::string> FocusDirection;
 ```
 
-Only const maps with string keys and numeric, string or boolean values support this marker. `Engine.FocusDirection` uses it; `Engine.Direction` is a bound native enum. The generated enum modules are owned by the build; edit the declaration or map source and rebuild.
+`Engine.FocusDirection` uses this form, whereas `Engine.Direction` is a bound native enum. Generated enum modules are owned by the build: edit the declaration or map source and rebuild.
 
-Use `metadata_type` when an existing scalar property should show an enum selector while keeping its C++ and LuaLS types:
+Use `metadata_type` when a scalar property should display an enum selector in the editor without changing its C++ or LuaLS type:
 
 ```cpp
 BIND_PROPERTY(metadata_type = {enum = "Enums.Engine.Direction"})
@@ -156,9 +151,9 @@ int direction = 0;
 
 The selector saves the referenced constant's value. Parameter and return overrides follow [Metadata-only signature schemas](<Functions Events and Execution.md#metadata-only-signature-schemas>).
 
-### Bind owner-specific nested types
+## Bind owner-specific nested types
 
-A public nested struct or enum uses the same binding markers as a top-level declaration:
+A public nested `struct` or `enum` uses the same binding markers as a top-level declaration:
 
 ```cpp
 class Owner {
@@ -171,13 +166,11 @@ public:
 };
 ```
 
-C++ names this type `Owner::Data`, and Lua exposes it as `Module.Data` or under the name set by `name`. The owner need not be bound, but the nested type must be publicly accessible through every enclosing class. With a public forward declaration and a separate qualified definition, place the binding marker on the complete definition.
-
-Types with the same short C++ name in one module need distinct Lua `name` options.
+C++ names this type `Owner::Data`, while Lua exposes it as `Module.Data` (or under `name`). The enclosing owner need not be bound, but the nested type must be publicly accessible through every enclosing class. When using a public forward declaration with an out-of-line qualified definition, place the binding marker on the complete definition. Types sharing a short C++ name within the same module require distinct Lua `name` options.
 
 ## Value conversion contracts
 
-Use `BIND_CLASS(table_init = true)` to initialise a fixed record from a Lua table. Supplied non-nil writable properties use their declared codecs. Missing or nil fields retain the C++ defaults. Existing native instances are also accepted. Add `strict_fields = true` to reject unknown fields and non-string keys:
+Use `BIND_CLASS(table_init = true)` to initialise a fixed record from a Lua table. Supplied non-nil writable properties use their declared codecs, missing or `nil` fields keep their C++ defaults, and existing native instances are accepted directly. Add `strict_fields = true` to reject unknown fields and non-string keys:
 
 ```cpp
 BIND_CLASS(table_init = true, strict_fields = true)
@@ -190,12 +183,10 @@ struct Limits {
 };
 ```
 
-`strict_fields` does not make optional fields required.
+`strict_fields` does not turn optional fields into required fields.
 
-Use `BIND_CLASS(pure_data = true)` for recursive value containers such as `RuntimeData`. Accepted values and variant conversion rules are covered by [Runtime Value Boundaries](<Runtime Value Boundaries.md#lua-value-conversion>).
+Use `BIND_CLASS(pure_data = true)` for recursive value containers such as `RuntimeData`; see [Lua value conversion](<Runtime Value Boundaries.md#lua-value-conversion>) for accepted values and variant conversion rules.
 
-`pure_data`, `dynamic_value`, `opaque_identity` and `table_init` are mutually exclusive conversion modes. See [Generated Metadata and Stubs](<Generated Metadata and Stubs.md#defaults-and-types>) for their generated type representations.
+`pure_data`, `dynamic_value`, `opaque_identity` and `table_init` are mutually exclusive conversion modes. See [Defaults and types](<Generated Metadata and Stubs.md#defaults-and-types>) for their generated type representations.
 
-## Limitations
-
-Bindgen does not infer project-specific conversion rules or resolve incomplete cross-module types.
+> **Note:** Bindgen does not infer project-specific conversion rules or resolve incomplete cross-module types.

@@ -1,29 +1,29 @@
 # C++ Binding Troubleshooting
 
-Start with the first Bindgen or compiler diagnostic. Resolve declaration, generation and runtime-path failures in that order, and rebuild before investigating a later symptom.
+Diagnose and resolve common Core bindgen, compilation and Lua runtime-path errors. Start with the first Bindgen or compiler diagnostic, fix declaration, generation and runtime-path issues in that order, and rebuild before chasing downstream symptoms.
 
 ## The declaration is not generated
 
-Confirm that the marker is on a public declaration parsed by the module, that the header appears in its CMake binding input and that the annotation syntax matches an existing example.
+Confirm that the `BIND_*` marker is on a `public` declaration parsed by the module, that the header belongs to the module's CMake binding input set, and that the annotation syntax matches [Macro Reference](<Macro Reference.md>).
 
 ## C++ compiles but Lua cannot find the member
 
-Check the generated registration, [module load order](<Build and Module Layout.md#load-the-runtime-modules>) and canonical path: the module root for classes and ungrouped functions, or the [function group](<Functions Events and Execution.md#assign-function-groups>) for grouped functions.
+Verify the generated registration unit, [module load order](<Build and Module Layout.md#load-the-runtime-modules>) and canonical Lua path: classes and ungrouped free functions register at the module root, while grouped functions register inside their [function group](<Functions Events and Execution.md#assign-function-groups>).
 
 ## LuaLS sees a member but Blueprint does not
 
-Check whether the method is intentionally marked `metadata = false`, as for internal helpers and secondary adapter overloads. Otherwise the generated root `*_meta.lua` contains every logical public `BIND_METHOD`. Read the Bindgen diagnostics and do not add a handwritten duplicate.
+Check whether the method is intentionally marked `metadata = false` (common for internal helpers and secondary adapter overloads). Otherwise, the generated root `*_meta.lua` includes every logical public `BIND_METHOD`. Inspect the Bindgen diagnostics rather than adding a handwritten duplicate.
 
 ## Bindgen reports a duplicate metadata method
 
-Keep the logical Blueprint-facing overload and mark secondary conversion or adapter overloads `metadata = false`. Do not add overload-specific generator branches, and do not let one declaration silently replace another.
+Keep the primary Blueprint-facing overload in metadata and mark secondary conversion or adapter overloads `metadata = false`. Do not add overload-specific generator branches or allow one declaration to overwrite another silently.
 
 ## Type conversion fails
 
-Use supported primitive, STL, SFML and declared Core types. Include complete cross-module declarations. Add reusable conversion through generic adapters or traits, and never make Bindgen branch on one business class or member name.
+Use supported primitive, STL, SFML and declared Core types, and include complete cross-module declarations. Add reusable conversion support through generic adapters or traits — never branch inside Bindgen on a specific gameplay class or member name.
 
 ## Metadata default is wrong
 
-Put the property or method `Meta` inside its own annotation and use an annotation-native `default` (see [Macro Reference](<Macro Reference.md>) and [Generated Metadata and Stubs](<Generated Metadata and Stubs.md>)). Rebuild to update the generated files.
+Place `meta(...)` inside the property or method's own binding annotation and supply an annotation-native `default` (see [Macro Reference](<Macro Reference.md>) and [Generated Metadata and Stubs](<Generated Metadata and Stubs.md>)), then rebuild to regenerate outputs.
 
-A top-level method or function `default`, `success` or `fail` is rejected with a validation diagnostic that requires `outpins(...)`. The distinction between `outpins` and `defaults`, and the lowercase-token rules, are covered in [Functions, Events and Execution](<Functions Events and Execution.md>) and [Macro Reference](<Macro Reference.md>).
+A top-level `default`, `success` or `fail` option on a method or free function fails validation and requires `outpins(...)`. See [Functions, Events and Execution](<Functions Events and Execution.md>) and [Macro Reference](<Macro Reference.md>) for the distinction between `outpins(...)` and `defaults`, and for lowercase token rules.

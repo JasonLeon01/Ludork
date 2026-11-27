@@ -1,13 +1,13 @@
 # GlobalFunctions.Weather
 
-`Weather` declares the nodes that set and clear the weather effect.
+`GlobalFunctions.Weather` provides Blueprint nodes for activating and clearing scene weather effects.
 
-Metadata source: `Scripts/GlobalFunctions/Weather_meta.lua`
+**Metadata source:** `Scripts/GlobalFunctions/Weather_meta.lua`
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `SetWeather` | `function` | weatherType: `{ enum = "Enums.GlobalCore.WeatherType" }`; power: int = 40; maxCount: int = 80 | — | Default execution output |
-| `ClearWeather` | `function` | — | — | Default execution output |
+| Function | Parameters | Returns | Notes |
+|---|---|---|---|
+| `SetWeather` | `weatherType: Enums.GlobalCore.WeatherType`, `power: int = 40`, `maxCount: int = 80` | — | Activates a weather effect. `Enums.GlobalCore.WeatherType` selector. |
+| `ClearWeather` | — | — | Clears the active weather effect. |
 
 The selector displays `NONE`, `RAIN`, `STORM` and `SNOW` from the generated `Enums.GlobalCore.WeatherType` module and stores their numeric values `0`, `1`, `2` and `3`. Lua callers pass the enum value directly:
 

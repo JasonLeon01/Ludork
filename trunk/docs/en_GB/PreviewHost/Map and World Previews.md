@@ -1,56 +1,72 @@
 # Map and World Previews
 
+The map viewport, world composition canvas and child-map thumbnails share Ludork's native game renderer so lighting, materials, fog, panorama and particles match the runtime. Use **Viewport Options** and editor overlays to inspect maps while authoring.
+
 ## Native map view
 
-Ordinary maps, the world composition canvas and child-map thumbnails share the game renderer, including animated tiles and Actors, Emitter components, tile, layer and Actor materials, lighting, fog and panorama. Previewing resolves the current in-memory map, Blueprint, material, particle and curve data, including unsaved changes and instance overrides, within the [preview/gameplay boundary](<Overview.md#preview-and-gameplay>).
+Ordinary maps, the world composition canvas and child-map thumbnails share the game renderer, including animated tiles and Actors, Emitter components, tile, layer and Actor materials, lighting, fog and panorama. Previewing resolves current in-memory map, Blueprint, material, particle and curve data—including unsaved changes and instance overrides—within the [preview/gameplay boundary](<Overview.md#preview-and-gameplay>).
 
-Open a map or world from the Map List to see its preview. Painting, selection, Actor transforms, Undo and world placement are described in [Tilesets, Autotiles and Maps](<../Editor User Guide/Tilesets Autotiles and Maps.md>). For runtime preparation and messages about an unavailable host, see [Build, Publish and Troubleshooting](<Build Publish and Troubleshooting.md>).
+Open a map or world from the **Map List** to preview it. Painting, selection, Actor transforms, Undo and world placement are described in [Tilesets, Autotiles and Maps](<../Editor User Guide/Tilesets Autotiles and Maps.md>); for runtime preparation and unavailable-host messages, see [Build, Publish and Troubleshooting](<Build Publish and Troubleshooting.md>).
 
-An Actor's configured [Emitter component](<../Editor User Guide/Actor Components/Emitter.md#configuration>) follows the Actor's transform and local bounds, including Actors without a texture. Its anchor, offset, rotation, scale and before/after drawing order match the configured component. Moving an Actor, panning, zooming and ordinary scene refreshes retain particle playback. Changing a particle resource or one of its referenced curves restarts only the affected effects; Undo and Redo also update the preview. Missing or invalid resources produce a preview error.
+An Actor's configured [Emitter component](<../Editor User Guide/Actor Components/Emitter.md#configuration>) follows its transform and local bounds (including Actors without a texture) with matching anchor, offset, rotation, scale and before/after draw order.
+
+Moving an Actor, panning, zooming and ordinary scene refreshes preserve particle playback. Editing a particle resource or a referenced curve restarts only the affected effects, and Undo/Redo updates the preview; missing or invalid resources produce a preview error.
 
 ## Viewport options
 
-The small always-visible dropdown at the upper left of the ordinary-map or world canvas opens **Viewport Options**.
+The always-visible drop-down at the upper left of the ordinary-map or world canvas opens **Viewport Options**:
 
 | Option | Default | Behaviour |
 |---|---|---|
-| View Mode | Unlit | Unlit uses neutral lighting; Lit shows ambient light, Actor lights and their occlusion. |
-| Realtime | On | Advances time for animation, particles and fog. Turning it off freezes preview time while edits still refresh the image. |
-| Show Fog | On | Shows the map's configured fog in either view mode. |
-| Show Panorama | On | Shows the configured panorama in either view mode. |
-| Show Light Bounds | Off | Shows light-range helpers in Unlit; disabled in Lit without clearing the saved choice. |
-| Show Actor Origins | On | Shows Actor origin helpers. |
+| View Mode | Unlit | **Unlit** uses neutral lighting; **Lit** displays ambient light, Actor lights and occlusion. |
+| Realtime | On | Advances time for animation, particles and fog. Turning it off freezes preview time while edits refresh the image. |
+| Show Fog | On | Displays the map's configured fog in either view mode. |
+| Show Panorama | On | Displays the configured panorama in either view mode. |
+| Show Light Bounds | Off | Displays light-range helpers in **Unlit**; disabled in **Lit** without clearing the saved choice. |
+| Show Actor Origins | On | Displays Actor origin helpers. |
 
-Unlit disables ambient-light tinting, point lights and shadows while retaining texture alpha, material colour effects, local emission and reflections. Lit presents the actual illumination without extra light-range circles. Fog uses scene lighting in Lit and its own colour under neutral illumination in Unlit. Fog and panorama switches do not create effects that the map has not configured. See the map guide for [fog settings](<../Editor User Guide/Tilesets Autotiles and Maps.md#fog>) and [panorama authoring](<../Editor User Guide/Tilesets Autotiles and Maps.md#map-list-and-composite-worlds>).
+**Unlit** disables ambient-light tinting, point lights and shadows while preserving texture alpha, material colour effects, local emission and reflections. **Lit** displays actual illumination without extra light-range circles.
 
-All six options are shared within the project and saved immediately in `Main.proj` under `editor.mapViewport`. Switching maps retains them, and reopening the project restores them. They do not change map data or create Undo steps. A project without saved options uses the defaults above.
+Fog uses scene lighting in **Lit** mode and its own colour under neutral lighting in **Unlit** mode. Fog and panorama switches do not create effects the map has not configured; see [fog settings](<../Editor User Guide/Tilesets Autotiles and Maps.md#fog>) and [panorama authoring](<../Editor User Guide/Tilesets Autotiles and Maps.md#map-list-and-composite-worlds>).
 
-Emitter playback starts at time zero when opening another map or world. It pauses while Realtime is off or the viewport is hidden, and resumes without catching up the time elapsed while paused. Moving an Actor during the pause does not cause distance-based emission when playback resumes.
+All six options are shared across the project and saved immediately in `Main.proj` under `editor.mapViewport`. Switching maps preserves them, and reopening the project restores them; they do not modify map data or create Undo steps. Projects without saved options use the defaults above.
+
+Emitter playback starts at time `0` when opening another map or world. It pauses while **Realtime** is off or the viewport is hidden, and resumes without catching up elapsed pause time; moving an Actor while paused does not trigger distance-based emission on resume.
 
 ## Actor and layer assistance
 
-In Actor mode on an ordinary map or a world child map opened independently, every selected Actor has a yellow outline with a black backdrop above the map rendering. Single and multiple selection use the same marker. The outline follows translation, rotation and scale; Actors with missing textures or degenerate dimensions use a grid-cell marker. Selection markers remain visible when **Show Actor Origins** is off. Selection and batch editing gestures are described in [Selecting and editing Actors](<../Editor User Guide/Tilesets Autotiles and Maps.md#selecting-and-editing-actors>).
+In Actor mode on an ordinary map or an independently opened world child map, every selected Actor (single or multiple selection) displays a yellow outline over a black backdrop above the map render. The outline follows translation, rotation and scale; Actors with missing textures or degenerate dimensions show a grid-cell marker.
 
-**Show Light Bounds** draws read-only ranges with a black outline, white dashes, a faint light-coloured fill and a contrasting centre marker. It does not change Actor selection or editing gestures. Lights on Actors without a texture are also previewed. Actor scaling changes the emitter position, while the circular range keeps its `lightRadius` in map pixels and scales only with the editor's zoom. Configure the emitter and its occlusion through [Light Component](<../Editor User Guide/Actor Components/Light.md>) and the map guide's [Lights and actors](<../Editor User Guide/Tilesets Autotiles and Maps.md#lights-and-actors>).
+Selection markers stay visible when **Show Actor Origins** is off. See [Selecting and editing Actors](<../Editor User Guide/Tilesets Autotiles and Maps.md#selecting-and-editing-actors>) for selection and batch-editing gestures.
 
-Ordinary maps and world previews draw an Actor at 25% opacity when its resolved `visible` value is `false`; that resolution includes inherited defaults and instance overrides. Texture alpha, material opacity and the 50% dimming of non-current layers on an ordinary map still multiply this opacity. Selection outlines and error markers remain fully visible, and the Actor remains selectable and movable. These invisible Actors contribute neither lighting nor light occlusion. Hidden layers remain invisible, while placement ghosts and missing-texture placeholders retain their normal appearance. This is an editor preview aid; invisible Actors remain hidden at runtime.
+**Show Light Bounds** draws read-only ranges with a black outline, white dashes, a faint light-coloured fill and a contrasting centre marker without affecting Actor selection or editing gestures. Lights on Actors without a texture are also previewed.
 
-Emitter effects also receive the owning Actor's 25% visibility assistance and non-current-layer dimming. Unlike the runtime behaviour of an invisible Actor, these effects continue playing while Realtime is on. Hidden layers do not display their effects.
+Actor scaling moves the emitter position, whereas the circular range uses `lightRadius` in map pixels and scales only with editor zoom. Configure emitters and occlusion through [Light Component](<../Editor User Guide/Actor Components/Light.md>) and [Lights and Actors](<../Editor User Guide/Tilesets Autotiles and Maps.md#lights-and-actors>).
 
-Layer dimming preserves the authored layer order and does not reduce real light or occlusion strength. Selection markers, Actor origins and light ranges are editor overlays and do not appear in thumbnails.
+When an Actor's resolved `visible` property (including inherited defaults and instance overrides) is `false`, ordinary-map and world previews draw it at 25% opacity as an editor aid:
+
+- **Opacity and overlays:** Texture alpha, material opacity and the 50% dimming of non-current layers on an ordinary map multiply this opacity. Selection outlines and error markers stay fully opaque, and the Actor stays selectable and movable.
+- **Lighting and layers:** Invisible Actors contribute no lighting or light occlusion. Hidden layers are not drawn, while placement ghosts and missing-texture placeholders use their normal appearance. At runtime, invisible Actors are hidden.
+- **Emitters:** Emitter effects receive the owning Actor's 25% visibility aid and non-current-layer dimming. Unlike runtime playback of an invisible Actor, preview emitters play while **Realtime** is on; hidden layers do not display their effects.
+
+Layer dimming preserves authored layer order without reducing real light or occlusion strength. Selection markers, Actor origins and light ranges are editor overlays and never appear in thumbnails.
 
 ## Worlds and thumbnails
 
-The canvas and thumbnails appear as child maps load. A missing or unreadable child does not prevent the others from appearing. Editing maps or changing images updates their previews. Only the children needed for the visible area and its lighting are loaded for the canvas; Emitter effects from unloaded children are not previewed. World rendering draws across regions by layer and evaluates cross-map lighting and occlusion; the selected placement retains its priority within each layer.
+The world canvas and child-map thumbnails populate as child maps load; a missing or unreadable child does not prevent others from appearing. Editing maps or changing images refreshes affected previews.
 
-Child-map thumbnails use a single-region scene at time zero and follow View Mode, Show Fog and Show Panorama. Emitter effects remain at their initial state rather than playing continuously or advancing to a later frame. Their caching and background scheduling are described in [Scheduling and frame ownership](<Architecture and Data Flow.md#scheduling-and-frame-ownership>).
+Only children required for the visible area and its lighting are loaded for the canvas, so Emitter effects on unloaded children are not previewed. World rendering draws across regions per layer and evaluates cross-map lighting and occlusion, giving the selected placement priority within each layer.
 
-World fog and region fog use the same world coordinates and time. Global fog is composited first, followed by region fog in stable placement order; adjacent regions with the same settings have a continuous pattern. A world uses its global panorama, while a child's panorama is used when that map is opened independently. The existing Cover scaling and camera scrolling apply to panorama previews.
+Child-map thumbnails render a single-region scene at time `0` following **View Mode**, **Show Fog** and **Show Panorama**. Emitter effects stay at their initial state rather than playing continuously or advancing. See [Scheduling and frame ownership](<Architecture and Data Flow.md#scheduling-and-frame-ownership>) for caching and background scheduling.
+
+World fog and region fog share world coordinates and time: global fog composites first, followed by region fog in stable placement order so adjacent regions with identical settings form a continuous pattern. A world uses its global panorama, while a child map opened independently uses its own panorama. Cover scaling and camera scrolling apply to panorama previews.
 
 ## Refresh and Live Debug
 
-The native viewport refreshes at up to 30 FPS during dragging without changing the output resolution, and displays the final state after release. Hidden views stop refreshing. See [Scheduling and frame ownership](<Architecture and Data Flow.md#scheduling-and-frame-ownership>) for request handling and frame publication.
+The native viewport refreshes at up to 30 FPS during dragging without reducing output resolution, displaying the final state after release. Hidden views stop refreshing. See [Scheduling and frame ownership](<Architecture and Data Flow.md#scheduling-and-frame-ownership>) for request handling and frame publication.
 
-During **Individual Window** Play with **Live Debug**, the native viewport reflects live Actors' appearance, transforms, materials and lights, together with the map's fog, panorama and ambient light. World children retain world coordinates for these effects. The Live Debug map image does not include Emitter effects. Viewport options affect only the editor image; they do not alter the running game or grant editing permissions. Hidden Actors use the assistance rules above. See [Live Debug](<../Editor User Guide/Run Debug and Package.md#live-debug>) for the available operations and save boundary.
+During **Individual Window** Play with **Live Debug**, the native viewport mirrors live Actors' appearances, transforms, materials and lights together with the map's fog, panorama and ambient light (world children use world coordinates for these effects), excluding Emitter effects.
 
-Embedded game execution hides the preview menu because that viewport displays the running game.
+**Viewport Options** affect only the editor image without altering the running game or granting editing permissions, and hidden Actors follow the visibility-aid rules above. See [Live Debug](<../Editor User Guide/Run Debug and Package.md#live-debug>) for available operations and the save boundary.
+
+Embedded game execution hides the preview menu because that viewport displays the running game directly.

@@ -1,27 +1,31 @@
 # Engine: Scalar Curves
 
+This page documents the compressed animation sprite player (`AnimSprite`) and scalar animation curve types (`CurveKey`, `CurveData`, `Curve`) under `Engine`. Instance method tables omit the implicit `self` receiver exposed as the first Blueprint target pin; static methods take no receiver.
+
 ## AnimSprite
+
+Plays compressed `Engine.AnimationData` frame sequences and exposes duration, time-tag and completion queries.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `setData` | `function` | self: { "Engine", "AnimSprite" } = "self"; animationData: { "Engine", "AnimationData" } | — | — |
-| `getDuration` | `function` | self: { "Engine", "AnimSprite" } = "self" | return: float | Pure |
-| `getVisualDuration` | `function` | self: { "Engine", "AnimSprite" } = "self" | return: float | Pure |
-| `getAllTimeTags` | `function` | self: { "Engine", "AnimSprite" } = "self" | return: { "Engine", "AnimationTimeTag[]" } | Pure |
-| `isFinished` | `function` | self: { "Engine", "AnimSprite" } = "self" | return: bool | Pure |
-| `getFrameIndex` | `function` | self: { "Engine", "AnimSprite" } = "self" | return: int | Pure |
-| `update` | `function` | self: { "Engine", "AnimSprite" } = "self"; deltaTime: float | — | — |
-| `applyFrame` | `function` | self: { "Engine", "AnimSprite" } = "self"; frameIndex: int | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `setData` | `animationData: Engine.AnimationData` | — | — |
+| `getDuration` | — | `float` | Pure. |
+| `getVisualDuration` | — | `float` | Pure. |
+| `getAllTimeTags` | — | `Engine.AnimationTimeTag[]` | Pure. |
+| `isFinished` | — | `bool` | Pure. |
+| `getFrameIndex` | — | `int` | Pure. |
+| `update` | `deltaTime: float` | — | — |
+| `applyFrame` | `frameIndex: int` | — | — |
 
 ## CurveKey
 
-`Engine.CurveInterpolation` exposes the read-only strings `CONSTANT = "constant"`, `LINEAR = "linear"` and `CUBIC = "cubic"` for a key's `interpolation`. These values are shared by scalar and vector curves.
+Defines one keyframe on a scalar curve. `Engine.CurveInterpolation` exposes read-only strings `CONSTANT = "constant"`, `LINEAR = "linear"` and `CUBIC = "cubic"` for `interpolation`, shared by scalar and vector curves.
 
 ### Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
 | `time` | `float` | `0` | — |
 | `value` | `float` | `0` | — |
@@ -31,37 +35,39 @@
 
 ## CurveData
 
+Serialisable data record representing a scalar curve.
+
 ### Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
 | `type` | `string` | `"curve"` | — |
 | `name` | `string` | — | — |
 | `defaultValue` | `float` | `0` | — |
 | `preInfinity` | `string` | `"constant"` | — |
 | `postInfinity` | `string` | `"constant"` | — |
-| `keys` | `{ "Engine", "CurveKey[]" }` | — | — |
+| `keys` | `Engine.CurveKey[]` | — | — |
 
 ## Curve
 
-`Engine.CurveInfinityMode.CONSTANT` (`"constant"`) holds the endpoint value outside the key range; `LINEAR` (`"linear"`) extends the slope between the first two or last two keys. These read-only strings are used by `preInfinity` and `postInfinity` on scalar and vector curves and their data records. Infinity modes do not include cubic extrapolation.
+Evaluatable scalar animation curve. `Engine.CurveInfinityMode` exposes read-only strings used by `preInfinity` and `postInfinity` on scalar and vector curves and data records: `CONSTANT` (`"constant"`) clamps to the endpoint value outside the key range, while `LINEAR` (`"linear"`) extends the slope between the first two or last two keys. Infinity modes do not include cubic extrapolation.
 
 ### Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
 | `name` | `string` | — | — |
 | `defaultValue` | `float` | `0` | — |
 | `preInfinity` | `string` | `"constant"` | — |
 | `postInfinity` | `string` | `"constant"` | — |
-| `keys` | `{ "Engine", "CurveKey[]" }` | — | — |
+| `keys` | `Engine.CurveKey[]` | — | — |
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `fromData` | `function` | data: { "Engine", "CurveData" } | return: { "Engine", "Curve" } | Pure |
-| `toData` | `function` | self: { "Engine", "Curve" } = "self" | return: { "Engine", "CurveData" } | Pure |
-| `isEmpty` | `function` | self: { "Engine", "Curve" } = "self" | return: bool | Pure |
-| `getDuration` | `function` | self: { "Engine", "Curve" } = "self" | return: float | Pure |
-| `evaluate` | `function` | self: { "Engine", "Curve" } = "self"; time: float | return: float | Pure |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `fromData` | `data: Engine.CurveData` | `Engine.Curve` | Static. Pure. |
+| `toData` | — | `Engine.CurveData` | Pure. |
+| `isEmpty` | — | `bool` | Pure. |
+| `getDuration` | — | `float` | Pure. |
+| `evaluate` | `time: float` | `float` | Pure. |

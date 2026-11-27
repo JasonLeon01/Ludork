@@ -1,75 +1,65 @@
 # UI Asset Schema
 
+Declarative UI assets are JSON documents under `Data/UI` that define control hierarchies, layout Slots, animation timelines and static properties. This page specifies the asset schema, resource key rules and per-control JSON serialisation contract.
+
 ## Asset key and structure
 
-A UI asset uses `type = "uiAsset"` and follows the field contract below. It does not carry a schema-version field. Unknown fields are rejected. Its only asset identity is the exact-case path relative to `Data/UI`, with forward slashes and no extension. `Title.json` has key `Title`, and `Parts/Shared/WindowChrome.json` has key `Parts/Shared/WindowChrome`.
+A UI asset declares `type = "uiAsset"` with no schema-version field; unknown fields are rejected. Its sole identity is its exact-case path relative to `Data/UI`, using forward slashes and no extension (for example, `Title.json` has key `Title`, and `Parts/Shared/WindowChrome.json` has key `Parts/Shared/WindowChrome`).
 
-Keys cannot be absolute, and cannot contain backslashes, empty segments, `.`, `..`, an extension, or a repeated prefix such as `Assets/`, `UI/` or `Data/UI/`. Every path segment must be free of dots, so its generated Lua module has an unambiguous require path. Spaces, hyphens and Unicode names remain supported. The asset object contains `designSize`, `palette` and one `root` node. Neither assets nor nodes contain UUID fields.
+- **Key restrictions**: Keys cannot be absolute and cannot contain backslashes, empty segments, `.`, `..`, file extensions or repeated prefixes (`Assets/`, `UI/`, `Data/UI/`). Every path segment must omit dots so the generated Lua module has an unambiguous `require` path. Spaces, hyphens and Unicode names are supported.
+- **Top-level fields**: The root document contains `designSize`, `palette` and one `root` node, with an optional `animations` array. Neither assets nor nodes store UUIDs.
+- **System control IDs**: System controls use the bound class's canonical runtime path (such as `Engine.Canvas` or `Engine.FunctionalPlainText`); any other value is rejected as an unknown control.
+- **Nested project assets**: Nested assets act as black boxes — the parent node declares only the project `controlId`, `name` and parent `slot`, with no internal overrides or `children`. The referenced asset must set `palette.exposed = true`, and direct or indirect nesting cycles are invalid.
 
-Each node contains:
+Each node has the following schema:
 
 | Field | Contract |
 |---|---|
-| `name` | Asset-local node identity, generated reference key and native lookup name; unique within the asset. Its full identity is `(assetKey, name)`. |
+| `name` | Asset-local node identity, generated reference key and native lookup name; unique within the asset. Full identity is `(assetKey, name)`. |
 | `controlId` | Canonical module-root native class path for a system control, or `Project:<relative-key>`. |
-| `properties` | Values owned by the control schema. |
-| `slot` | Layout owned by the parent; absent on the root. |
+| `properties` | Static values owned by the control schema. |
+| `slot` | Layout properties owned by the parent; omitted on the root node. |
 | `editor` | Design-only values such as `previewText`. |
-| `children` | Ordered child nodes; order is the stable tie-breaker for equal z-order. |
-
-Nested project assets are black boxes. Their node declares the project `controlId`, `name` and parent Slot, with no internal overrides or children. The target must be exposed, and direct or indirect nesting cycles are invalid.
-
-System IDs use the bound class's sole runtime path, for example `Engine.Canvas` or `Engine.FunctionalPlainText`. A system ID that does not match that path is an unknown control.
+| `children` | Ordered child nodes; list order breaks ties when z-orders are equal. |
 
 ## Animation timelines
 
-The asset may contain an `animations` array. Each entry has a non-empty `name`, a required `target` (`null` for Global or one asset-local node name), a positive `duration`, an optional normalised `pivot` defaulting to `[0.5, 0.5]`, and a `tracks` object. Names are unique within one target. A target may be a direct nested-asset node, but never an internal node behind that boundary.
+An asset may include an `animations` array defining linear keyframe timelines:
 
-`tracks` accepts `translation`, `rotation`, `scale` and `colour`. Every present track is a non-empty array of diamond keyframes shaped as `{ "time": number, "value": ... }`. Times are finite, strictly increasing and within `0..duration`. Vector values use two finite numbers, and scale is non-negative. Colour values are four integer RGBA components within `0..255`, and each component is interpolated independently. Missing tracks use identity, and a track with one key stays constant. Outside a track's keyed range, the runtime holds the first or last value. Interpolation is linear.
-
-Translation is a local additive offset after layout. Rotation is a local angle increment. Scale multiplies the authored or layout scale. Colour multiplies the subtree's authored RGBA components. Presentation transforms are composed around the target's local bounds and pivot without modifying position, rotation, scale, origin or Slot data, so reflow does not accumulate animation offsets. Rendering, absolute bounds and hit testing share that composed transform. Canvas applies the subtree colour once at its composition boundary.
-
-A nested asset exports only its Global animations. Same-name parent animations targeted at that nested node override that instance; see [animation playback](<Runtime Contract.md#animation-playback>) for dispatch and completion rules.
-
-Renaming a node rewrites its animation targets. Deleting a node removes animations that target the deleted subtree. Duplicating a node copies those animations and retargets them to the copy.
+- **Entry fields**: Each animation specifies a non-empty `name` (unique per target), a required `target` (`null` for a Global animation, or one asset-local node name), a positive `duration`, an optional normalised `pivot` (default `[0.5, 0.5]`) and a `tracks` object. A target may reference a direct nested-asset node, never a node inside that nested asset.
+- **Tracks and keyframes**: `tracks` accepts `translation`, `rotation`, `scale` and `colour`. Each present track is a non-empty array of `{ "time": number, "value": ... }` diamond keyframes with finite, strictly increasing times in `0..duration`. Vectors use two finite numbers (`scale` must be non-negative), and `colour` uses four integer RGBA channels in `0..255` interpolated independently. Missing tracks use identity; single-key tracks stay constant; times outside the keyed range hold the first or last value; interpolation is linear.
+- **Transform composition**: `translation` adds a local post-layout offset, `rotation` adds a local angle increment, `scale` multiplies authored or layout scale, and `colour` multiplies the subtree's authored RGBA channels. Transforms compose around the target's local bounds and pivot without modifying layout position, rotation, scale, origin or Slot data, preventing offset accumulation on reflow. Rendering, absolute bounds and hit testing share this composed transform, and `Canvas` applies subtree colour once at its composition boundary.
+- **Nesting and editor maintenance**: A nested asset exports only its Global animations; a same-name parent animation targeting that nested node overrides that instance (see [Animation playback](<Runtime Contract.md#animation-playback>)). In the editor, renaming a node updates its animation targets, deleting a node removes animations targeting its subtree, and duplicating a node copies and retargets its animations.
 
 ## Slots and resource keys
 
-A Canvas parent supplies anchors, offsets, alignment, auto-size and z-order. A List parent supplies list placement and does not accept Canvas Slot fields. The parent's adapter declaration determines child policy and Slot type.
+A parent's adapter determines child policy and Slot type: a Canvas parent supplies anchors, offsets, alignment, auto-size and z-order, whereas a List parent supplies list placement and rejects Canvas Slot fields.
 
-Canvas Slots position the control's local bounds, including the bounds' non-zero offset. Text `lineAlignment` controls line placement within the text, while Slot `alignment` places the resulting bounds in the parent. Right-aligned text can therefore use a right-aligned, auto-sized Slot without moving its right edge when the text width changes.
+- **Canvas Slot bounds and text alignment**: Canvas Slots position a control's local bounds, including any non-zero local bounds offset. Text `lineAlignment` aligns lines within the text bounds, while Slot `alignment` positions those bounds inside the parent — allowing right-aligned text in a right-aligned, auto-sized Slot to grow leftwards without shifting its right edge.
+- **`Engine.ScrollBox`**: A multi-child Layout control using List Slots with serialised `size` and `windowSkin`. The native control owns scrolling, indicators and clipping.
+- **`Engine.WrapBox`**: A single-template Layout control using List Slots with serialised `size` (available layout bounds), `count` (non-negative integer, default `1`) and `spacing` (two-number vector, default `[0, 0]`). Its sole child uses `slot: {}` and may own a subtree. Instances flow left to right and wrap by width; negative spacing is valid only when placement steps stay positive. An empty template or `count = 0` produces no repeated controls. Node names stay asset-local and unique, while generated View references stop at the WrapBox boundary — access runtime instances through its 1-based `get(i)` API.
 
-`Engine.ScrollBox` is a multi-child Layout control with List Slots and serialised `size` and `windowSkin`. The native control owns scrolling, indicators and clipping.
+Resource references follow strict canonical formats:
 
-`Engine.WrapBox` is a single-template Layout control with List Slots. Its `size` sets the available layout bounds, `count` is a non-negative integer defaulting to `1`, and `spacing` is a two-number vector defaulting to `[0,0]`. Its sole child has `slot: {}` and may own a subtree. Native instances flow left to right and wrap by width; negative spacing is valid only with positive placement steps. An empty template or zero count produces no repeated controls. Authored node names remain asset-local and unique, but generated references stop at the WrapBox template boundary; use its 1-based `get(i)` API for runtime instances.
+- **Asset files**: Exact-case logical paths starting with `/Game/Assets/`, using forward slashes and file extensions.
+- **`textConfig`**: Extensionless path relative to `Data/TextConfigs`, with no directory prefix.
+- **`opacityCurve`**: Extensionless scalar-curve path relative to `Data/Curves`, with no directory prefix.
+- **Rejected forms**: Native absolute paths, `Assets/...`, category-relative paths, backslashes, traversal segments and alias prefixes are invalid.
 
-- File resources use exact-case logical paths beginning with `/Game/Assets/`, with forward slashes and extensions.
-- `textConfig` is relative to `Data/TextConfigs`, with no directory prefix or extension.
-- `opacityCurve` is relative to `Data/Curves`, with no directory prefix or extension, and resolves to a scalar curve.
-- Native absolute paths, `Assets/...`, category-relative paths, backslashes, traversal and alias prefixes are invalid.
-
-Plain-text controls store font, character size, style, spacing, alignment, outline, glow and gradient directly on the UI node. `textConfig` remains optional for shared or specialised text. When it is non-empty, the editor disables those inline style fields and the runtime uses the TextConfig. Rich text may use a TextConfig for named tag styles.
+Plain-text controls store font, character size, style, spacing, alignment, outline, glow and gradient directly on the node. `textConfig` is optional for shared or specialised text styles; when non-empty, the editor disables inline style fields and the runtime uses the TextConfig. Rich text may also reference a TextConfig for named tag styles.
 
 ## Control serialisation contract
 
-This section is the JSON field authority for the controls it names: what a node serialises, and which runtime type each value requires. For what a control is for, whether it accepts children, and its complete Inspector property set, see [UI Controls in the Palette](<../../Editor User Guide/UI Controls in the Palette.md>).
+This section defines the JSON field contract and required runtime types for specialised controls. For general control purposes, child policies and full Inspector property sets, see [UI Controls in the Palette](<../../Editor User Guide/UI Controls in the Palette.md>). Only assets with `palette.exposed = true` appear as project controls.
 
-`Engine.ListView` accepts `childScrollingEnabled` as a JSON boolean, defaulting to `false`. It can also be assigned at runtime. See [ListView](<../Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#listview>) for child scrolling, clipping and layout behaviour.
-
-`Engine.Window` stores `size`, `windowSkin`, `repeated` and `colour` in the asset. `colour` is an RGBA tint, defaulting to `[255,255,255,255]`; set its alpha in JSON for translucent window frames.
-
-`Engine.Image` and `Engine.FunctionalImage` serialise `drawAs` as `"Image"` (default) or `"Tile"`. Runtime calls require `Engine.ImageDrawAs`; see [Image](<../Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#image>) for tiling and scaling behaviour.
-
-`Engine.EmitterView` serialises `particle` (extensionless key under `Data/Particles`, default `""`), `size` (default `[100,100]`), `anchor` (default `[0.5,0.5]`) and `autoPlay` (default `true`), and accepts no children. It uses its parent's existing Slot, ordering and clipping. Its GPU particles use the containing Canvas's logical domain, and `getEmitter()` exposes playback to code. Hidden/unmounted views freeze; disposal releases playback; switching Canvas resets the coordinate domain. See [Common Particles](<../../Editor User Guide/Common Particles.md>) for resource schema, timing and scaling.
-
-`Engine.Button` accepts `texture`, optional `textureRect`, `colour`, `hoverColour`, `pressedColour`, `gamepadButton` and `gamepadLongPress`. `gamepadButton` is a logical name such as `"X"` and defaults to `""`; `gamepadLongPress` defaults to `false`. Runtime bindings and interaction are described in [Engine: Runtime Values and Functional Controls](<../Global and Core Modules/Core Modules/Engine/Runtime Values and Functional Controls.md#button>).
-
-`Engine.ProgressBar` accepts `size`, `progress`, `backgroundColor`, `fillColor`, `backgroundTexture`, `fillTexture`, `backgroundTextureRect` and `fillTextureRect`. Each texture defaults to `""` for a solid-colour layer; non-empty values use canonical `/Game/Assets/...` paths and the editor's image picker. Each optional Rect uses `[x,y,width,height]` in source pixels; omission or `null` selects the whole image. The background fills the control, while progress reveals the fill from left to right by cropping its image. Colours tint their respective layers; use `[255,255,255,255]` to preserve image colours. Runtime APIs are described in [Engine: Interactive and Declarative UI Controls](<../Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#progressbar>).
-
-`Engine.TextBox` serialises `size`, `windowSkin`, `text`, the standard plain-text properties and editor-only `previewText`, and accepts no children. Editing and callbacks are described in [Engine: Interactive and Declarative UI Controls](<../Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#textbox>).
-
-Only assets with `palette.exposed = true` appear as project controls.
-
-`Engine.TabView` serialises `size`, `windowSkin`, the construction-only non-empty `items: string[]` and the same inline text style or optional `textConfig` as plain text, and has no children or Slot of its own. Before the first visible frame, the Controller supplies localised labels and binds selection behaviour through [Engine: Interactive and Declarative UI Controls](<../Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#tabview>). `selectedIndex` and key-hint tables are runtime-only, and `tabCount` is not accepted.
-
-`Engine.CharacterView` serialises `size`, `texture`, optional `textureRect`, `characterScale`, `animatable`, `switchInterval`, `material`, `materialParameters` and `colour`, and accepts no children. `material` is empty or a complete `Data/Materials/...json` resource path; `materialParameters` is a string-keyed pure-data override dictionary. The control owns cropping, animation, Actor-scale fitting, material drawing and fixed bounds.
+| Control | Serialised fields and defaults | Notes and runtime API |
+|---|---|---|
+| `Engine.ListView` | `childScrollingEnabled` (bool, default `false`). | Also assignable at runtime. See [ListView](<../Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#listview>). |
+| `Engine.Window` | `size`, `windowSkin`, `repeated`, `colour` (RGBA, default `[255, 255, 255, 255]`). | Lower `colour` alpha in JSON for translucent frames. |
+| `Engine.Image`, `Engine.FunctionalImage` | `drawAs`: `"Image"` (default) or `"Tile"`. | Runtime setters require `Engine.ImageDrawAs`. See [Image](<../Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#image>). |
+| `Engine.EmitterView` | `particle` (extensionless key under `Data/Particles`, default `""`), `size` (`[100, 100]`), `anchor` (`[0.5, 0.5]`), `autoPlay` (`true`). | Accepts no children; uses parent Slot, ordering and clipping. GPU particles run in the enclosing Canvas's logical domain; `getEmitter()` exposes playback. Hidden/unmounted views freeze, disposal releases playback and switching Canvas resets the coordinate domain. See [Common Particles](<../../Editor User Guide/Common Particles.md>). |
+| `Engine.Button` | `texture`, optional `textureRect`, `colour`, `hoverColour`, `pressedColour`, `gamepadButton` (logical name such as `"X"`, default `""`), `gamepadLongPress` (`false`). | See [Button](<../Global and Core Modules/Core Modules/Engine/Runtime Values and Functional Controls.md#button>). |
+| `Engine.ProgressBar` | `size`, `progress`, `backgroundColor`, `fillColor`, `backgroundTexture` (`""`), `fillTexture` (`""`), optional `backgroundTextureRect`, `fillTextureRect`. | Empty texture draws a solid colour; non-empty values use `/Game/Assets/...` paths. Optional rects use `[x, y, width, height]` in source pixels (`null`/omitted uses the full image). Background fills the control; progress crops the fill left to right. Colours tint their layer (`[255, 255, 255, 255]` preserves image colours). See [ProgressBar](<../Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#progressbar>). |
+| `Engine.TextBox` | `size`, `windowSkin`, `text`, standard plain-text properties and editor-only `previewText`. | Accepts no children. See [TextBox](<../Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#textbox>). |
+| `Engine.TabView` | `size`, `windowSkin`, construction-only non-empty `items: string[]`, and inline text styles or optional `textConfig`. | Has no children or Slot. Before the first visible frame, the Controller supplies localised labels and binds selection (see [TabView](<../Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#tabview>)). `selectedIndex` and key-hint tables are runtime-only; `tabCount` is rejected. |
+| `Engine.CharacterView` | `size`, `texture`, optional `textureRect`, `characterScale`, `animatable`, `switchInterval`, `material` (`""` or `Data/Materials/...json`), `materialParameters` (string-keyed pure-data dictionary), `colour`. | Accepts no children. Owns cropping, animation, Actor-scale fitting, material drawing and fixed bounds. See [CharacterView](<../Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#characterview>). |

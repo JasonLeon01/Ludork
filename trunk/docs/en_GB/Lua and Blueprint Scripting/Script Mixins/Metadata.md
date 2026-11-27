@@ -1,6 +1,6 @@
 # Script Mixin Metadata
 
-The same-named `_meta.lua` file must return `_METADATA` and contain exactly one type whose name matches the script file name. It exposes editable fields for one attached behaviour. It does not declare runtime methods, Blueprint node entries or an inheritance hierarchy.
+A Script Mixin's companion `_meta.lua` file exposes editable fields to the Blueprint editor. It must return `_METADATA` containing exactly one type whose name matches the script file name; it does not declare runtime methods, Blueprint node entries or an inheritance hierarchy.
 
 ```lua
 local _METADATA = {
@@ -27,13 +27,9 @@ return _METADATA
 
 - `attrs` is a dense, ordered array of unique, non-empty field names.
 - Every listed field is a table with a valid `type`.
-- `default`, when present, is finite, acyclic, JSON-convertible pure data.
-- `bases` is absent or an empty table. Blueprint inheritance supplies the base.
-- The root contains no second type, function, userdata, coroutine or external-state access.
-- Editor decorators refine controls without changing runtime values. See [Editor names and decorators](<../Blueprint Scripting/Metadata Schema and Decorators.md#editor-names-and-decorators>) for resource and game-variable selectors.
+- `default`, when present, is finite, acyclic, JSON-convertible pure data. A field omitted from both saved attributes and `default` is schema-only.
+- `bases` is absent or an empty table; Blueprint inheritance supplies the base class.
+- The root table contains no second type, function, userdata, coroutine or external-state access.
+- Editor decorators refine Inspector controls without changing runtime values; see [Editor names and decorators](<../Blueprint Scripting/Metadata Schema and Decorators.md#editor-names-and-decorators>) for resource and game-variable selectors.
 
-Mixin metadata already declares its fields for a Blueprint. Store their local values in `attrs`; do not repeat them in `attrDefs`. Use `attrDefs` only for additional Blueprint fields, whose types and defaults are inherited by descendants. Missing declarations and collisions with inherited or mixin fields cause loading to fail. See [Blueprint attribute declarations](<../Blueprint Scripting/Metadata Schema and Decorators.md#blueprint-attribute-declarations>).
-
-## Limitations
-
-A field that is omitted from both the saved attributes and `default` is schema-only.
+Mixin metadata declares its fields directly for the Blueprint. Store local overrides in `attrs` and do not repeat mixin fields in `attrDefs`. Reserve `attrDefs` for additional Blueprint-defined fields (whose types and defaults descendants inherit). Missing declarations and collisions with inherited or mixin fields fail loading; see [Blueprint attribute declarations](<../Blueprint Scripting/Metadata Schema and Decorators.md#blueprint-attribute-declarations>).

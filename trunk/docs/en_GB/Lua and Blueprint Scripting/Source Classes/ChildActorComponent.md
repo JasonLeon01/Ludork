@@ -1,18 +1,16 @@
 # Source.Components.ChildActorComponent
 
-`ChildActorComponent` declares a class name and a relative position for a child Actor.
+`ChildActorComponent` declares a class name and a relative position for spawning and attaching a child Actor. The editable `childActorComp` field is declared on `Source.MapActors.Enemy` and inherited by its descendants; see [ChildActor Component](<../../Editor User Guide/Actor Components/ChildActor.md>) for editor configuration.
 
-The editable `childActorComp` field is declared by the Default Gameplay Enemy class and inherited by its descendants. See [ChildActor Component](<../../Editor User Guide/Actor Components/ChildActor.md>) for editor configuration.
-
-Metadata source: `Scripts/Source/Components/ChildActorComponent_meta.lua`
+**Metadata source:** `Scripts/Source/Components/ChildActorComponent_meta.lua`
 
 ## ChildActorComponent
 
-Direct metadata bases: `{ "Engine", "Component" }`
+**Inherits:** `Engine.Component`
 
 ### Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
-| `className` | `string` | `""` | — |
-| `relativePosition` | `sf.Vector2f` | `{ [1] = 0, [2] = 0 }` | — |
+| `className` | `string` | `""` | Child Actor class name to instantiate. |
+| `relativePosition` | `sf.Vector2f` | `sf.Vector2f(0, 0)` | Position offset relative to the owning Actor. |

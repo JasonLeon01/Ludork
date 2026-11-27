@@ -1,25 +1,27 @@
 # Source.Battler
 
-`Battler` is the Lua gameplay base of `Enemy` and `Player`, which each construct a generated Attribute Set from General Data.
+`Battler` is the Lua gameplay base class of `Enemy` and `Player`. Each concrete subclass constructs a generated Attribute Set from General Data and owns an Ability System Component for attributes, abilities, effects and tags.
 
-Metadata source: `Scripts/Source/Battler_meta.lua`
+**Metadata source:** `Scripts/Source/Battler_meta.lua`
 
 ## Runtime state
 
-| Name | Type | Meaning |
-|---|---|---|
-| `attributes` | `GlobalCore.AttributeSet` | Live generated Attribute Set; concrete types narrow it to Enemy or Player |
-| `_abilitySystemComponent` | `GlobalCore.AbilitySystemComponent` | Private owner of attributes, abilities, effects and tags |
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `attributes` | `GlobalCore.AttributeSet` | — | Live generated Attribute Set; concrete subclasses narrow this to Enemy or Player. |
+| `_abilitySystemComponent` | `GlobalCore.AbilitySystemComponent` | — | Private owner of attributes, abilities, effects and tags. |
 
 ## Runtime API
 
-| Member | Signature | Behaviour |
-|---|---|---|
-| `init` | `(attributes)` | Requires an Attribute Set and creates its Ability System Component |
-| `getAbilitySystemComponent` | `() -> AbilitySystemComponent` | Returns the live Ability System |
-| `getAttr` | `(name, base = false) -> number` | Returns numeric Current, or Base when `base` is `true` |
-| `setAttr` | `(name, value)` | Sets numeric Base through the Ability System and recalculates Current |
-| `addAttr` | `(name, delta)` | Adds `delta` to numeric Base; negative values subtract |
-| `playAttackAnimationAt` | `(scene, targetPosition) -> GlobalCore.Animation?` | Plays `attributes.ANIMATION_KEY` at the target and returns the animation. An empty key returns `nil`. Callers can read its visual duration and time tags |
+Instance methods omit the implicit `self` receiver (`Source.Battler`).
 
-Use `getAttr`, `setAttr` and `addAttr` for individual numeric attributes. `addAttr` reads Base, so active modifiers remain separate. These methods retain native validation: unknown attributes, non-finite values and generated `int` or `float` schema mismatches fail. Other data is read directly from `attributes`. Use the Ability System for batch writes, persistence, Effects and listeners.
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `init` | `attributes: GlobalCore.AttributeSet` | — | Requires an Attribute Set and creates its Ability System Component. |
+| `getAbilitySystemComponent` | — | `GlobalCore.AbilitySystemComponent` | Returns the live Ability System Component. |
+| `getAttr` | `name: string`, `base?: bool = false` | `number` | Returns numeric Current, or Base when `base` is `true`. |
+| `setAttr` | `name: string`, `value: number` | — | Sets numeric Base through the Ability System and recalculates Current. |
+| `addAttr` | `name: string`, `delta: number` | — | Adds `delta` to numeric Base; negative values subtract. |
+| `playAttackAnimationAt` | `scene`, `targetPosition` | `GlobalCore.Animation?` | Plays `attributes.ANIMATION_KEY` at the target and returns the animation, or `nil` when the key is empty. Callers can read its visual duration and time tags. |
+
+Use `getAttr`, `setAttr` and `addAttr` for individual numeric attributes. `addAttr` reads Base, so active modifiers stay separate. These methods enforce native validation: unknown attributes, non-finite values and generated `int` or `float` schema mismatches fail. Read other fields directly from `attributes`, and use the Ability System for batch writes, persistence, Effects and listeners.

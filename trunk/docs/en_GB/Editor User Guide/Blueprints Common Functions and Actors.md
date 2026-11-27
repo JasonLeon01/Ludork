@@ -1,82 +1,74 @@
 # Blueprints, Common Functions and Actors
 
-A Blueprint is a JSON class definition beneath `Data/Blueprints`. It selects a native or Lua parent, stores editable attributes and, in graph mode, contains event graphs. Actor instances placed on maps refer to these classes.
+Create reusable Blueprint classes beneath `Data/Blueprints`, define typed attributes and components, place Actor instances on maps and author visual event graphs.
 
 ## Create a Blueprint
 
-Use **Game → New Blueprint**, or the equivalent command in the file explorer. Choose a parent that ultimately inherits `BPBase`, then choose a path beneath `Data/Blueprints`. Parent defaults and supported events are resolved from the inheritance chain. A new graph-mode Blueprint starts each inherited event with `Event → Parent`, including the event parameter connections.
+Choose **Game → New Blueprint** (or create one from File Explorer), pick a parent class deriving from `BPBase`, and choose a path under `Data/Blueprints`. Parent defaults and events resolve through the full inheritance chain. A new graph-mode Blueprint initialises each inherited event with an `Event → Parent` node chain including parameter links.
 
-A Blueprint key is its case-preserving path relative to `Data/Blueprints`, with `/` separators and no `.json` extension, such as `Actors/Guard`. Its class reference is `Data.Blueprints.Actors.Guard`. Key inputs accept an optional `.json` extension and normalise backslashes and surrounding whitespace. In a full class reference, every dot separates a module segment: `Data.Blueprints.Actors.json` refers to the key `Actors/json`.
+A Blueprint key is its case-preserving path relative to `Data/Blueprints` using `/` separators without `.json` (for example `Actors/Guard`), corresponding to the class reference `Data.Blueprints.Actors.Guard`. Key inputs accept an optional `.json` suffix and normalise backslashes and surrounding whitespace. In full class references, every dot separates a module segment (`Data.Blueprints.Actors.json` maps to key `Actors/json`).
 
 ## Class and instance values
 
-Class attributes provide defaults for every instance, and a map Actor may override individual values. Components are declared by metadata and appear as structured fields. Hidden fields from `InvalidVars` are not ordinary editable properties.
+Class attributes supply defaults for every instance, while map Actors may override individual fields. Metadata-declared components appear as structured fields, and fields listed in `InvalidVars` are hidden from ordinary editing.
 
-The Blueprint editor resolves variable and component declarations through the complete inheritance chain. A child's explicit value takes precedence over inherited defaults. See [Actor Components](<Actor Components/Overview.md>) for available components, adding and editing them, and instance overrides.
+The Blueprint editor resolves attributes and components across the entire inheritance chain, giving child overrides precedence over ancestor defaults (see [Actor Components](<Actor Components/Overview.md>)). When a Blueprint's `ID` selects a General Data member, its `attributes` display read-only — edit those values in General Data.
 
-In the Blueprint editor and **Actor Info**, ordinary variables are grouped in grey dashed frames beneath the component list. Each frame names the class that first declared its fields, and hovering over the grey heading shows the full class reference. Inherited fields appear only in their original group, even when a child overrides their values. Fields contributed by a Script Mixin and custom Blueprint fields are attributed to the Script Mixin or Blueprint that first declares them.
-
-When a Blueprint's `ID` selects a General Data member, its `attributes` are shown read-only. Edit those values in General Data.
+In both the Blueprint editor and **Actor Info**, ordinary variables sit inside grey dashed frames beneath the component list, grouped by the class, Script Mixin or Blueprint that first declared them. Hover over a group heading to view its full class reference; inherited fields stay in their declaring group even when overridden.
 
 ### Add a typed attribute
 
-Use **Add Attribute** to enter a name, choose its type and set the initial value. For `enum`, choose an existing `Enums.*` module in **kind**, then select a key for the value. Lists and dictionaries also support enum items or values. A file field can constrain the asset selector with a base directory.
+Click **Add Attribute**, enter a name, pick a type and set its initial value. For `enum`, choose an `Enums.*` module in **kind** and select a key (lists and dictionaries also support enum items or values); file fields can restrict the picker with a base directory.
 
-A new field saves its declaration in `attrDefs` and its initial value in `attrs`. If the name already belongs to an inherited field with no local value, the dialog fixes the type to that declaration and adds only an `attrs` override. Child Blueprints inherit the type and default; they cannot redeclare the inherited field. Removing an inherited override restores its inherited default. Deleting a field introduced by the current Blueprint removes both its declaration and local value, and is rejected while a descendant or map Actor override still depends on it.
-
-Every saved attribute needs a declaration in metadata, an active Script Mixin or inherited/local `attrDefs`. An invalid declaration prevents the Blueprint from loading or being saved; the error names the Blueprint and attribute. Parent changes and field removal cannot leave descendants or map overrides with incompatible declarations. **Save Invalid Blueprint** permits unfinished graphs, but cannot bypass attribute errors. See [Blueprint attribute declarations](<../Lua and Blueprint Scripting/Blueprint Scripting/Metadata Schema and Decorators.md#blueprint-attribute-declarations>) for the JSON format.
+- **Storage and inheritance:** New fields save declarations in `attrDefs` and initial values in `attrs`. Naming an inherited field with no local value locks the type to the inherited declaration and adds an `attrs` override only. Child Blueprints inherit both type and default and cannot redeclare inherited fields; removing an override restores the inherited default. Deleting a locally declared field removes both its declaration and value, and is blocked while any descendant or map Actor override depends on it.
+- **Validation:** Every saved attribute must be declared in metadata, an active Script Mixin or inherited/local `attrDefs`. Invalid declarations block loading and saving (reporting Blueprint and attribute). Parent changes and field deletions cannot leave descendants or map overrides incompatible; **Save Invalid Blueprint** permits unfinished graphs but never bypasses attribute errors. See [Blueprint attribute declarations](<../Lua and Blueprint Scripting/Blueprint Scripting/Metadata Schema and Decorators.md#blueprint-attribute-declarations>).
 
 ## Actor placement and Actor Info
 
-Select an Actor Blueprint in any **File Explorer** tab to use it for placement. It must inherit `Engine.Actor`. In Actor mode, choose an editable layer and click an empty grid position to place an instance; double-clicking the Blueprint file opens its editor. Selecting a single Actor already on the map also selects its Blueprint for further placement. Press **Escape** while the map has focus in Actor mode to cancel placement. Visual checks are described in [Actor previews](<../PreviewHost/UI Actor Particle and Subtitle Previews.md#actor-previews>).
+Select an Actor Blueprint (deriving from `Engine.Actor`) in any **File Explorer** tab to arm it for placement, then click an empty cell on an editable layer in Actor mode to place an instance (double-click the file to open its editor). Selecting a single placed Actor on the map also arms its Blueprint for placement. Press `Escape` with the map focused to cancel placement. See [Actor previews](<../PreviewHost/UI Actor Particle and Subtitle Previews.md#actor-previews>).
 
-Restoring a browser selection when switching tabs, navigating history or refreshing does not change the Actor prepared for placement. Locating a resource and selecting non-Actor files do not change it either. A prepared Blueprint follows its editor rename or move, including Undo/Redo; deleting it or changing it to a non-Actor class cancels placement.
-
-In Actor mode, right-click an Actor on the map and choose **Locate Blueprint** to select its Blueprint file in the most recently active [File Explorer](<Start Page Workspace and Shortcuts.md#file-explorer-and-reference-tree>). The action is disabled on empty space and for Actors without a Blueprint in the project.
-
-For a selected map Actor, **Actor Info** shows its Blueprint reference with the **Open** and **Locate** actions, the grid position X/Y, the tag and the exposed class fields. During a continuous focused edit, position and text edits merge into one Undo step. A reset button beside an overridden field removes that instance override, and **Reset All** removes every class-field override for the instance and reveals the inherited Blueprint defaults again. When the Actor's layer is hidden, **Actor Info** stays available for inspection and Blueprint navigation, but its tag, position, reset actions and class fields are read-only.
-
-Placing and deleting Actor instances can be undone in their map document. Deleting the Blueprint file itself follows the [resource deletion and recovery rules](<Start Page Workspace and Shortcuts.md#file-explorer-and-reference-tree>). If an instance was deleted and saved before its Blueprint was deleted, Undo cannot bring that instance back while the Blueprint is missing. Blueprint field changes, including Undo and Redo, refresh Actor visuals using the current inherited defaults.
+- **Placement persistence:** Switching tabs, navigating history, refreshing, locating resources or selecting non-Actor files does not alter the armed Blueprint. Armed Blueprints follow editor renames, moves and Undo/Redo; deleting the Blueprint or changing its class to a non-Actor cancels placement.
+- **Locate Blueprint:** Right-click a map Actor in Actor mode and select **Locate Blueprint** to highlight its file in the most recently active [File Explorer](<Start Page Workspace and Shortcuts.md#file-explorer-and-reference-tree>) (disabled on empty space or Actors lacking a project Blueprint).
+- **Actor Info:** Displays the selected Actor's Blueprint reference (with **Open** and **Locate**), grid position `X`/`Y`, tag and exposed fields. Continuous focused position or text edits merge into one Undo step. Click the reset button beside a field to clear its override, or **Reset All** to clear all class-field overrides and restore Blueprint defaults. On hidden layers, **Actor Info** stays inspectable (including Blueprint navigation) while tag, position, reset actions and class fields are read-only.
+- **Undo and deletion:** Placing and deleting map instances uses map Undo. Deleting a Blueprint file follows [resource deletion and recovery](<Start Page Workspace and Shortcuts.md#file-explorer-and-reference-tree>): if an instance was deleted and saved before its Blueprint was deleted, map Undo cannot restore it while the Blueprint is missing. Editing Blueprint fields (including Undo/Redo) refreshes Actor visuals from current inherited defaults.
 
 ## Graph mode
 
-Enabling **Script Mixin** hides the entire right-hand graph and preview area, and the variables fill the available width. Disabling it restores that area and the previous column widths immediately. The inherited mode, Undo/Redo and reload keep the same layout, and existing graph data is retained.
+Enabling **Script Mixin** hides the right-hand graph and preview pane so variables use the full width; disabling it restores the pane and prior column widths immediately while preserving graph data across mode inheritance, Undo/Redo and reloads.
 
-Each graph has a red **Event** entry. Connect its execution output to select the start node and begin the graph; an unconnected entry is translucent and shows a notice. A Blueprint can fall back to an inherited implementation, while Common Function and General Data graphs do not execute. Event parameters and Parent calls are explained in [Execution Flow, Events and Variables](<../Lua and Blueprint Scripting/Blueprint Scripting/Execution Flow Events and Variables.md#events>).
+Each graph begins at a red **Event** entry node — connect its execution pin to define the start node (unconnected entries appear translucent with a notice; Blueprints fall back to inherited implementations, whereas Common Function and General Data graphs do not run). See [Execution Flow, Events and Variables](<../Lua and Blueprint Scripting/Blueprint Scripting/Execution Flow Events and Variables.md#events>).
 
-Use **New Event** to add a local graph. The name input offers inherited events that have no local graph; an existing local graph, even an empty one, cannot be added again. If the parent chain has the event, the new graph starts with a brown **Parent: Event Name** node connected to the entry and its parameters. This is one Undo step. Opening an inherited event tab only displays it and does not initialise an override or modify saved data.
+### Events, Parent nodes and drag-to-connect
 
-Parent nodes are editable and available only in graph-mode class Blueprints. Add them from the node picker, or move, copy and delete them like other nodes. Right-click a node to disconnect all inputs or outputs, copy or delete it; right-click empty canvas to add, paste or organise nodes.
+- **Adding local events:** Click **New Event** to create a local graph (listing inherited events without a local graph; existing local graphs — even empty ones — cannot be added twice). When the parent chain defines the event, the new graph starts with a brown **Parent: Event Name** node wired to the entry and its parameters in one Undo step. Viewing an inherited event tab alone does not create an override or modify saved data.
+- **Node actions:** Parent nodes are editable and available only in graph-mode class Blueprints (add via the node picker, or move, copy and delete normally). Right-click a node to disconnect all inputs/outputs, copy or delete it; right-click empty canvas to add, paste or organise nodes. New, pasted and duplicated nodes appear at the pointer (or viewport centre if outside), preserving relative layout and internal links.
+- **Drag-to-connect picker:** In any editable Blueprint, Common Function or General Data graph, drag an execution or parameter output pin onto empty canvas to open a pin-filtered picker (execution pins list nodes with execution inputs; parameter pins list nodes with at least one [compatible typed input](<../Lua and Blueprint Scripting/Blueprint Scripting/Execution Flow Events and Variables.md#typed-connections>), filtered by the pin rather than Blueprint class; the right-click picker keeps **Context Sensitive**).
+- **Auto-connection rules:** Selecting a node from the dragged picker creates and wires it in one Undo step. Exact parameter type matches take priority over compatible matches (breaking ties by declaration order), and new execution links replace prior ones from that output. Cancelling changes nothing; dropping directly on an input pin connects existing nodes.
 
-In an editable Blueprint, Common Function or General Data graph, drag an execution or parameter output pin onto empty canvas to open the node picker. An execution output lists nodes with an execution input; a parameter output lists nodes with at least one [compatible typed input](<../Lua and Blueprint Scripting/Blueprint Scripting/Execution Flow Events and Variables.md#typed-connections>). Each node appears once. This search uses the dragged pin rather than the current Blueprint class to filter candidates. The ordinary right-click picker retains its **Context Sensitive** option.
+### Plain text parameter inputs
 
-Choose a node to create it at the drop position and connect it automatically. For parameter connections, an exactly matching input type takes priority; otherwise the first compatible input in declaration order is used. Ties between exact matches also use declaration order. Creating the node and connecting it form one Undo step. A new execution connection replaces any previous connection from that output. Cancelling the picker leaves the graph unchanged; dragging directly onto an existing input pin connects the existing nodes as usual.
+Right-click an editable node in any Blueprint, Common Function or General Data graph and choose **Convert to Plain Text Inputs** to edit all unconnected parameters as text boxes (connected inputs keep normal pins); choose **Restore Typed Inputs** to switch back.
 
-Right-click an editable node and choose **Convert to Plain Text Inputs** to replace all its editable parameter controls with text boxes. Connected inputs retain their usual display and pin types. Use **Restore Typed Inputs** to return to the type-specific controls. This works in Blueprint, Common Function and General Data graphs.
+- **Type conversion:** String and file inputs preserve text; numbers and booleans parse as literals; containers, vectors and composites use JSON syntax (including `$type`/`$value` for unions); object and function pins keep expression semantics (literal parameters do not gain expression evaluation). See [Metadata Schema and Decorators](<../Lua and Blueprint Scripting/Blueprint Scripting/Metadata Schema and Decorators.md>).
+- **Validation and scope:** Invalid text stays visible as an unsaved draft with an error without overwriting the last valid value and must be fixed before restoring typed inputs or saving (**Save Invalid Blueprint** cannot bypass draft errors; save errors name graph and parameter). Input mode and drafts persist across graph switches within the open window only, clear when closed, are never written to project files or copied, and new/copied nodes default to typed inputs.
 
-Plain text inputs still convert values to the parameter's declared type. String and file values preserve text; numeric and Boolean values become their corresponding literals. Containers, vectors and composite values use their existing JSON shape, including `$type`/`$value` for unions. Object and function inputs retain their existing expression semantics; this mode does not add expression support to numeric or other literal parameters. See [Metadata Schema and Decorators](<../Lua and Blueprint Scripting/Blueprint Scripting/Metadata Schema and Decorators.md>) for stored shapes.
+### Graph shortcuts
 
-Invalid text remains visible as an unsaved draft with an error and does not replace the last valid parameter value. Correct it before restoring typed inputs or saving; **Save Invalid Blueprint** cannot bypass a draft error. Save errors identify the graph and parameter. The input mode and drafts survive graph switches and control refreshes only within the current editor window. Closing that window clears them; they are not written to the project or copied with nodes. New and copied nodes use typed inputs.
-
-New, pasted and duplicated nodes are placed at the pointer, or at the viewport centre if the pointer is outside the graph. Duplicating a selection preserves its relative layout and internal links.
-
-For the editor-wide shortcut list and the platform's primary modifier, see [Global shortcuts](<Start Page Workspace and Shortcuts.md#global-shortcuts>).
+For editor-wide shortcuts and primary modifiers, see [Global shortcuts](<Start Page Workspace and Shortcuts.md#global-shortcuts>).
 
 | Shortcut | Action |
 |---|---|
-| `Ctrl/Command+N` | Open the node picker at the pointer position |
-| `Ctrl/Command+A` | Select all editable nodes in the current graph |
-| `Ctrl/Command+C` | Copy the selected nodes and their internal links |
-| `Ctrl/Command+V` | Paste at the pointer position |
-| `Ctrl/Command+D` | Duplicate the selection at the pointer position |
-| `Arrow keys` | Move selected editable nodes by one graph unit |
+| `Ctrl/Command+N` | Open the node picker at the pointer |
+| `Ctrl/Command+A` | Select all editable nodes in the active graph |
+| `Ctrl/Command+C` | Copy selected nodes and internal links |
+| `Ctrl/Command+V` | Paste at the pointer |
+| `Ctrl/Command+D` | Duplicate selection at the pointer |
+| `Arrow keys` | Nudge selected editable nodes by one graph unit |
 | `Delete` | Delete selected editable nodes |
-| `Ctrl+drag` on empty canvas | Box-select nodes; drag further to enclose more nodes, release to apply |
+| `Ctrl+drag` on empty canvas | Box-select enclosed nodes on release |
 
-The built-in entry is virtual and automatically positioned, so it is excluded from select-all, manual movement, duplication and deletion. Parent call nodes remain editable. Graph shortcuts do not replace keyboard input while a parameter editor or another input control has focus, and mutating shortcuts are disabled for read-only graphs.
-
-General Data member graphs use the type's event list, have no class attributes and cannot contain latent nodes. Their runtime behaviour is described in [General Data and Text Config](<General Data and Text Config.md>).
+The virtual entry node is auto-positioned and excluded from select-all, nudging, duplication and deletion (Parent call nodes are editable). Shortcuts yield to focused input fields and mutating actions are disabled in read-only graphs. General Data member graphs expose only the type's events, have no class attributes and disallow latent nodes (see [General Data and Text Config](<General Data and Text Config.md>)).
 
 ## Inheritance
 
-A child Blueprint inherits fields and behaviour. Changing a saved parent path can alter inherited fields, events and compatible component data, so treat such a change with care. A Blueprint inheritance chain must use either graph mode or Script Mixin mode throughout; see [Script Mixin Authoring Workflow](<../Lua and Blueprint Scripting/Script Mixins/Authoring Workflow.md>).
+A child Blueprint inherits fields, components and behaviour from its parent. Changing a saved parent path can alter inherited fields, events and component compatibility, so verify affected children and map instances carefully. Every Blueprint in an inheritance chain must use either graph mode or Script Mixin mode consistently; see [Script Mixin Authoring Workflow](<../Lua and Blueprint Scripting/Script Mixins/Authoring Workflow.md>).

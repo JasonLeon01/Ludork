@@ -1,6 +1,6 @@
 # Declarative UI Authoring Workflow
 
-Declarative UI in Ludork generates Lua Views from JSON assets and keeps business behaviour in handwritten Controllers. Use the [UI Asset Editor](<../../Editor User Guide/UI Asset Editor.md>) for visual editing.
+Declarative UI generates typed Lua Views from JSON assets while keeping business logic in handwritten Controllers. Use the [UI Asset Editor](<../../Editor User Guide/UI Asset Editor.md>) for visual layout.
 
 | Layer | Owns |
 |---|---|
@@ -9,29 +9,25 @@ Declarative UI in Ludork generates Lua Views from JSON assets and keeps business
 | Lua Controller | Model access, callbacks, localised and formatted text, state refresh and dynamic composition |
 | Window UI | Native window and input state, its generated View and its private Controller |
 | Native control | Rendering, measurement, hit testing, focus and primitive interaction state |
-| UIManager | Mounting and removing prepared root controls |
+| `UIManager` | Mounting and removing prepared root controls |
 
-Do not store Controller functions, expressions, event handlers or `LOC(...)` calls in a UI asset.
+> **Important:** Never store Controller functions, expressions, event handlers or `LOC(...)` calls inside a UI asset. Author fixed positions, dimensions, spacing and text styles in JSON; Controllers read prepared controls only when dynamic content requires measurement or resizing.
 
-Author fixed positions, dimensions, spacing and text styles in JSON. Controllers read the prepared controls when content needs measurement or resizing, and leave static layout to the asset. To change a fixed value, edit its asset and regenerate the View.
+## File layout
 
-## Steps
-
-### File layout
-
-The asset root is fixed at `Data/UI`:
+UI assets live under `Data/UI`:
 
 ```text
 Data/UI/
-    ├── Inventory.json
-    └── Parts/
-        ├── Inventory/ItemRow.json
-        └── Shared/KeyPrompt.json
+├── Inventory.json
+└── Parts/
+    ├── Inventory/ItemRow.json
+    └── Shared/KeyPrompt.json
 ```
 
-Complete screens, windows, HUDs and overlays live directly below `Data/UI`. Put parts owned by one large UI in `Parts/<Owner>`, and parts shared by several UIs in `Parts/Shared`. Do not create directories organised only by control shape.
+Place complete screens, windows, HUDs and overlays directly under `Data/UI`. Place sub-parts owned by one UI under `Parts/<Owner>` and reusable shared parts under `Parts/Shared`. Do not organise directories purely by control type.
 
-Generated Lua Views mirror the asset hierarchy. Every file under `Scripts/Internal/UI` and `Scripts/stub/Internal/UI` is generator-owned:
+Generated Lua Views mirror the asset tree. Everything under `Scripts/Internal/UI`, `Scripts/stub/Internal/UI` and `Scripts/stub/Internal/UIWindows` is generator-owned — do not edit generated files by hand:
 
 ```text
 Scripts/Internal/UI/
@@ -41,33 +37,37 @@ Scripts/Internal/UI/
     └── Shared/KeyPrompt.lua
 ```
 
-Handwritten foundations live under `Scripts/Internal/UIBase`. A window module such as `Scripts/Source/Windows/WindowInventory.lua` contains its private Controller and returns the UI class through `Ui.DefineWindow`. Independent row and Scene Controllers use separate modules, such as `Source.Windows.WindowInventory.ItemRow.Controller` and `Source.Scenes.SceneTitle.Controller`.
+- **Handwritten UI modules**: Shared foundations live in `Scripts/Internal/UIBase`. Window modules (such as `Scripts/Source/Windows/WindowInventory.lua`) define a private Controller and export the UI class via `Ui.DefineWindow`. Independent row and Scene Controllers live in dedicated `Controller.lua` modules (such as `Source.Windows.WindowInventory.ItemRow.Controller` and `Source.Scenes.SceneTitle.Controller`).
+- **Window declarations**: A window's handwritten stub declares only the private Controller using bare `---@meta`; the generator derives the public window declaration under `Scripts/stub/Internal/UIWindows`. Numeric constants outside plain decimal syntax (such as `1e3` or `0x20`) require an explicit `---@field NAME type` annotation on the Controller. See [Declare business members once](<Controller Examples.md#declare-business-members-once>).
+- **Generator parsing rules**: The declaration generator resolves top-level `local Name = require(...)` calls from quoted or long-bracket Lua string literals (decoding valid UTF-8 module names) and expects one final `return Ui.DefineWindow(...)`. Malformed strings, long comments or numeric literals report the file, line and column.
 
-The matching window stub declares only the private Controller, using bare `---@meta`. Public window declarations are generated under `Scripts/stub/Internal/UIWindows` and must not be edited by hand. Numeric constants outside the plain decimal forms, such as `1e3` and `0x20`, need an explicit `---@field NAME type` on the Controller declaration. See [Declarative UI Controller Examples](<Controller Examples.md#declare-business-members-once>) for the declaration format.
+## Create the UI and add its behaviour
 
-The declaration generator resolves top-level `local Name = require(...)` imports from string literals and requires one final `return Ui.DefineWindow(...)`. Both quoted and long-bracket strings are decoded according to Lua's string rules; the resulting module name must be valid UTF-8 text. Invalid strings, long comments or numeric literals report the source file, line and column.
+1. Author the JSON asset in the UI Asset Editor and give every node accessed from Lua a stable name.
+2. Enable **Exposed** if other UI assets need to nest it from the Project Palette.
+3. Save the asset and click **Export** to generate its View, then `require` that View from your window module.
+4. Define a local Controller and return `Ui.DefineWindow(ViewClass, Controller, nativeBase?)`. Place business setup in `init`, native callbacks in `bind`, and state updates in `watch` or `refresh`.
+5. Configure initial host behaviour with `windowOptions`, bind authored child panes with `createChild`, and populate variable-length rows with collections. See [Declarative UI Runtime Contract](<Runtime Contract.md>) and [Declarative UI Controller Examples](<Controller Examples.md>).
+6. Maintain the private Controller stub and regenerate. Create, mount and dispose of the window from its owner, using [first-use construction](<Runtime Contract.md#create-optional-windows-on-first-use>) for optional popups.
 
-### Create the UI and add its behaviour
+> **Note:** Assets backed by `WindowBase` or `WindowSelectable` nest `Parts/Shared/WindowChrome` and `Parts/Shared/WindowPauseMark` as nodes named `WindowChrome` and `WindowPauseMark`. Their Slots position the chrome over the frame and the pause mark at the bottom content edge; the window base binds return-button, gamepad-hint and pause-mark behaviour automatically.
 
-1. Create the JSON asset in the UI Asset Editor and give runtime-accessed nodes stable names.
-2. Enable **Exposed** to make the asset appear in the Project Palette.
-3. Save the asset, then click **Export** to generate its View. Require that View in the window module.
-4. Define a local Controller and return `Ui.DefineWindow(ViewClass, Controller, nativeBase?)`. Add business initialisation in `init`, callbacks in `bind`, and state updates through `watch` or `refresh`.
-5. Use `windowOptions` for initial window behaviour, `createChild` for authored child panes, and collections for model-dependent rows. See [Declarative UI Runtime Contract](<Runtime Contract.md>) and [Declarative UI Controller Examples](<Controller Examples.md>).
-6. Maintain the private Controller declaration and regenerate. Create, mount and eventually dispose of the window from its owner. For optional popups, follow [first-use construction](<Runtime Contract.md#create-optional-windows-on-first-use>).
+## Regenerate after asset changes
 
-Assets using `WindowBase` or `WindowSelectable` include the shared `Parts/Shared/WindowChrome` and `Parts/Shared/WindowPauseMark` as nodes named `WindowChrome` and `WindowPauseMark`. Their Slots place the chrome over the window frame and the pause mark at the content's bottom edge. These assets own return-button, gamepad-hint and pause-mark layout; the window base binds their behaviour.
+After moving an asset or renaming nodes, update handwritten `require` paths and node references, then click **Export**. To regenerate UI Views and declarations without a full export, run:
 
-### Regenerate after asset changes
+```bash
+ludork-assets ui-assets generate <project-root>
+```
 
-After moving an asset or renaming nodes, update handwritten `require` calls and node references, then click **Export**. Alternatively, `ludork-assets ui-assets generate <project-root>` synchronises only UI Views and declarations, and removes obsolete generated files. Ordinary Save and Construct do not generate them; export before running or packaging directly from the command line. See [Run, Debug and Package](<../../Editor User Guide/Run Debug and Package.md>) for the full export workflow.
+Ordinary Save and Construct do not regenerate UI code; export before launching or packaging from the command line (see [Run, Debug and Package](<../../Editor User Guide/Run Debug and Package.md>)).
 
-Generation rejects output paths occupied by handwritten Lua or symbolic links and removes only obsolete files carrying its own generation marker. Changed Views, declarations and case-only directory renames install as one batch. An installation error rolls back the changes already applied; any rollback failure is reported with the affected paths. A case-only directory rename also fails when that directory contains handwritten files.
+Generation enforces strict file safety:
+- Output paths occupied by handwritten Lua files or symbolic links are rejected; only obsolete files carrying the generator marker are removed.
+- Updated Views, declarations and case-only directory renames install as one atomic batch. Any installation failure rolls back applied changes (and reports paths if rollback itself fails). A case-only directory rename fails if the directory contains handwritten files.
 
-## Limitations
+## Authoring constraints and conventions
 
-Every visible screen has one top-level asset. Multi-pane screens nest owner-specific assets from `Parts/<TopLevelName>/`. Nested parts use `palette.exposed = true`, while runtime-only helpers may remain unexposed.
-
-Before display, business code localises tab labels and fills dynamic collections. Fixed controls and rows remain the instances created from JSON. Literal `text` is reserved for permanent, language-independent symbols. See [UI previews](<../../PreviewHost/UI Actor Particle and Subtitle Previews.md#ui-previews>) for design-only placeholder content.
-
-Use [`Engine.CharacterView`](<../Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#characterview>) for frame-animated characters and enemies. Assets supply preview values; runtime code passes the real Actor visual to `setCharacter`.
+- **Screen structure**: Give each visible screen one top-level asset and nest owner-specific sub-panes from `Parts/<TopLevelName>/`. Nested parts require `palette.exposed = true`; runtime-only helpers need not be exposed.
+- **Dynamic content and localisation**: Localise tab labels and populate dynamic collections before display; fixed controls and rows stay the instances constructed from JSON. Reserve literal JSON `text` for permanent, language-independent symbols, and use design-only preview fields for placeholders (see [UI previews](<../../PreviewHost/UI Actor Particle and Subtitle Previews.md#ui-previews>)).
+- **Animated characters**: Use [`Engine.CharacterView`](<../Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#characterview>) for frame-animated characters and enemies. Provide preview defaults in JSON and call `setCharacter` at runtime with the real Actor visual.

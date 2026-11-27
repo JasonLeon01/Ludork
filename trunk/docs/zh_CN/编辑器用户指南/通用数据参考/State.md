@@ -1,20 +1,21 @@
 # State
 
-来源：`Data/General/State.json`
+定义持久状态效果、是否支持层数叠加，以及按步触发或由事件钩子触发的能力图。
 
-| 属性 | 值 |
-|---|---|
-| 成员事件 | `onWalk`、`onHookTriggered` |
+**来源**：`Data/General/State.json` · **成员事件**：`onWalk`、`onHookTriggered`
 
 ## Schema
 
-| 字段 | 类型 | 默认值 | 描述 |
+| 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `name` | `string` | `""` | 该 State 的显示名称。 |
-| `desc` | `string` | `""` | 该 State 的显示说明。 |
-| `icon` | `file` | `""` | 完整的图标逻辑路径。选择器根路径为 `/Game/Assets/Icons`。 |
-| `stackable` | `bool` | `false` | 再次添加该 State 时，是否增加已有 State 的层数。 |
+| `name` | `string` | `""` | 该状态的显示名称。 |
+| `desc` | `string` | `""` | 该状态的显示说明。 |
+| `icon` | `file` | `""` | 规范逻辑图标路径（选择器根目录：`/Game/Assets/Icons`）。 |
+| `stackable` | `bool` | `false` | 再次施加同一状态时，是否递增已有状态的叠加层数。 |
 
 ## 编辑说明
 
-应用 State 会创建 Infinite Gameplay 效果，并授予该 State 的事件能力。`onWalk` 监听 `Event.Movement.Step`。可以用 `Event.State.Trigger.<stateID>` 显式触发 `onHookTriggered`，也可以在玩法图内调用 `GlobalFunctions.Gameplay.SendEvent`。添加或叠加 State 都不会触发 `onHookTriggered`。
+施加 State 会创建一个无限持续时间的玩法效果，并授予其事件能力：
+
+- **`onWalk`**：监听 `Event.Movement.Step`。
+- **`onHookTriggered`**：由 `Event.State.Trigger.<stateID>` 或玩法图中的 `GlobalFunctions.Gameplay.SendEvent` 显式触发；施加或叠加状态本身不会发出 `onHookTriggered`。

@@ -1,30 +1,27 @@
 # Game Localisation Workflow
 
-Use Official Locale Tools to export a translation workbook into Lua language tables for gameplay.
+Author game strings in an Excel workbook (`Data/Locale/Locale.xlsx`) and use Official Locale Tools to export Lua language catalogues for editor hints and gameplay runtime formatting.
 
-## Prerequisites
+## Workflow
 
-- A project with `Scripts/Source/Locale/Core.lua` and the normal locale initialisation in `Scripts/Entry.lua`.
-- A spreadsheet application capable of preserving cached formula values when formulas are used.
+Ensure your project contains `Scripts/Source/Locale/Core.lua` and normal locale initialisation in `Scripts/Entry.lua`, and use a spreadsheet application that preserves cached formula values if your workbook uses formulas.
 
-## Steps
-
-1. Install Official Locale Tools through [the official plug-in installation](<../Installing and Managing Plug-ins.md#official-release-plug-ins>).
-2. Add an ID and translations to `Data/Locale/Locale.xlsx`.
-3. Click **Export** before running the project.
-4. Use `LOC("ID")` or `{ID}` as described below.
+1. Install Official Locale Tools via [Official release plug-ins](<../Installing and Managing Plug-ins.md#official-release-plug-ins>).
+2. Add string IDs and translations to `Data/Locale/Locale.xlsx`.
+3. Select **Export** before running or packaging the project.
+4. Format strings in scripts and data with `LOC("ID")` or `{ID}`.
 
 ## Workbook
 
-Create `Data/Locale/Locale.xlsx`. Every included worksheet must use row 1 as a header. Column A must be `ID` (case-insensitive), and columns B onwards are language names such as `en_GB` and `zh_CN`. Blank language headers are ignored, and at least one language is required.
+Create `Data/Locale/Locale.xlsx` following these structure rules:
 
-Rows with a blank ID are ignored. IDs are trimmed and are case-sensitive. Multiple worksheets are merged. Duplicate IDs are reported with the locations of the first and duplicate cells, and a value present in the later cell overwrites the earlier value for the same language.
-
-Formula cells use their cached value when one is present. When there is no cached value, the exported text is the formula without its leading equals sign. A literal `=` or `==` may be entered as `'=` or `'==`.
+- **Headers:** Every worksheet uses row 1 as its header row. Column A must be `ID` (case-insensitive), and columns B onwards name target languages such as `en_GB` and `zh_CN`. Blank language headers are ignored, and at least one language column is required.
+- **Rows and merging:** Rows with a blank ID are skipped. IDs are trimmed and case-sensitive. Multiple worksheets merge into one catalogue: duplicate IDs are reported with both the first and duplicate cell coordinates, and a non-empty later value overwrites the earlier value for that language.
+- **Formulas and leading equals signs:** Formula cells export their cached value when present; without a cached value, the exported text is the formula minus its leading `=`. Enter `'=` or `'==` to export a literal `=` or `==`.
 
 ## Export
 
-During the unified editor Export, the plug-in writes one UTF-8 Lua table per language:
+During unified editor **Export**, Official Locale Tools generates one UTF-8 Lua table per language at `Scripts/Source/Locale/<language>.lua`:
 
 ```lua
 return {
@@ -33,19 +30,17 @@ return {
 }
 ```
 
-Export writes `Scripts/Source/Locale/<language>.lua`. Language names may not be blank or rooted, and may not contain separators or invalid filename characters. A missing workbook is skipped without error; a malformed workbook stops the operation.
-
-Export preserves Unicode text, including C1 control characters, in UTF-8. Quotes, backslashes and ASCII control characters use Lua escapes. The editor hints and the game therefore read the same string values from the generated catalogue.
-
-The workbook and generated catalogues participate in [Export change detection](<../../Editor User Guide/Run Debug and Package.md#construct-export-and-play>). Game packaging exports and excludes the workbook; [Standalone conversion](<../../Editor User Guide/Run Debug and Package.md#convert-source-to-a-standalone-project>) retains it and the generated catalogues. Direct command-line run or pack requires prior Export. Generated language files are ignored and excluded from templates; handwritten `Core.lua` is retained.
+- **Validation:** Language names must be non-empty, non-rooted and free of path separators or invalid filename characters. A missing workbook skips export without error; a malformed workbook stops Export.
+- **Encoding:** Export preserves Unicode text (including C1 control characters) as UTF-8 and escapes quotes, backslashes and ASCII control characters with Lua escapes, ensuring editor hints and the runtime read identical strings.
+- **Change detection and packaging:** The workbook and generated language files participate in [Export change detection](<../../Editor User Guide/Run Debug and Package.md#construct-export-and-play>). Game packaging exports and excludes `Locale.xlsx`, whereas [Standalone conversion](<../../Editor User Guide/Run Debug and Package.md#convert-source-to-a-standalone-project>) keeps both the workbook and generated catalogues. Command-line run or pack requires running Export first. Generated language files are git-ignored and omitted from project templates while handwritten `Core.lua` is preserved.
 
 ## Editor hints
 
-A field whose complete trimmed text is `{TITLE_START}` can receive a hint. The provider reads the file matching `EditorLanguage` from `Scripts/Source/Locale` and falls back to `en_GB.lua`. Spaces and nested braces invalidate the token.
+Any editor field whose trimmed text is a single `{TITLE_START}` token can display a live hint. The provider reads `Scripts/Source/Locale/<EditorLanguage>.lua` and falls back to `en_GB.lua`. Spaces or nested braces invalidate the token.
 
 ## Runtime
 
-`Scripts/Entry.lua` calls `Source.Locale.Core.Init()` to load the language tables before reading the language setting with `Source.Configs.Main.LoadOrCreate()`. Requiring Core alone does not load them. Consumers bind a local `LOC` formatter:
+`Scripts/Entry.lua` calls `Source.Locale.Core.Init()` to load language catalogues before reading the active language via `Source.Configs.Main.LoadOrCreate()` (requiring `Core` alone does not load catalogues). Bind a local `LOC` formatter in gameplay modules:
 
 ```lua
 local Locale = require("Source.Locale.Core")
@@ -59,18 +54,10 @@ local message = LOC(
 )
 ```
 
-`ApplyStringLocaleFormat` resolves a bare key or each `{ID}` within a string. Missing keys remain unchanged, and an unavailable language uses `en_GB` where possible. Doubled `{{` and `}}` produce literal braces. General Data strings are not translated automatically, so call `LOC` when displaying them.
+- **String formatting (`ApplyStringLocaleFormat`):** Resolves either a bare key or every `{ID}` placeholder in a string. Missing keys stay unchanged, unavailable languages fall back to `en_GB` where available, and doubled `{{` / `}}` produce literal braces. General Data strings are not auto-translated — pass them through `LOC` when displaying them.
+- **List formatting (`ApplyListLocaleFormat`):** `Locale.ApplyListLocaleFormat(values: string[]): string[]` formats each element in order and returns a new array without mutating the input. Use it for tab labels and option lists, and call it again on language change.
+- **Language switching:** `Locale.SetLanguage` switches the active language and synchronously broadcasts `LocaleChanged`, and the Config window persists the selection. Subscribed UI refreshes text from its original locale keys without resetting selection, focus or an active dialogue.
+- **Initial language and packaging:** A new game configuration selects the platform language if it exactly matches an available catalogue, otherwise `en_GB`, while preserving existing saved settings; see [Runtime configuration](<../../Lua and Blueprint Scripting/Default Gameplay/Runtime Data Configuration and Saves.md#configuration>). Lua compilation and **Archive Assets, Data and Scripts (.ldpak)** process `Core.lua` and generated language tables along with the rest of `Scripts`.
+- **Reloading:** Restart the game after exporting updated translations. [Lua hot reload](<../../Lua and Blueprint Scripting/Lua Runtime and Modules.md#lua-hot-reload>) preserves already-loaded language tables.
 
-`Locale.ApplyListLocaleFormat(values: string[]): string[]` applies `ApplyStringLocaleFormat` to each array element in order and returns a new array without modifying the input. Use it for tab labels and option lists, and call it again when refreshing for a language change.
-
-`Locale.SetLanguage` changes the active language and synchronously publishes `LocaleChanged`. The Config window saves the selection. Subscribed UI refreshes its text from the original locale keys without resetting the selection, the focus or an active dialogue.
-
-A new game configuration uses the platform language when it exactly matches a supported language, otherwise `en_GB`. Existing language settings are preserved. See [Runtime configuration](<../../Lua and Blueprint Scripting/Default Gameplay/Runtime Data Configuration and Saves.md#configuration>) for loading and creation.
-
-Lua compilation and **Archive Assets, Data and Scripts (.ldpak)** process Core and the generated language files with the rest of the Scripts tree. Official Locale Tools does not inspect either option or process the locale directory separately.
-
-Restart the game after exporting changed translations. [Lua hot reload](<../../Lua and Blueprint Scripting/Lua Runtime and Modules.md#lua-hot-reload>) preserves loaded language tables.
-
-## Limitations
-
-The workbook is a project authoring source, not a runtime database or save format. Plug-in menu localisation is independent from these game catalogues.
+> **Note:** `Data/Locale/Locale.xlsx` is a project authoring source rather than a runtime database or save format. Plug-in UI localisation is independent of game language catalogues.

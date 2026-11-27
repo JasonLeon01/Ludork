@@ -1,32 +1,18 @@
 # Equipment and Items
 
-Create item and equipment records with stable inventory IDs, valid slots and focused member-graph behaviour.
+Create Item and Equipment General Data entries alongside `Source.MapActors.Item` and `Source.MapActors.Equip` Blueprints with stable inventory IDs, matching Class slots and focused member graphs.
 
-## Prerequisites
+## Author items and equipment
 
-- Item, Equip and Class General Data with the required inventory and slot identifiers.
-- Blueprint parents derived from `Source.MapActors.Item` or `Source.MapActors.Equip`.
+- **Item activation and stacking**: Set `usable` on Item General Data to enable inventory use, and `cost` to display stack counts. The `onUse` graph decides whether to consume the item.
+- **Item member graphs**: Put inventory activation logic in `onUse` and enemy drop logic in `onDrop` (see [Items](<../Actors Enemies Items and Equipment.md#items>) for `GameplayEventData.target` and `self` pin rules).
+- **Equipment slots and stats**: Match each Equip record's `slot` to the active Class slot dictionary. Put static stat bonuses in `attrPlus` and reserve `onEquip` / `onUnequip` graphs for custom side effects.
+- **Icons**: Store item and equipment icons under `Assets/Icons` and select them through the resource picker.
 
-## Steps
+## Default template examples
 
-- Use Item `usable` to allow inventory activation and `cost` to display its stack count. The `onUse` graph decides whether to consume an Item.
-- Put inventory use in `onUse` and enemy drop behaviour in `onDrop`. See [Items](<../Actors Enemies Items and Equipment.md#items>) for graph targets and receivers.
-- Match the Equip `slot` to the selected Class slot dictionary.
-- Store stat changes in `attrPlus`. Reserve the `onEquip` and `onUnequip` graphs for special behaviour.
-- Keep icons under `Assets/Icons` and use the resource selector.
+- **Equipment (`BP_Equip_Sword_A.json`)**: Derives from `Source.MapActors.Equip` and sets `ID = "Sword_A"` to link its Equip record. See [Equipment](<../Actors Enemies Items and Equipment.md#equipment>) for the execution order of `attrPlus`, `onEquip` and `onUnequip`.
+- **Item (`BP_Item_Key_Y.json`)**: Derives from `Source.MapActors.Item` and sets `ID = "KEY_Y"`, matching both the Item database record and the yellow door's `needKeyID`.
+- **Ability ownership and save loading**: Owning an item grants its `onUse` ability and removing the last copy revokes it; `Player:activateItem` targets that Player. [Save loading](<../Runtime Data Configuration and Saves.md#players>) restores saved abilities and Effects without replaying `onUse`, `onDrop`, `onEquip` or `onUnequip` graphs.
 
-## Game equipment
-
-`BP_Equip_Sword_A.json` derives from `Source.MapActors.Equip` and sets `ID = "Sword_A"`, which resolves the Equip member.
-
-The [equipment runtime rules](<../Actors Enemies Items and Equipment.md#equipment>) define when `attrPlus`, `onEquip` and `onUnequip` take effect.
-
-## Game item
-
-`BP_Item_Key_Y.json` derives from `Source.MapActors.Item` and sets `ID = "KEY_Y"`, matching both the Item member and the yellow door's `needKeyID`.
-
-Owning an Item grants its `onUse` ability; removing the last copy revokes it. `Player:activateItem` targets that Player. [Loading](<../Runtime Data Configuration and Saves.md#players>) rebuilds saved abilities and Effects without replaying member graphs.
-
-## Limitations
-
-Renaming a member does not repair stored references automatically. A Class slot mismatch and an unknown record ID are still explicit data errors.
+> **Important:** Renaming a General Data member does not update stored Blueprint or map references automatically. Class slot mismatches and unknown record IDs raise explicit data errors.

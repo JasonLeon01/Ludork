@@ -1,6 +1,6 @@
 # Metadata Schema and Decorators
 
-`_METADATA` is the pure-data schema for Blueprint fields, signatures, editor controls and execution protocols. It tells the editor which Lua and C++ members can be edited or used as Blueprint nodes. A metadata file must return a pure-data table named `_METADATA`.
+`_METADATA` is the pure-data schema that describes Blueprint fields, function signatures, editor controls and execution protocols for Lua and C++ types. Every metadata file must return a pure-data table named `_METADATA`.
 
 ```lua
 local _METADATA = {
@@ -33,31 +33,47 @@ return _METADATA
 
 ## Types and fields
 
-Every type table carries its fields in an ordered `attrs` array; the key order of the table itself is not significant. A field requires `type`. It appears with an ordinary value only when the Blueprint already stores it or metadata supplies a `default`.
+Every type table lists its editable fields in an ordered `attrs` array; table key order is not significant. Each field requires a `type` and displays an ordinary value only when the Blueprint already stores one or metadata provides a `default`.
 
-Primitive names include `bool`, `int`, `float`, `string`, `function`, `event`, `any` and `Pair`. SFML values use the `sf.` prefix. Core types use `{ "Module", "Type" }`, with `[]` on the second item for arrays.
+- **Primitives**: `bool`, `int`, `float`, `string`, `function`, `event`, `any` and `Pair`.
+- **SFML and Core types**: SFML values use the `sf.` prefix. Core and Lua types use `{ "Module", "Type" }`, with `[]` on the second item for arrays.
+- **Recursive containers**: `T[]` is a variable-length list, `Dict[string, T]` is a string-keyed dictionary and `Tuple[T1, T2, ...]` is a fixed-length heterogeneous array (for example `Dict[string, Tuple[string, any]]`, `Dict[string, int[]]` or `int[][]`).
+- **Component and composite controls**: `component = true` marks component fields. Composite controls are selected from their real type (vectors, colour, rectangles and `Pair`, where `Pair` is a two-component numeric control rather than a heterogeneous `Tuple`). `RectRangeVars` adds texture-range selection to `sf.IntRect`.
 
-Container types compose recursively. `T[]` is a variable-length list of one element type, `Dict[string, T]` is a dictionary with string keys, and `Tuple[T1, T2, ...]` is a fixed-length heterogeneous array. Examples include `Dict[string, Tuple[string, any]]`, `Dict[string, int[]]` and `int[][]`.
+The capitalised `Dict[...]` and `Tuple[...]` tokens describe metadata schemas, not constructors for Standard's lower-case runtime `dict` and `tuple` containers. Metadata defaults must be JSON-convertible pure data using plain Lua tables rather than native `list`, `tuple` or `dict` values. Runtime pins that accept native containers must declare their qualified type (such as `{ "_G", "list" }`) or include it in a union; `T[]` pins accept Lua arrays and require an explicit conversion node for a native `list`.
 
-The capitalised `Dict[...]` and `Tuple[...]` tokens are metadata schema descriptions, not constructors for Standard's lower-case runtime `dict` and `tuple` containers. Metadata defaults must be JSON-convertible pure data. Container defaults use plain Lua tables, not native `list`, `tuple` or `dict` values. Runtime node pins that accept native containers must declare their qualified types, such as `{ "_G", "list" }`, or include them in a union. A `T[]` pin accepts a Lua array. Use an explicit conversion node to pass a native list to it.
+The declared schema always governs serialisation shape, even for empty containers: `Dict` serialises as a JSON object, while lists and `Tuple` serialise as JSON arrays. Use an explicit recursive type whenever a shape is known. Runtime calls must supply the declared types; see [Runtime Value Boundaries](<../../Native C++ Development/Runtime Value Boundaries.md>) for conversion rules.
 
-A `string` field preserves literal text, including `"nil"`. Whole-value expressions are evaluated once, so `nil` in an `any` expression produces Lua nil. Strings nested inside saved containers remain literal.
+### Value literals and unset inputs
 
-Unset node inputs are saved as JSON `null` and use the declared default when present. JSON-value editors accept `null` directly. Clear a function expression to leave it unset. An `any` input is edited as text: when it loses focus, text that parses as a JSON literal, such as a number, is stored as that literal, and other text is stored as an expression string.
+- A `string` field preserves literal text verbatim, including `"nil"`. Strings nested inside saved containers stay literal.
+- Whole-value expressions evaluate once, so `nil` in an `any` expression yields Lua `nil`.
+- Unset node inputs save as JSON `null` and fall back to the declared default when present. JSON-value editors accept `null` directly; clearing a function expression leaves it unset.
+- An `any` input is edited as text: on focus loss, text that parses as a JSON literal (such as a number) saves as that literal, while other text saves as an expression string.
 
-Node **Convert to Plain Text Inputs** bypasses editor selectors and numeric controls while preserving this schema. `string` and `file` values preserve all text, including whitespace and `null`; `int` requires a signed 64-bit integer without a fractional part, and `float`, `double` and `number` require finite numbers and always use `.` as the decimal separator. Boolean input accepts `true` or `false`. Blank input is unset except for `string`, `file` and `any`, which preserve it as text. Containers and composite values require valid JSON: vectors and `Pair` use component arrays, `sf.Color` uses four integer channels from 0 to 255, `sf.FloatRect` uses four numbers, and `sf.IntRect` uses a nested array such as `[[0, 0, 32, 32]]`. Unions retain the declared `$type`/`$value` wrapper, including within containers.
+### Plain-text node inputs
 
-Plain `any` input retains the existing JSON-or-expression conversion, including preserving blank text and the original text of a quoted JSON string; enter `null` to leave it unset. Function/event expressions and object references keep their existing runtime semantics. Invalid text is an editor-session draft, never a saved parameter value; it blocks saving and returning to typed inputs until corrected. The mode and drafts are window-local and do not change metadata or Blueprint JSON.
+**Convert to Plain Text Inputs** bypasses editor selectors and numeric controls while enforcing the same schema:
 
-The declared schema takes priority over the current Lua table or JSON value shape, including for empty containers. A `Dict` serialises as a JSON object. A list or `Tuple` serialises as a JSON array. Metadata with a known shape must use an explicit recursive type.
+| Schema type | Accepted plain-text input |
+|---|---|
+| `string`, `file` | Preserves all text verbatim, including whitespace, blank input and `null`. |
+| `int` | Signed 64-bit integer with no fractional part. Blank input is unset. |
+| `float`, `double`, `number` | Finite number using `.` as the decimal separator. Blank input is unset. |
+| `bool` | `true` or `false`. Blank input is unset. |
+| Vectors, `Pair` | Valid JSON component array (e.g. `[1, 2]`). Blank input is unset. |
+| `sf.Color` | JSON array of four integers in `0..255`. Blank input is unset. |
+| `sf.FloatRect` | JSON array of four numbers. Blank input is unset. |
+| `sf.IntRect` | Nested JSON array, such as `[[0, 0, 32, 32]]`. Blank input is unset. |
+| Containers and unions | Valid JSON; unions use the declared `$type`/`$value` wrapper, including inside containers. Blank input is unset. |
+| `any` | Standard JSON-or-expression conversion, preserving blank text and quoted JSON strings; enter `null` to leave unset. |
+| Functions, events, objects | Standard runtime expression and object-reference semantics. |
 
-Runtime calls must supply the declared types. Conversion rules are in [Runtime Value Boundaries](<../../Native C++ Development/Runtime Value Boundaries.md>).
-
-`component = true` marks component fields. Composite controls are selected from their real type: vectors, colour, rectangles and `Pair`. `Pair` is a two-component numeric control type, not a fixed heterogeneous `Tuple`. `RectRangeVars` adds texture/range semantics to `sf.IntRect`.
+Invalid plain text is kept as an editor-session draft and never saved as a parameter value. It blocks saving and returning to typed inputs until fixed. Plain-text mode and drafts are window-local and do not modify metadata or Blueprint JSON.
 
 ## Blueprint attribute declarations
 
-A Blueprint JSON document stores values in `attrs` and declares fields introduced by that Blueprint in the sibling `attrDefs` object. Omit `attrDefs` when the class introduces no fields. Each definition requires `type`, using the same primitive, qualified, enum or recursive schema as metadata. `file` alone may also declare `base` to constrain its asset selector; the value still stores a complete `/Game/Assets/...` path.
+A Blueprint JSON document stores attribute values in `attrs` and declares fields introduced by that Blueprint in the sibling `attrDefs` object. Omit `attrDefs` when the Blueprint introduces no new fields. Each entry requires `type` using the same primitive, qualified, enum or recursive schema as metadata; `file` fields may also declare `base` to constrain the asset selector while storing a complete `/Game/Assets/...` path.
 
 ```json
 {
@@ -76,15 +92,15 @@ A Blueprint JSON document stores values in `attrs` and declares fields introduce
 }
 ```
 
-This excerpt shows the declaration and value portions of a Blueprint. A definition contains only `type` and optional file `base`; values and initial defaults belong in `attrs`. A declaration may remain without a value. The editor and runtime retain its exact type rather than inferring it from a number, string or empty container.
+An `attrDefs` entry contains only `type` and optional file `base`; values and initial defaults belong in `attrs`. A declaration may omit a value, and both editor and runtime preserve its declared type rather than inferring one from the value.
 
-Resolve declarations from Lua/native metadata, the active Script Mixin and ancestor Blueprints before adding local `attrDefs`. A child inherits both type and default: it may put a new value in `attrs`, but must not repeat or change the inherited definition in `attrDefs`. Local names must not collide with existing fields, methods or reserved runtime names. For example, an inherited `speed` or Mixin `needKeyCount` is a value override, not a new declaration.
-
-Every saved attribute and nested typed record member must be declared, and its value must match that schema. Unknown fields, missing definitions, invalid schemas and conflicting declarations fail loading with the Blueprint path and field. The editor and runtime do not infer missing declarations or convert an older untyped shape. Map `BPClassVarChanged` entries also store values only and use the Actor class's inherited schema. Graph-only Common Functions and General Data member graphs have no class declarations.
+- **Inheritance**: Resolve declarations from Lua/native metadata, the active Script Mixin and ancestor Blueprints before adding local `attrDefs`. A child inherits both type and default: it may override the value in `attrs`, but must not repeat or alter an inherited declaration in `attrDefs`. Local names must not collide with existing fields, methods or reserved runtime names (for example, `speed` or a Mixin's `needKeyCount` is a value override, not a new declaration).
+- **Strict validation**: Every saved attribute and nested typed record member must be declared and match its schema. Unknown fields, missing definitions, invalid schemas and conflicting declarations fail loading with the Blueprint path and field name; neither editor nor runtime infers missing declarations or converts legacy untyped shapes.
+- **Other graph assets**: Map `BPClassVarChanged` entries store values only and validate against the Actor class's inherited schema. Graph-only Common Functions and General Data member graphs have no class declarations.
 
 ## Enum schemas
 
-An enum references one module under `Scripts/Enums`, whose source holds a table of named scalar literals and its EmmyLua annotation; see [Enum modules](<../Lua Runtime and Modules.md#enum-modules>) for that module's layout. Use its require path in the recursive schema:
+An enum schema references one module under `Scripts/Enums` whose source holds a literal scalar table and its EmmyLua annotation (see [Enum modules](<../Lua Runtime and Modules.md#enum-modules>)). Reference it by its `require` path in any field, parameter, return or nested container/union schema:
 
 ```lua
 stairDirection = {
@@ -93,21 +109,32 @@ stairDirection = {
 }
 ```
 
-The same `{ enum = "Enums.StairDirection" }` schema works directly in a function parameter or return entry and inside `list`, `dict`, `tuple` or `union`. Each enum keeps its type annotation in its source file, without a mirrored stub.
+### Source module and scalar-type rules
 
-An enum module may return a literal table directly, or declare one local literal table and return that variable. Comments, annotations, optional semicolons and one pair of parentheses around a scalar literal are allowed. Calls (including `require`), calculations, table mutations, other returned variables and extra statements are not allowed.
+- **Allowed syntax**: An enum module may return a literal table directly or assign one local literal table and return that variable. Comments, annotations, optional semicolons and one pair of parentheses around a scalar literal are allowed. Function calls (including `require`), calculations, table mutations, other returned variables and extra statements are rejected.
+- **Keys and value categories**: Keys must be non-empty strings, and all values must share one category: strings, booleans or finite numbers. Without `valueType`, an all-integer table resolves to `int`, while any floating-point literal (including `1.0`) resolves to `float`.
+- **Explicit `valueType`**: Optional `valueType` (`"string"`, `"bool"`, `"int"` or `"float"`, e.g. `{ enum = "Enums.GeneralData.Item", valueType = "string" }`) allows empty enum tables and fixes the scalar type in advance. Non-empty constants must match it (integer literals are accepted for explicit `float`). An empty module without `valueType`, an incompatible constant, an unknown schema property or a missing module fails validation, including inside nested containers. `valueType` constrains only the scalar type, not membership in the current option list.
 
-Keys must be nonempty strings, and values must share one category: strings, booleans or finite numbers. Without `valueType`, an enum containing only integer literals is `int`; any floating-point literal, including `1.0`, makes it `float`.
+### Selector, defaults and live resolution
 
-The optional `valueType` declares `string`, `bool`, `int` or `float`, for example `{ enum = "Enums.GeneralData.Item", valueType = "string" }`. It allows an empty constant table and fixes the type before any options exist. Nonempty constants must agree with it; integer constants may also use an explicit `float` type. An empty source module without `valueType`, an incompatible constant, an unknown schema property or a missing module is an error, including inside a nested container. `valueType` describes the scalar type, not membership in the option list.
+The editor selector lists keys in declaration order and saves the underlying scalar value directly — not the key name or a Lua expression — without requiring `Meta.DropBox`. Equal values display the first matching key. Values absent from the current table stay saved with an unknown-value message and are valid if their scalar type matches; enums do not impose runtime membership checks.
 
-The selector displays keys in declaration order and saves the selected value itself. It stores neither the key nor a Lua expression, and needs no `Meta.DropBox`. Equal values select the first matching key for display. Existing values absent from the current table remain saved and show an unknown-value message. They remain valid if their underlying scalar type is valid; an enum does not impose runtime membership checks.
+- **Defaults**: An explicit `default` takes priority as the scalar value. Without one, new node inputs and container items use the first option, or the scalar type's default (`""`, `false` or `0`) when the enum is empty. An attribute without a default stays schema-only until a value is saved. String enum selectors include **— None —** (storing `""`), while unknown non-empty values stay visible and preserved.
+- **Ordinary enums**: The editor rereads the source file whenever the field displays or the selector opens (including after regaining window focus) without executing gameplay modules.
+- **Project-managed enums**: The editor resolves four `valueType = "string"` enums directly from the live project catalogue (including unsaved edits), before source generation:
 
-An explicit default is the actual scalar value and takes priority. Without one, new node inputs and container items use the first option, or the declared scalar's default when the enum is empty (`""`, `false` or `0`). An attribute without a default remains schema-only until it has a saved value. String enum selectors include **— None —**, which stores `""`; unknown nonempty values remain visible and preserved.
+| Managed enum | Selects |
+|---|---|
+| `Enums.GeneralDataKey` | General Data type keys |
+| `Enums.GeneralData.<TypeName>` | Members of a General Data type |
+| `Enums.Animation` | Animation keys |
+| `Enums.Particle` | Particle keys |
 
-For ordinary enums, the editor reads the current file whenever the field is displayed or its selector opens, including after returning to the window. It does not execute gameplay modules. Project-managed enums instead use the current project catalogue, including unsaved data: `Enums.GeneralDataKey` selects General Data types, `Enums.GeneralData.<TypeName>` selects their members, `Enums.Animation` selects animation keys, and `Enums.Particle` selects particle keys. All four use `valueType = "string"`; their selectors work before source generation. A deleted managed module is an error even if an old generated file remains on disk. An invalid enum reports its module path and preserves the current value.
+A deleted managed module fails validation even if an old generated file exists on disk. An invalid enum reports its module path and preserves the current value.
 
-Dictionary schemas accept a string enum key independently of their value schema:
+### Enum-keyed dictionaries and plain text
+
+Dictionary schemas can declare a string enum key independently of their value schema:
 
 ```lua
 type = {
@@ -116,42 +143,41 @@ type = {
 }
 ```
 
-Omitting `key` keeps ordinary string keys. Explicit keys must be `string` or an enum declaring `valueType = "string"`; numeric, boolean, container and untyped enum keys are rejected. Values retain their own recursive type. JSON remains an object with the selected scalar strings as keys. Adding an enum-keyed row waits for a nonempty unique key before changing saved data; duplicate keys are rejected. `DictKeyMeta` continues to refine unrelated key controls without replacing the declared key type.
+- Omitting `key` uses ordinary string keys. An explicit `key` must be `"string"` or an enum declaring `valueType = "string"`; numeric, boolean, container and untyped enum keys are rejected.
+- Values use their own recursive schema, and JSON serialises as an object with the selected scalar strings as keys.
+- Adding an enum-keyed row waits for a non-empty unique key before updating saved data; duplicate keys are rejected. `DictKeyMeta` refines unrelated key controls without replacing the declared key type.
+- **Plain-text mode and connections**: **Convert to Plain Text Inputs** edits the underlying scalar value (for example, enter the number for an integer enum). The schema preserves enum identity, including inside a union's `$type` descriptor, while the stored value is the scalar. [Typed connections](<Execution Flow Events and Variables.md#typed-connections>) check compatibility using that underlying scalar type.
 
-**Convert to Plain Text Inputs** edits the underlying scalar value using its ordinary `string`, `bool`, `int` or `float` rules. For an integer enum, enter the number rather than the displayed key. Enum identity remains in the schema, including a union's `$type` branch descriptor; the stored value is still the scalar. [Typed connections](<Execution Flow Events and Variables.md#typed-connections>) use that underlying type as well.
-
-Native enums and marked constant maps generate equivalent modules such as `Enums.Engine.Direction`, `Enums.GlobalCore.WeatherType` and `Enums.sf.Keyboard.Scan`. Their generation and ownership are described in [Generated Metadata and Stubs](<../../Native C++ Development/Generated Metadata and Stubs.md#generated-enum-modules>).
+Native enums and marked constant maps generate equivalent modules such as `Enums.Engine.Direction`, `Enums.GlobalCore.WeatherType` and `Enums.sf.Keyboard.Scan`; see [Generated enum modules](<../../Native C++ Development/Generated Metadata and Stubs.md#generated-enum-modules>).
 
 ## Union schemas and stored literals
 
-A union lists its allowed branches as `{ union = { T1, T2 } }` and appears in the editor as `Union[T1, T2]`. It composes with `{ list = T }`, `{ dict = T }` and `{ tuple = { T1, T2 } }`, the structured equivalents of `T[]`, `Dict[string, T]` and `Tuple[...]`.
+A union declares its allowed branches as `{ union = { T1, T2 } }` (displayed as `Union[T1, T2]`) and composes with `{ list = T }`, `{ dict = T }` and `{ tuple = { T1, T2 } }` — the structured forms of `T[]`, `Dict[string, T]` and `Tuple[...]`.
 
-A declared default determines the initial branch and value. Otherwise, a new node selects the first branch with a valid literal default. Branches without one remain unset. Switching branches resets the value to the selected branch's default.
+A declared default chooses the initial branch and value. Otherwise, a new node selects the first branch that has a valid literal default; branches without one stay unset. Switching branches resets the value to the new branch's default.
 
 ```lua
 type = { union = { "sf.Vector2f", "sf.Vector2u", "nil" } },
 default = { ["$type"] = "sf.Vector2u", ["$value"] = { 64, 32 } },
 ```
 
-This saves as `{ "$type": "sf.Vector2u", "$value": [64, 32] }`. `$type` identifies the branch with its qualified name or recursive container schema, such as `{ "list": "sf.Vector2u" }`, and so distinguishes types with the same stored shape.
+This saves in JSON as `{ "$type": "sf.Vector2u", "$value": [64, 32] }`. `$type` identifies the branch using its qualified name or recursive container schema (such as `{ "list": "sf.Vector2u" }`), distinguishing types with identical JSON shapes.
 
-Explicit nil is `{ "$type": "nil", "$value": null }` in JSON and `{ ["$type"] = "nil" }` in Lua metadata. It remains distinct from an unset value, which uses ordinary defaults.
-
-Use this wrapper only where the schema declares a union, including nested unions. Runtime calls receive the restored value, without the wrapper. Invalid values report the affected field or node parameter.
+Explicit `nil` serialises as `{ "$type": "nil", "$value": null }` in JSON and `{ ["$type"] = "nil" }` in Lua metadata, distinct from an unset value (which falls back to defaults). Use the `$type`/`$value` wrapper only where a schema declares a union, including nested unions. Runtime calls receive the unwrapped value; invalid values report the affected field or parameter.
 
 ## Inheritance
 
-`bases` is an ordered array of direct metadata bases, each written as `{ "Module", "Type" }`. Include only bases that participate in editor field inheritance. Script Mixin metadata cannot declare bases.
+`bases` is an ordered array of direct metadata bases written as `{ "Module", "Type" }`. List only bases that participate in editor field inheritance. Script Mixin metadata cannot declare `bases`.
 
-When a Lua module directly returns its class, declare `moduleReturn = true` inside that class's metadata table. The metadata file must contain exactly one type. Class selectors and new Blueprint parents then use the module path, such as `Source.MapActors.Enemy`. A class exposed as a named module member keeps its full reference, such as `Engine.Actor`, and omits this flag. Metadata type references, including `bases`, fields and node pins, still use the explicit module/type pair, such as `{ "Source.MapActors.Enemy", "Enemy" }`.
+When a Lua module returns its class directly, set `moduleReturn = true` in that class's metadata table and keep exactly one type in the metadata file. Class selectors and new Blueprint parents then use the module path (such as `Source.MapActors.Enemy`). A class exposed as a named member omits `moduleReturn` and uses its full reference (such as `Engine.Actor`). Metadata type references — including `bases`, fields and node pins — always use the explicit `{ "Module", "Type" }` pair (for example `{ "Source.MapActors.Enemy", "Enemy" }`).
 
 ## Functions and events
 
-`parameters` and `["return"]` contain an ordered name array plus name-to-type entries. The optional `default` array aligns with parameters. `Pure` is explicit. `ExecSplit`, `Latent`, `LoopNode` and event declarations describe execution protocol consumed by the graph runtime.
+`parameters` and `["return"]` combine an ordered name array with name-to-type entries. The optional `default` array aligns by index with `parameters`. `Pure` is explicit, while `ExecSplit`, `Latent`, `LoopNode` and `type = "event"` declare the graph runtime execution protocol.
 
-Every ordinary instance method declares `"self"` as its first parameter, with the owning class's full module/type reference and `default[1] = "self"`. Its receiver pin remains visible in every Blueprint context; [Instance method receivers](<Execution Flow Events and Variables.md#instance-method-receivers>) explains default ownership and validation. Static functions and events omit this parameter. Lua colon-call signatures and native method declarations keep their usual argument lists.
-
-Receiver and business arguments share one ordered parameter array. Include the receiver when positioning defaults and saved parameter values; metadata type names remain explicit even when `moduleReturn = true`. For example, a SceneMap receiver is `{ "Source.Scenes.SceneMap", "Scene" }`.
+- **Instance methods**: Every ordinary instance method declares `"self"` as its first parameter with the owning class's explicit `{ "Module", "Type" }` reference and `default[1] = "self"` (for example `{ "Source.Scenes.SceneMap", "Scene" }`). Its receiver pin is visible in every Blueprint context; see [Instance method receivers](<Execution Flow Events and Variables.md#instance-method-receivers>). Include the receiver slot when indexing defaults and saved parameters. Static functions and events omit `"self"`. Lua colon-call signatures and native method declarations keep their normal argument lists.
+- **Pin ordering and returns**: The array part sets pin order and string keys set pin types. A `nil` slot in `default` means no default. A `nil` type named in `["return"]` creates an output pin, whereas an empty `["return"] = {}` declares no outputs. Only `Pure = true` removes execution pins.
+- **Unset defaults**: Use `defaultUnset = { "parameterName" }` when a parameter's initial value must stay `nil` instead of receiving an editor-generated literal (for example, `Scene.recordActorPosition` sets `defaultUnset = { "position" }` so it defaults to the Actor's current position). Names in `defaultUnset` are unaffected by receiver index shifts.
 
 A static function declares only its own arguments:
 
@@ -176,34 +202,38 @@ calculate = {
 }
 ```
 
-The array part fixes pin order. The string keys fix pin types. Each parameter default occupies the same position as its parameter, and `nil` means no default. A `nil` entry named in `["return"]` is still an output pin, whereas an empty table means no outputs. `Pure = true` alone removes execution pins.
-
-Use `defaultUnset = { "parameterName" }` for a parameter whose initial value must remain nil instead of receiving an editor-generated literal. For example, `Scene.recordActorPosition` declares `position: sf.Vector2i` and `defaultUnset = { "position" }`, preserving the API's default of recording the Actor's current position. Parameter names in `defaultUnset` are independent of receiver-related index shifts.
-
 ## Execution declarations
 
-- `ExecSplit = { "success", "fail", success = true, fail = false }` orders execution outputs and maps them to runtime result values.
-- `Latent = true` marks suspension; ordered `LatentStates` maps resume outputs to stage values. Declare the return type as `{ "Engine", "AsyncOperation" }`; see [execution flow](<Execution Flow Events and Variables.md#execution-semantics>) for runtime behaviour.
-- `Loop = true` marks a loop node; `LoopNode = "ForEach"` or `"ForLoop"` selects the runtime protocol.
-- `type = "event"` creates an event entry only. Its parameters and returns use the same signature format. Without an explicit split, the event receives `ExecSplit = { "default", default = "nil" }`; the string `"nil"` is the metadata token for the default branch.
+- **`ExecSplit`**: Orders execution outputs and maps them to runtime return values, e.g. `ExecSplit = { "success", "fail", success = true, fail = false }`.
+- **`Latent = true`**: Marks graph suspension. Ordered `LatentStates` maps resume outputs to stage values, and the return type must be `{ "Engine", "AsyncOperation" }`. See [Execution semantics](<Execution Flow Events and Variables.md#execution-semantics>).
+- **`Loop = true`**: Marks a loop node; `LoopNode = "ForEach"` or `"ForLoop"` selects the runtime iteration protocol.
+- **`type = "event"`**: Creates an event entry node using the same parameter/return format. Without an explicit `ExecSplit`, the event receives `ExecSplit = { "default", default = "nil" }` (the string `"nil"` is the metadata token for the default branch).
 
-These declarations are promises to the Blueprint runtime. The Lua or C++ implementation must actually return split values, resume latent states or perform the declared iteration.
+> **Important:** Execution declarations are contracts with the graph runtime. The Lua or C++ implementation must return the declared split values, resume the declared latent states or drive the declared loop protocol.
 
 ## Editor names and decorators
 
-Type, field, function, event, pin and Blueprint-variable labels follow their identifiers: for example, `textureRect` appears as `Texture Rect`. Metadata keys, runtime member names and saved Blueprint names remain unchanged.
+Editor labels for types, fields, functions, events, pins and Blueprint variables are derived automatically from their identifiers (for example, `textureRect` displays as **Texture Rect**). Metadata keys, runtime member names and saved Blueprint names stay unchanged.
 
-Do not declare `DisplayName`, `DisplayDesc`, `VariableDisplayNames`, `VariableDisplayDescs`, `ParameterDisplayNames` or `ParameterDisplayDescs` for ordinary members. The editor does not evaluate `LOC(...)` or any other expression to obtain schema labels or default descriptions.
+Do not declare `DisplayName`, `DisplayDesc`, `VariableDisplayNames`, `VariableDisplayDescs`, `ParameterDisplayNames` or `ParameterDisplayDescs` on ordinary members; the editor never evaluates `LOC(...)` or other expressions to derive schema labels or descriptions. The sole exception is operator nodes such as `ADD` and `IADD`, which may declare a literal `Meta.DisplayName` (such as `+` or `+=`) without `LOC(...)` and without a default `DisplayDesc`.
 
-Operator nodes such as `ADD` and `IADD` are the exception. They may use a direct literal `Meta.DisplayName`, such as `+` or `+=`, when identifier formatting cannot express the intended label. Do not wrap the literal in `LOC(...)`, and do not add a default `DisplayDesc`.
+`Meta` supplies editor semantics that cannot be inferred from the declared type: `DropBox`, `PathVars`, `PathRoot`, `PathFilter`, `ProgressVars`, `SliderVars`, `RangeVars`, `MoveRouteVars`, `Transfer`, `BlueprintClassVars`, `CommonFunctionVars`, `ConfigVars`, `InstVar`, `InstVarValue`, `DictKeyMeta`, `ItemMeta`, `InvalidVars` and `RectRangeVars`. Preserve decorator names and ordered data directly; do not wrap them in invented `fields`, `nodes` or `events` containers.
 
-`Meta` retains editor semantics that cannot be inferred from the declared type, such as `DropBox`, `PathVars`, `ProgressVars`, `SliderVars`, `RangeVars`, `MoveRouteVars`, `Transfer`, `BlueprintClassVars`, `CommonFunctionVars` and `ConfigVars`.
+### Resource and data path selectors
 
-For game resources, `PathVars` supplies a full selector root such as `/Game/Assets/Sounds`, and the field stores the complete logical path. `PathRoot = "Project"` instead selects native project files such as Script Mixins. `PathRoot = "Data"` selects data files beneath a project-relative `PathVars` directory such as `Data/Subtitles`, and stores the full project-relative `Data/...` path. Use `PathFilter = "*.json"` for JSON documents. Data references must remain within the selector directory and cannot contain traversal segments. Function metadata targets a parameter by name, for example `PathRoot = { subtitleFileName = "Data" }`.
+| Decorator | Behaviour |
+|---|---|
+| `PathVars` | Selector root. For game resources, supply a full logical root such as `/Game/Assets/Sounds`; the field stores the full logical path. |
+| `PathRoot = "Project"` | Selects project files such as Script Mixins. |
+| `PathRoot = "Data"` | Selects files under a project-relative `PathVars` directory (such as `Data/Subtitles`) and stores the full `Data/...` path. References must stay inside the selector directory without traversal segments. |
+| `PathFilter` | File pattern filter, e.g. `PathFilter = "*.json"`. |
 
-`InstVar` marks a string field or parameter as a game-variable name. The editor replaces free-form text entry with a searchable selector that uses current game-variable declarations, including unsaved edits. A direct field uses `InstVar = true`, or `InstVar = { types = { "int", "float" } }` to keep only declarations with one of the listed metadata types. A function metadata table projects the decorator to named parameters with `InstVar = { "valueName" }`.
+Function metadata targets a named parameter by table mapping, such as `PathRoot = { subtitleFileName = "Data" }`.
 
-`InstVarValue` links another field or parameter to that selected name. A direct field writes the sibling name as a string, for example `InstVarValue = "openConditionName"`. A function projects parameter links as a table, for example `InstVarValue = { value = "valueName" }`. Once the name is selected, the linked value uses the ordinary editor for the declaration's type. The decorator changes editor selection and input controls only. Runtime reads and writes still use the actual game-variable implementation.
+### Game-variable selectors (`InstVar` and `InstVarValue`)
+
+- **`InstVar`**: Marks a string field or parameter as a game-variable name, replacing text input with a searchable selector populated from current declarations (including unsaved edits). Set `InstVar = true` for all types, `InstVar = { types = { "int", "float" } }` to restrict to listed metadata types, or `InstVar = { "valueName" }` in function metadata to target named parameters.
+- **`InstVarValue`**: Links a field or parameter to the selected variable's type so it adopts that type's editor control. Specify the sibling field name as a string (e.g. `InstVarValue = "openConditionName"`) or a parameter map in function metadata (e.g. `InstVarValue = { value = "valueName" }`). This affects editor controls only; runtime reads and writes use the actual game-variable table.
 
 ```lua
 openConditionName = {
@@ -225,7 +255,16 @@ openConditionVal = {
 }
 ```
 
-Container metadata refines editors at the immediate container layer without changing the declared schema or serialised shape. `DictKeyMeta` applies its editor decorators to each string key. `ItemMeta` applies to each immediate list item or dictionary value. When that item is a `Tuple`, `ItemMeta.TupleMeta` maps 1-based tuple positions to their own decorators. `DropBox` provides ordered literal choices for a drop-down when there is no shared enum module; use an enum schema when the choices already belong to one. Within a dictionary value's `TupleMeta`, the reserved `InstVarValue = "$dictKey"` reference resolves to that row's dictionary key. It is not a field name and has no meaning outside that row.
+### Container and control decorators
+
+Container decorators refine controls at the immediate container layer without altering the schema or JSON shape:
+
+- **`DictKeyMeta`**: Applies decorators to each string key.
+- **`ItemMeta`**: Applies decorators to each immediate list item or dictionary value. When the item is a `Tuple`, `ItemMeta.TupleMeta` maps 1-based tuple positions to per-slot decorators.
+- **`DropBox`**: Provides ordered literal drop-down choices when no shared enum module exists; prefer an enum schema whenever choices belong to one.
+- **`"$dictKey"`**: Inside a dictionary value's `TupleMeta`, `InstVarValue = "$dictKey"` resolves to that row's dictionary key. It is reserved and has no meaning outside that row.
+- **`InvalidVars`**: Lists fields hidden from the Blueprint property editor and serialiser.
+- **`RectRangeVars`**: Associates an `sf.IntRect` with the texture/range field needed by the image-region selector.
 
 ```lua
 afterBattleVarChanges = {
@@ -251,12 +290,10 @@ afterBattleVarChanges = {
 }
 ```
 
-This example is still stored as a JSON object whose values are two-element JSON arrays. The key selector lists only declared `int` and `float` game variables, the first tuple item is the operator drop-down, and the second uses the selected key's numeric editor. The metadata constrains authoring only. The runtime game-variable table does not enforce the declared type.
-
-`InvalidVars` lists fields hidden from the ordinary Blueprint property editor and serialiser. `RectRangeVars` associates an `sf.IntRect` with the texture/range field required by the image-region selector. Decorator names and their ordered data are preserved. Do not invent wrapper structures such as `fields`, `nodes` or `events`.
+This field stores as a JSON object whose values are two-element JSON arrays. The key selector lists declared `int` and `float` game variables, tuple element 1 offers an operator drop-down, and element 2 uses the selected variable's numeric editor. These decorators constrain authoring only; the runtime game-variable table does not enforce the declared type.
 
 ## Safety rules
 
-Metadata cannot contain functions, userdata, threads, cycles, infinite numbers or side effects. Defaults must be JSON-convertible pure data. Metadata strings are data, and the editor never evaluates them to derive member or node labels. Runtime localisation and localised option values are separate concerns.
+Metadata must be pure data: functions, userdata, threads, cycles, non-finite numbers and side effects are forbidden, and defaults must be JSON-convertible. Metadata strings are never evaluated to produce labels; runtime localisation and localised option values are separate concerns.
 
-Core metadata is generated from `BIND_*` annotations. Never edit generated Core metadata by hand. See [Generated Metadata and Stubs](<../../Native C++ Development/Generated Metadata and Stubs.md>).
+Core metadata is generated from `BIND_*` annotations — never edit generated Core metadata by hand. See [Generated Metadata and Stubs](<../../Native C++ Development/Generated Metadata and Stubs.md>).

@@ -1,32 +1,32 @@
 # GlobalFunctions.Container
 
-`Container` declares the loop constructs and the dictionary and list operations available as Blueprint nodes.
+`GlobalFunctions.Container` provides Blueprint loop constructs alongside dictionary and list creation, lookup, mutation and table-conversion nodes.
 
-Metadata source: `Scripts/GlobalFunctions/Container_meta.lua`
+**Metadata source:** `Scripts/GlobalFunctions/Container_meta.lua`
 
 ## Container
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `ForLoop` | `function` | firstIndex: int = 0; lastIndex: int = 0; step: int = 1 | index: int | ExecSplit { [1] = "LoopBody", [2] = "Completed", LoopBody = { [1] = "__loop_body__" }, Completed = { [1] = "__loop_completed__" } }; LoopNode "ForLoop" |
-| `ForEach` | `function` | list_: Union[any[], _G.list] | element: any; index: int | ExecSplit { [1] = "LoopBody", [2] = "Completed", LoopBody = { [1] = "__loop_body__" }, Completed = { [1] = "__loop_completed__" } }; LoopNode "ForEach" |
-| `CreateDict` | `function` | — | value: any | Pure |
-| `DictGet` | `function` | dict_: any; key: any | value: any | Pure |
-| `DictAdd` | `function` | dict_: any; key: any; value: any | — | ExecSplit { [1] = "default", default = nil } |
-| `DictRemove` | `function` | dict_: any; key: any | — | ExecSplit { [1] = "default", default = nil } |
-| `DictClear` | `function` | dict_: any | — | ExecSplit { [1] = "default", default = nil } |
-| `DictContains` | `function` | dict_: any; key: any | value: bool | Pure |
-| `TableToDict` | `function` | table_: any | value: _G.dict | Pure |
-| `DictToTable` | `function` | dict_: _G.dict | value: any | Pure |
-| `CreateList` | `function` | — | value: any[] | Pure |
-| `ListGet` | `function` | list_: Union[any[], _G.list, _G.tuple]; index: int = 0 | value: any | Pure |
-| `ListAppend` | `function` | list_: Union[any[], _G.list]; value: any | — | ExecSplit { [1] = "default", default = nil } |
-| `ListExtend` | `function` | list_: Union[any[], _G.list]; values: Union[any[], _G.list, _G.tuple] | — | ExecSplit { [1] = "default", default = nil } |
-| `ListRemove` | `function` | list_: Union[any[], _G.list]; index: int = 0 | — | ExecSplit { [1] = "default", default = nil } |
-| `ListFind` | `function` | list_: Union[any[], _G.list]; value: any | index: int | Pure |
-| `ListClear` | `function` | list_: Union[any[], _G.list] | — | ExecSplit { [1] = "default", default = nil } |
-| `ListContains` | `function` | list_: Union[any[], _G.list]; value: any | value: bool | Pure |
-| `TableToList` | `function` | table_: any[] | value: _G.list | Pure |
-| `ListToTable` | `function` | list_: _G.list | value: any[] | Pure |
+| Function | Parameters | Returns | Notes |
+|---|---|---|---|
+| `ForLoop` | `firstIndex: int = 0`, `lastIndex: int = 0`, `step: int = 1` | `index: int` | Loop (`ForLoop`). Branches: `LoopBody` (`__loop_body__`), `Completed` (`__loop_completed__`). |
+| `ForEach` | `list_: Union[any[], _G.list]` | `element: any`, `index: int` | Loop (`ForEach`). Branches: `LoopBody` (`__loop_body__`), `Completed` (`__loop_completed__`). |
+| `CreateDict` | — | `value: any` | Pure. Creates an empty dictionary. |
+| `DictGet` | `dict_: any`, `key: any` | `value: any` | Pure. Reads the value stored at `key`. |
+| `DictAdd` | `dict_: any`, `key: any`, `value: any` | — | Inserts or updates `key` with `value`. |
+| `DictRemove` | `dict_: any`, `key: any` | — | Removes `key` from the dictionary. |
+| `DictClear` | `dict_: any` | — | Removes all entries from the dictionary. |
+| `DictContains` | `dict_: any`, `key: any` | `value: bool` | Pure. Returns whether `key` exists in the dictionary. |
+| `TableToDict` | `table_: any` | `value: _G.dict` | Pure. Converts a Lua table to `_G.dict`. |
+| `DictToTable` | `dict_: _G.dict` | `value: any` | Pure. Converts a `_G.dict` to a Lua table. |
+| `CreateList` | — | `value: any[]` | Pure. Creates an empty list. |
+| `ListGet` | `list_: Union[any[], _G.list, _G.tuple]`, `index: int = 0` | `value: any` | Pure. Reads the element at `index`. |
+| `ListAppend` | `list_: Union[any[], _G.list]`, `value: any` | — | Appends `value` to the end of the list. |
+| `ListExtend` | `list_: Union[any[], _G.list]`, `values: Union[any[], _G.list, _G.tuple]` | — | Appends all elements from `values` to the list. |
+| `ListRemove` | `list_: Union[any[], _G.list]`, `index: int = 0` | — | Removes the element at `index`. |
+| `ListFind` | `list_: Union[any[], _G.list]`, `value: any` | `index: int` | Pure. Finds the index of `value` in the list. |
+| `ListClear` | `list_: Union[any[], _G.list]` | — | Removes all elements from the list. |
+| `ListContains` | `list_: Union[any[], _G.list]`, `value: any` | `value: bool` | Pure. Returns whether `value` is present in the list. |
+| `TableToList` | `table_: any[]` | `value: _G.list` | Pure. Converts a Lua table to `_G.list`. |
+| `ListToTable` | `list_: _G.list` | `value: any[]` | Pure. Converts a `_G.list` to a Lua table. |

@@ -1,10 +1,10 @@
 # GlobalFunctions.Transition
 
-Both functions return `Engine.AsyncOperation` and complete with `true`: freeze waits for capture of the outgoing frame (`Frozen`), and transition waits for submission of its final frame (`Finished`). See [GlobalCore.Transition](<../Global and Core Modules/Core Modules/GlobalCore/Scenes and System.md#transition>) for replacement and cancellation.
+`GlobalFunctions.Transition` provides latent Blueprint nodes for capturing the outgoing frame and playing a screen transition. Both functions return `Engine.AsyncOperation` and complete with `true`: freeze waits for capture of the outgoing frame (`Frozen`), and transition waits for submission of its final frame (`Finished`). See [GlobalCore.Transition](<../Global and Core Modules/Core Modules/GlobalCore/Scenes and System.md#transition>) for replacement and cancellation.
 
-Metadata source: `Scripts/GlobalFunctions/Transition_meta.lua`
+**Metadata source:** `Scripts/GlobalFunctions/Transition_meta.lua`
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `FreezeTransitionBackground` | `function` | — | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Frozen", Frozen = { [1] = true } } |
-| `RequestTransition` | `function` | transitionName: string = ""; transitionTime: float = 1 | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Finished", Finished = { [1] = true } }; Meta { PathVars = { [1] = { [1] = "transitionName", [2] = "/Game/Assets/Transitions" } } } |
+| Function | Parameters | Returns | Notes |
+|---|---|---|---|
+| `FreezeTransitionBackground` | — | `Engine.AsyncOperation` | Latent. Branch: `Frozen` (`true`). Captures the outgoing frame as the transition background. |
+| `RequestTransition` | `transitionName: string = ""`, `transitionTime: float = 1` | `Engine.AsyncOperation` | Latent. Branch: `Finished` (`true`). Path (`transitionName`): `/Game/Assets/Transitions`. |

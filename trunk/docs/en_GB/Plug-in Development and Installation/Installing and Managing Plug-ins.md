@@ -1,50 +1,53 @@
 # Installing and Managing Plug-ins
 
-Create, import, update or uninstall source plug-ins for all projects or the current project. Longer creation, import, status-refresh and uninstall operations show a progress dialog; related windows cannot accept another operation or close until it finishes. Trust confirmation remains a separate step before import.
+Create, import, update or uninstall C# source plug-ins globally across all projects or scoped to the current project. Plug-ins can add editor commands, text hints and operation hooks through the [public registration API](<Registration and Hook Reference.md>); to extend the game runtime itself, use [native C++](<../Native C++ Development/Build and Module Layout.md>).
 
-Editor plug-ins are trusted code. They run with the permissions of the editor process and are not sandboxed. Import only directories whose source is trusted.
+> **Warning:** Editor plug-ins are trusted in-process code running with the full permissions of the editor process and are not sandboxed. Inspect the source, manifest and origin of any third-party plug-in directory and import only code you trust.
 
-The plug-in owns its source, windows, labels, settings, retained data and third-party notices. The host owns registration, life cycle, command contexts, the restricted map, Blueprint and resource-cleanup bridges, and operation sequencing.
-
-Plug-ins can add commands, text hints and operation hooks through the [public registration API](<Registration and Hook Reference.md>). To extend the game runtime, use [native C++](<../Native C++ Development/Build and Module Layout.md>).
+Each plug-in owns its source, windows, labels, settings, retained data and third-party notices. The editor host owns registration, lifecycle, command contexts, restricted host bridges (map, Blueprint and resource cleanup) and operation sequencing. Longer creation, import, status-refresh and uninstall tasks display a progress dialog during which related windows cannot start another operation or close; trust confirmation is a separate step before import.
 
 ## Create a plug-in
 
-1. Open **Plugins → Manage Plugins** and choose **New Plugin...**.
-2. Enter a display name and a unique plug-in ID. Choose **With a Window** or **Logic Only**; **With a Window** is selected initially.
-3. Choose **Global Plugins** or **Current Project Plugins**. An open project defaults to **Current Project Plugins**; the start page allows only **Global Plugins**.
-4. Create the plug-in. The editor generates and compiles the template, validates its entry type, then installs and registers it. An error leaves no partially created plug-in or overwritten directory.
-5. The source folder opens automatically. Edit the generated files, then restart Ludork to load your changes.
+1. Open **Plug-ins → Manage Plug-ins** and select **New Plug-in...**.
+2. Enter a display name and a unique plug-in ID, then choose **With a Window** (default) or **Logic Only**.
+3. Choose **Global Plug-ins** or **Current Project Plug-ins**. With a project open, **Current Project Plug-ins** is selected by default; on the start page, only **Global Plug-ins** is available.
+4. Confirm creation. The editor generates and compiles the template, validates its entry type, then installs and registers it. If an error occurs, no partial plug-in is left behind and no existing directory is overwritten.
+5. The source directory opens automatically. Edit the generated files, then restart Ludork to load your changes.
 
-Neither template registers commands or opens a window automatically. See [Generated template](<Manifest and Minimal Plug-in.md#generated-template>) for the layout and entry class.
+Neither template registers commands or opens a window automatically; see [Generated template](<Manifest and Minimal Plug-in.md#generated-template>) for the generated files and entry class.
 
 ## Import a third-party plug-in
 
-1. Close any work that must not be exposed to the selected code, then inspect the plug-in's source, manifest and origin.
-2. Choose **Plugins → Import Plugin** or **Import Plugin** in the manager. Select **Global Plugins** or **Current Project Plugins** when a project is open, then select the complete source directory and accept the trust confirmation. The default scope is the current project; the start page imports globally.
-3. Read the import result. Resolve any manifest or compilation error before continuing.
-4. Restart Ludork. Imported source is not hot-loaded.
-5. Open **Plugins → Manage Plugins** and confirm that the plug-in reports **Loaded** in its scope. Open the target project first for a project plug-in.
+1. Close any sensitive work that must not be exposed to unverified code, and inspect the plug-in's source, `plugin.json` manifest and origin.
+2. Select **Plug-ins → Import Plug-in...** or **Import Plug-in...** in the **Plug-in Manager**. When a project is open, choose **Global Plug-ins** or **Current Project Plug-ins** (default: current project; the start page always imports globally), select the complete source directory and confirm the trust prompt.
+3. Review the import result and resolve any manifest or compilation errors before continuing.
+4. Restart Ludork (imported source is never hot-loaded).
+5. Open **Plug-ins → Manage Plug-ins** and confirm the plug-in reports **Loaded** in its scope (open the target project first for a project plug-in).
 
-![Import Plugin source-directory selection](../../../images/plugins/import-plugin.png)
+![Import Plug-in source-directory selection](../../../images/plugins/import-plugin.png)
 
 *Select the directory containing `plugin.json`, not an individual source file or build output.*
 
-The imported directory keeps its name. Invalid manifests, compilation failures, duplicate IDs within the effective global-plus-current-project set and existing target directories prevent installation. `__ProjectPlugins` is reserved for project plug-in storage and cannot be imported as an ordinary plug-in directory.
+### Import validation rules
 
-The directory must contain `plugin.json` and at least one participating `.cs` source file. Inaccessible paths, links (including broken links), reparse points, embedded `.data`, host-shared DLLs, F# or VB projects, and loose Avalonia XAML source are rejected before installation. A C# project file may remain for IDE use, but the plug-in compiler does not execute it. Sources below `bin`, `obj`, `.git` and `.vs` are ignored.
+- **Directory name and collisions:** The imported directory keeps its name. Invalid manifests, compilation failures, duplicate IDs within the effective global-plus-current-project set and existing target directories block installation. `__ProjectPlugins` is reserved for project plug-in storage and cannot be imported as a plug-in directory.
+- **Required and rejected files:** The directory must contain `plugin.json` and at least one participating `.cs` file. Inaccessible paths, symbolic or broken links, reparse points, embedded `.data`, host-shared DLLs, F# or VB projects, and loose Avalonia XAML files are rejected before installation.
+- **Ignored build and IDE files:** A `.csproj` file may remain for IDE diagnostics, though the plug-in compiler never executes it. Sources beneath `bin`, `obj`, `.git` and `.vs` are ignored.
 
 ## Global and project storage
 
-On Windows and macOS, newly created and imported plug-ins are normally installed in `~/Ludork/Plugins`, with their registrations in `~/Ludork/plugins.json`. `~` is the current user's home directory, typically `C:\Users\<user>` on Windows. Retained plug-in data always uses this user directory.
+On Windows and macOS, newly created and imported global plug-ins install to `~/Ludork/Plugins` with registrations in `~/Ludork/plugins.json` (`~` is the user's home directory, typically `C:\Users\<user>` on Windows). Writable retained plug-in data always lives under this user directory.
 
-At startup, the editor reads both the working directory's `plugins.json` with its sibling `Plugins` directory and the user installation. For a development build launched from another directory without a registry, it uses the repository identified by the build's development marker. Within each scope, working-directory registrations come first: the same plug-in ID loads only from that source, while IDs unique to either location also load. A selected plug-in's load error is reported without substituting the other copy. A missing registry contributes no plug-ins; an invalid registry reports a diagnostic while the other location can still load. Source directories must be registered; scanning does not automatically register every folder.
+### Discovery and priority
 
-The manager shows the selected source and routes unregistration or source deletion to that source's registry and directory. Selecting an unregistered immediate child of the working directory's plug-in root for import registers it in place; other imports and newly created plug-ins go to the user directory. If a user copy remains after removing a working-directory registration, it becomes active after restart.
+- **Working directory vs user directory:** At startup, the editor reads both the working directory's `plugins.json` (and sibling `Plugins` directory) and the user installation. Development builds launched from another directory without a registry fall back to the repository identified by the build's development marker.
+- **Conflict resolution:** Within each scope, working-directory registrations take priority: a matching plug-in ID loads only from the working directory, while unique IDs from either location load normally. Load failures on the selected copy are reported without substituting the other copy. A missing registry contributes no plug-ins; an invalid registry reports a diagnostic while the other location loads. Directories must be registered explicitly — scanning never auto-registers directories.
+- **Manager routing:** The **Plug-in Manager** shows each plug-in's active source and routes unregistration or deletion to that source's registry and directory. Importing an unregistered immediate child of the working directory's plug-in root registers it in place; all other imports and new plug-ins go to the user directory. Removing a working-directory registration activates a remaining user copy on the next restart.
+- **Repository and portable packages:** Official plug-ins load directly from a repository checkout. Windows development archives ship `Plugins` and `plugins.json` beside `Ludork.exe` (which sets the working directory to the archive root), loading bundled plug-ins without copying to the user directory. Windows release packages keep `BuildTools/OfficialPlugins` as an installation input and never overwrite user plug-ins at startup. See [User data directory](<../Editor User Guide/Start Page Workspace and Shortcuts.md#user-data-directory>) for other editor data and manual migration.
 
-Official plug-ins in the repository can therefore load directly from the checkout. Windows development archives likewise include `Plugins` and `plugins.json` beside the root `Ludork.exe`. Launching that executable sets the working directory to the extracted package root, so the bundled plug-ins load without installing a user copy. Windows release packages keep `BuildTools/OfficialPlugins` as an installation input; startup never copies or replaces official plug-ins. See [User data directory](<../Editor User Guide/Start Page Workspace and Shortcuts.md#user-data-directory>) for other editor data and manual migration.
+### Project plug-in layout
 
-Project plug-ins use the following layout under either scanned root, with the same working-directory priority. Writable `.data` remains under the user root:
+Project plug-ins follow this layout under either scanned root with the same working-directory priority, while writable `.data` stays under the user root:
 
 ```text
 Plugins/__ProjectPlugins/<project-key>/
@@ -55,55 +58,63 @@ Plugins/__ProjectPlugins/<project-key>/
     └── Plugin.cs
 ```
 
-`<project-key>` identifies a project by its absolute path, so projects with the same directory name at different paths remain independent. Newly created plug-in directories use the plug-in ID; imported directories retain their original name.
+`<project-key>` identifies each project by its absolute path, so projects sharing a directory name at different paths stay independent. Newly created plug-in directories use `<plugin-id>`, whereas imported directories keep their original name.
 
-Each project scope has its own registry and data. The manager groups **Global Plugins** and **Current Project Plugins** separately, including their status and diagnostics. Project plug-ins apply only to that project's menus, map context menus, text hints and operation hooks. Moving or renaming a project directory creates a new scope: import its plug-ins into the new scope to use them again. There is no automatic migration.
+Each project scope has its own registry and data, and the **Plug-in Manager** separates **Global Plug-ins** and **Current Project Plug-ins** with their respective statuses and diagnostics. Project plug-ins apply only to that project's menus, map context menus, text hints and operation hooks. Moving or renaming a project directory creates a new scope with no automatic migration; re-import its plug-ins into the new scope.
 
 ## Official release plug-ins
 
-Official Blueprint AI, Official Locale Tools, Official Random Map, [Official Mota Map Fill](<Official Plug-ins/Mota Map Fill.md>) and [Official Resource Cleanup](<Official Plug-ins/Resource Cleanup.md>) are distributed as global plug-ins. Their prepared payload includes a `plugins.json` generated from their manifests; after installation they are registered for loading on the next editor start, without the third-party import trust dialog. Official editor distributions contain no project plug-ins.
+[Official Blueprint AI](<Official Plug-ins/Blueprint AI.md>), [Official Locale Tools](<Official Plug-ins/Locale Tools.md>), [Official Random Map](<Official Plug-ins/Random Map.md>), [Official Mota Map Fill](<Official Plug-ins/Mota Map Fill.md>) and [Official Resource Cleanup](<Official Plug-ins/Resource Cleanup.md>) ship as global plug-ins with a generated `plugins.json`. Once installed, they load on the next editor start without the third-party trust dialog. Official distributions include no project plug-ins.
 
-By default, both Windows installers install official plug-ins for the user who started setup. Clear **Install Official Plugins** in the EXE wizard or pass `INSTALL_OFFICIAL_PLUGINS=0` to MSI to skip this step without changing existing plug-ins. Start setup normally so that plug-ins stay with your user account even when another administrator supplies UAC credentials. If you explicitly launch setup as another account, that account becomes the installer user. Service-account installations must skip user plug-ins. Repair preserves user plug-ins; an upgrade that installs official plug-ins replaces them again. Windows editor uninstall defaults to deleting user data, including plug-ins; clear **Delete user data** to retain it. See [User data directory](<../Editor User Guide/Start Page Workspace and Shortcuts.md#user-data-directory>) for the deletion scope, identity requirements and silent options.
+> **Warning:** Close Ludork and back up anything you need before installing official plug-ins. Installation replaces the entire `~/Ludork/Plugins` directory and `~/Ludork/plugins.json` — it does not merge them. Existing third-party source, registrations, `Plugins/.data` and all project plug-ins, registries and data under `Plugins/__ProjectPlugins` are permanently removed. Other editor settings and template caches are preserved.
 
-Close Ludork and back up anything needed before installing official plug-ins. The operation replaces the complete `~/Ludork/Plugins` directory and `~/Ludork/plugins.json`; it does not merge them. This deletes existing third-party source, registrations and `Plugins/.data`, plus all project plug-ins, registries and data below `Plugins/__ProjectPlugins`. Other settings and template caches are preserved. An ordinary failure rolls back to the previous installation. If rollback cannot finish, follow the reported recovery instructions. A successful replacement removes its backup; a failure to clean up the backup is reported separately.
+An ordinary installation failure rolls back to the previous installation; if rollback cannot finish, follow the reported recovery instructions. Successful replacement deletes the temporary backup, reporting cleanup failure separately if it cannot be removed.
 
-The macOS DMG keeps plug-ins outside `Ludork.app`. Finder displays `Ludork.app`, an `Applications` link and **Install Official Plugins**. The `.command` extension of the installer and the plug-in payload are hidden. Drag the app to Applications, keep Ludork closed, then double-click the installer. After the user accepts its explicit warning, the installer validates the hidden payload and transactionally replaces `~/Ludork/Plugins` and `~/Ludork/plugins.json` as one installation.
+### Windows installers (EXE and MSI)
 
-Do not drag plug-in files to Applications. The same complete-replacement rules apply: preserve anything needed before selecting **Replace and Install**.
+- **Opt-out:** Both Windows installers install official plug-ins by default for the user who started setup. Clear **Install Official Plug-ins** in the EXE wizard or pass `INSTALL_OFFICIAL_PLUGINS=0` to the MSI to skip without modifying existing plug-ins.
+- **User identity:** Launch setup normally as your own account so plug-ins install to your profile even when another administrator provides UAC credentials. Explicitly starting setup as another user targets that user instead; service-account installations must skip user plug-ins.
+- **Repair, upgrade and uninstall:** Repair preserves user plug-ins, whereas an upgrade that installs official plug-ins replaces them again. Editor uninstall deletes user data (including plug-ins) by default; clear **Delete user data** to keep it. See [User data directory](<../Editor User Guide/Start Page Workspace and Shortcuts.md#user-data-directory>) for deletion scope, identity rules and silent flags.
+
+### macOS DMG
+
+The macOS DMG keeps plug-ins outside `Ludork.app`: Finder displays `Ludork.app`, an `Applications` link and **Install Official Plugins** (its `.command` extension and the plug-in payload are hidden).
+
+1. Drag `Ludork.app` to `Applications` — do not drag plug-in files to `Applications`.
+2. Ensure Ludork is closed, then double-click **Install Official Plugins**.
+3. Review the replacement warning and select **Replace and Install** to validate the hidden payload and transactionally replace `~/Ludork/Plugins` and `~/Ludork/plugins.json`.
 
 ### Repository and portable installation
 
-Repository runs can load the checkout's registered plug-ins directly. To install a separate user copy for use outside the checkout, run these commands after building Toolchain, with Ludork closed:
+Repository checkouts load registered plug-ins directly. To install a separate user copy outside the checkout, build Toolchain, close Ludork and run:
 
 ```sh
 .tools/Toolchain/ludork-editor editor-official-plugins prepare Plugins obj/official-plugins
 .tools/Toolchain/ludork-editor editor-official-plugins install-current-user obj/official-plugins
 ```
 
-On Windows, use `.tools\Toolchain\ludork-editor.exe` instead. To retry a failed plug-in installation from an installed Windows release editor directory, run:
+On Windows, use `.tools\Toolchain\ludork-editor.exe`. To retry a failed installation from an installed Windows release editor directory:
 
 ```bat
 BuildTools\Toolchain\ludork-editor.exe editor-official-plugins install-current-user BuildTools\OfficialPlugins
 ```
 
-Run installation commands as your normal user, without **Run as administrator** or `sudo`. These commands replace all existing plug-ins and their data as described above. Windows installer plug-in operations and `install-current-user` commands save their latest output to `~/Ludork/Log/OfficialPluginInstall.log` when that location is writable. If an EXE installation reports that plug-ins failed, the editor itself remains installed; inspect this log and the installer output before retrying. If identity checks fail before the user directory can be resolved, use the installer output for details. The macOS DMG installer displays its own result and recovery details.
+Run these commands as your normal user without **Run as administrator** or `sudo`; the same full-replacement rules apply. Windows installer operations and `install-current-user` write their latest log to `~/Ludork/Log/OfficialPluginInstall.log` when writable. If an EXE setup reports that plug-in installation failed, the editor itself remains installed — inspect the log and installer output (or installer output alone if identity resolution failed before resolving the user directory) before retrying. The macOS DMG installer displays its own status and recovery details.
 
 ## Restart and status
 
-Creation and import compile source before registration. Global plug-ins compile and load at editor startup. Each project's plug-ins compile and load before its first project window opens in that editor session, with progress shown in the project-opening dialog. That result is reused when reopening or switching projects. Creating, importing, uninstalling or directly editing plug-in source requires a restart; reopening a project does not reload it. **Plugins → Manage Plugins** reports the Loaded, manifest-invalid, compile-failed, initialisation-failed and pending restart or deletion states, together with diagnostics.
+Creation and import compile source before registration. Global plug-ins compile and load at editor startup. Each project's plug-ins compile and load once before its first project window opens in that session (shown in the project-opening progress dialog), and that result is reused when switching or reopening projects.
 
-A registered plug-in is enabled when its scope loads after a restart; there is no hot enable or disable switch. Treat **Loaded** as the effective enabled state.
+Any creation, import, uninstall or direct source edit requires an editor restart — reopening a project does not reload plug-ins, and there is no hot enable or disable switch. Treat **Loaded** as the active enabled state.
 
-Review the manager's status and diagnostics before replacing or removing installed source.
+Open **Plug-ins → Manage Plug-ins** to inspect plug-in diagnostics and states (**Loaded**, **Invalid Manifest**, **Compilation Failed**, **Initialisation Failed**, **Pending Restart**, **Unregistered; Active Until Restart** and **Pending Deletion**) before replacing or deleting installed source.
 
 ## Data and uninstall
 
-Global plug-in writable state belongs in `~/Ludork/Plugins/.data/<plugin-id>` in every editor mode, and the plug-in obtains it from `PluginDataDirectory`. Official Blueprint AI therefore uses `~/Ludork/Plugins/.data/Ludork.OfficialBlueprintAI`. Project plug-in data instead resides in `~/Ludork/Plugins/__ProjectPlugins/<project-key>/.data/<plugin-id>`. The same plug-in ID in different project scopes has independent data and credentials. Always use `PluginDataDirectory` rather than writing settings or history into the plug-in source directory.
+- **Writable plug-in data:** Global plug-ins store writable state in `~/Ludork/Plugins/.data/<plugin-id>` (supplied via `PluginDataDirectory`; for example, `~/Ludork/Plugins/.data/Ludork.OfficialBlueprintAI`). Project plug-ins use `~/Ludork/Plugins/__ProjectPlugins/<project-key>/.data/<plugin-id>`, keeping the same plug-in ID isolated per project. Always write settings and history under `PluginDataDirectory` rather than the read-only plug-in source directory.
+- **Uninstalling:** Uninstalling through the **Plug-in Manager** unregisters the plug-in and optionally schedules safe deletion of its installed source files (a loaded assembly's directory may remain until the next restart). Unregistering without deletion lets you re-register the same immediate child directory under that scope's plug-in root later. Both modes preserve plug-in data, which must be removed in a separate explicit action. Never edit `plugins.json` by hand while the editor is running.
+- **Project-owned keep lists:** Official Resource Cleanup stores project-specific keep-list additions in `EditorCache/ResourceCleanupKeep.list` through its host bridge, separate from both plug-in source and `PluginDataDirectory`.
 
-Uninstalling a plug-in through the editor unregisters it and can schedule safe deletion of its installed files. A loaded directory may remain in place until the editor restarts, because its assembly is still active. A plug-in that was unregistered without deletion can be registered again by selecting its existing immediate child directory under the same scope's plug-in root. Plug-in data is retained in both plug-in uninstall modes, and deleting that data is a separate explicit operation. Do not edit the registry by hand while the editor is running.
+## Compilation references
 
-Resource Cleanup's project-specific keep-list additions are managed by its host bridge in `EditorCache/ResourceCleanupKeep.list`. They belong to the project and are separate from both plug-in program content and `PluginDataDirectory`.
-
-## Limitations
-
-Source compilation can reference the .NET runtime, `Ludork.Plugin.Abstractions`, `Ludork.Plugin.Avalonia` and the editor's shared Avalonia assemblies. Plug-ins cannot reference editor implementation assemblies.
+Source plug-in compilation can reference the .NET runtime, `Ludork.Plugin.Abstractions`, `Ludork.Plugin.Avalonia` and the editor's shared Avalonia assemblies. Plug-ins cannot reference internal editor implementation assemblies.

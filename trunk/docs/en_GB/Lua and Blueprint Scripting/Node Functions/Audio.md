@@ -1,15 +1,20 @@
 # GlobalFunctions.Audio
 
-`SoundFilter` and `MusicFilter` hold the shared filters edited by these nodes. Playback applies them only when `applyFilter` is true.
+`GlobalFunctions.Audio` provides Blueprint nodes for sound and music playback, channel audio effects and filter configuration. `SoundFilter` and `MusicFilter` hold the shared filters edited by `EditSoundFilter` and `EditMusicFilter`; playback applies them only when `applyFilter` is `true`.
 
-Metadata source: `Scripts/GlobalFunctions/Audio_meta.lua`
+**Metadata source:** `Scripts/GlobalFunctions/Audio_meta.lua`
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `EditSoundFilter` | `function` | attr: string; value: any | — | ExecSplit { [1] = "default", default = nil }; Meta { DropBox = { attr = { [1] = "loop", [2] = "offset", [3] = "pitch", [4] = "pan", [5] = "volume", [6] = "spatial", [7] = "position", [8] = "direction", [9] = "cone", [10] = "velocity", [11] = "dopplerFactor", [12] = "directionalAttenuationFactor", [13] = "relativeToListener", [14] = "minDistance", [15] = "maxDistance", [16] = "minGain", [17] = "maxGain", [18] = "attenuation" } } } |
-| `EditMusicFilter` | `function` | attr: string; value: any | — | ExecSplit { [1] = "default", default = nil }; Meta { DropBox = { attr = { [1] = "loop", [2] = "offset", [3] = "pitch", [4] = "pan", [5] = "volume", [6] = "spatial", [7] = "position", [8] = "direction", [9] = "cone", [10] = "velocity", [11] = "dopplerFactor", [12] = "directionalAttenuationFactor", [13] = "relativeToListener", [14] = "minDistance", [15] = "maxDistance", [16] = "minGain", [17] = "maxGain", [18] = "attenuation", [19] = "loopPoint" } } } |
-| `SetEffect` | `function` | audioType: string; effect: string | — | ExecSplit { [1] = "default", default = nil }; Meta { DropBox = { audioType = { [1] = "Sound", [2] = "Voice", [3] = "Music" }, effect = { [1] = "nil", [2] = "Echo", [3] = "Distortion", [4] = "Underwater", [5] = "BehindWall" } } } |
-| `PlaySound` | `function` | soundFileName: string; applyFilter: bool = false | — | ExecSplit { [1] = "default", default = nil }; Meta { PathVars = { [1] = { [1] = "soundFileName", [2] = "/Game/Assets/Sounds" } } } |
-| `PlayMusic` | `function` | musicFileName: string; applyFilter: bool = false | — | ExecSplit { [1] = "default", default = nil }; Meta { PathVars = { [1] = { [1] = "musicFileName", [2] = "/Game/Assets/Musics" } } } |
-| `SetBgmFilter` | `function` | attr: string; value: any | — | ExecSplit { [1] = "default", default = nil }; Meta { DropBox = { attr = { [1] = "loop", [2] = "offset", [3] = "pitch", [4] = "pan", [5] = "volume", [6] = "spatial", [7] = "position", [8] = "direction", [9] = "cone", [10] = "velocity", [11] = "dopplerFactor", [12] = "directionalAttenuationFactor", [13] = "relativeToListener", [14] = "minDistance", [15] = "maxDistance", [16] = "minGain", [17] = "maxGain", [18] = "attenuation", [19] = "loopPoint" } } } |
-| `SetBgsFilter` | `function` | attr: string; value: any | — | ExecSplit { [1] = "default", default = nil }; Meta { DropBox = { attr = { [1] = "loop", [2] = "offset", [3] = "pitch", [4] = "pan", [5] = "volume", [6] = "spatial", [7] = "position", [8] = "direction", [9] = "cone", [10] = "velocity", [11] = "dopplerFactor", [12] = "directionalAttenuationFactor", [13] = "relativeToListener", [14] = "minDistance", [15] = "maxDistance", [16] = "minGain", [17] = "maxGain", [18] = "attenuation" } } } |
+| Function | Parameters | Returns | Notes |
+|---|---|---|---|
+| `EditSoundFilter` | `attr: string`, `value: any` | — | Sets a field on the shared `SoundFilter`. `attr` drop-down: sound filter attributes (listed below). |
+| `EditMusicFilter` | `attr: string`, `value: any` | — | Sets a field on the shared `MusicFilter`. `attr` drop-down: music filter attributes (listed below). |
+| `SetEffect` | `audioType: string`, `effect: string` | — | Applies an effect preset to an audio channel. `audioType` drop-down: `Sound`, `Voice`, `Music`. `effect` drop-down: `nil`, `Echo`, `Distortion`, `Underwater`, `BehindWall`. |
+| `PlaySound` | `soundFileName: string`, `applyFilter: bool = false` | — | Plays a sound effect, applying `SoundFilter` when `applyFilter` is `true`. Path (`soundFileName`): `/Game/Assets/Sounds`. |
+| `PlayMusic` | `musicFileName: string`, `applyFilter: bool = false` | — | Plays background music on the active Scene, applying `MusicFilter` when `applyFilter` is `true`. Path (`musicFileName`): `/Game/Assets/Musics`. |
+| `SetBgmFilter` | `attr: string`, `value: any` | — | Updates a filter property on the active `SceneMap` BGM. `attr` drop-down: music filter attributes (listed below). |
+| `SetBgsFilter` | `attr: string`, `value: any` | — | Updates a filter property on the active `SceneMap` BGS. `attr` drop-down: sound filter attributes (listed below). |
+
+Filter `attr` drop-down keys:
+
+- **Sound and BGS filters** (`EditSoundFilter`, `SetBgsFilter`): `loop`, `offset`, `pitch`, `pan`, `volume`, `spatial`, `position`, `direction`, `cone`, `velocity`, `dopplerFactor`, `directionalAttenuationFactor`, `relativeToListener`, `minDistance`, `maxDistance`, `minGain`, `maxGain`, `attenuation`.
+- **Music and BGM filters** (`EditMusicFilter`, `SetBgmFilter`): all sound filter keys above plus `loopPoint`.

@@ -1,37 +1,37 @@
 # GlobalFunctions.Player
 
-`Player` 声明读取与修改 Player 状态、物品栏和装备的节点。
+`GlobalFunctions.Player` 提供用于查询主玩家 Actor 以及修改其背包、装备和属性的蓝图节点。
 
-Metadata 来源：`Scripts/GlobalFunctions/Player_meta.lua`
+**元数据来源**：`Scripts/GlobalFunctions/Player_meta.lua`
 
 ## Player
 
 ### 函数与事件
 
-| 名称 | 种类 | 参数 | 返回 | 执行语义与 metadata |
-|---|---|---|---|---|
-| `GetPlayer` | `function` | — | player: { "Source.MapActors.Player", "Player" } | Pure |
-| `GetPlayerFrontPosition` | `function` | — | position: sf.Vector2i | Pure |
-| `AddItem` | `function` | itemID: { enum = "Enums.GeneralData.Item", valueType = "string" }; count: int = 1 | — | ExecSplit { [1] = "default", default = nil } |
-| `RemoveItem` | `function` | itemID: { enum = "Enums.GeneralData.Item", valueType = "string" }; count: int = 1 | return: int | ExecSplit { [1] = "Success", [2] = "Failed", Success = { [1] = 0 }, Failed = { [1] = 1 } } |
-| `HasItem` | `function` | itemID: { enum = "Enums.GeneralData.Item", valueType = "string" } | value: bool | Pure |
-| `GetItemCount` | `function` | itemID: { enum = "Enums.GeneralData.Item", valueType = "string" } | count: int | Pure |
-| `AddEquip` | `function` | equipID: { enum = "Enums.GeneralData.Equip", valueType = "string" }; count: int = 1 | — | ExecSplit { [1] = "default", default = nil } |
-| `RemoveEquip` | `function` | equipID: { enum = "Enums.GeneralData.Equip", valueType = "string" }; count: int = 1 | return: int | ExecSplit { [1] = "Success", [2] = "Failed", Success = { [1] = 0 }, Failed = { [1] = 1 } } |
-| `HasEquip` | `function` | equipID: { enum = "Enums.GeneralData.Equip", valueType = "string" } | value: bool | Pure |
-| `EquipItem` | `function` | equipID: { enum = "Enums.GeneralData.Equip", valueType = "string" } | — | ExecSplit { [1] = "default", default = nil } |
-| `UnequipSlot` | `function` | slotID: string | — | ExecSplit { [1] = "default", default = nil } |
-| `GetEquipInSlot` | `function` | slotID: string | equipID: string | Pure |
-| `GetPlayerAttr` | `function` | attrName: string | value: any | Pure |
-| `SetPlayerAttr` | `function` | attrName: string; value: any | — | ExecSplit { [1] = "default", default = nil } |
-| `GetPlayerAttrRef` | `function` | attrName: string | value: any | Pure |
-| `HealPlayer` | `function` | amount: int = 1 | — | ExecSplit { [1] = "default", default = nil } |
-| `DamagePlayer` | `function` | amount: int = 1 | — | ExecSplit { [1] = "default", default = nil } |
-| `AddHP` | `function` | amount: int = 1 | — | ExecSplit { [1] = "default", default = nil } |
-| `AddGold` | `function` | amount: int = 1 | — | ExecSplit { [1] = "default", default = nil } |
-| `AddATK` | `function` | amount: int = 1 | — | ExecSplit { [1] = "default", default = nil } |
-| `AddDEF` | `function` | amount: int = 1 | — | ExecSplit { [1] = "default", default = nil } |
-| `AddEXP` | `function` | amount: int = 1 | — | ExecSplit { [1] = "default", default = nil } |
-| `MeetPlayer` | `function` | actors: { "Engine", "Actor[]" } | playerInfo: Union[Source.MapActors.Player.Player, nil] | Pure |
+| 函数 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `GetPlayer` | — | `player: Source.MapActors.Player` | 纯函数（Pure）。返回主玩家 Actor。 |
+| `GetPlayerFrontPosition` | — | `position: sf.Vector2i` | 纯函数（Pure）。返回玩家正前方的地图格坐标。 |
+| `AddItem` | `itemID: string`, `count: int = 1` | — | `Enums.GeneralData.Item` 选择器。向玩家背包添加物品。 |
+| `RemoveItem` | `itemID: string`, `count: int = 1` | `int` | 执行分支：`Success`（`0`）、`Failed`（`1`）。`Enums.GeneralData.Item` 选择器。 |
+| `HasItem` | `itemID: string` | `value: bool` | 纯函数（Pure）。`Enums.GeneralData.Item` 选择器。 |
+| `GetItemCount` | `itemID: string` | `count: int` | 纯函数（Pure）。`Enums.GeneralData.Item` 选择器。 |
+| `AddEquip` | `equipID: string`, `count: int = 1` | — | `Enums.GeneralData.Equip` 选择器。向玩家背包添加装备。 |
+| `RemoveEquip` | `equipID: string`, `count: int = 1` | `int` | 执行分支：`Success`（`0`）、`Failed`（`1`）。`Enums.GeneralData.Equip` 选择器。 |
+| `HasEquip` | `equipID: string` | `value: bool` | 纯函数（Pure）。`Enums.GeneralData.Equip` 选择器。 |
+| `EquipItem` | `equipID: string` | — | `Enums.GeneralData.Equip` 选择器。穿戴指定装备。 |
+| `UnequipSlot` | `slotID: string` | — | 卸下 `slotID` 槽位上的装备。 |
+| `GetEquipInSlot` | `slotID: string` | `equipID: string` | 纯函数（Pure）。返回 `slotID` 槽位当前穿戴的装备 ID。 |
+| `GetPlayerAttr` | `attrName: string` | `value: any` | 纯函数（Pure）。读取指定玩家属性的值。 |
+| `SetPlayerAttr` | `attrName: string`, `value: any` | — | 设置指定玩家属性的值（数值属性写入 Base）。 |
+| `GetPlayerAttrRef` | `attrName: string` | `value: any` | 纯函数（Pure）。返回指定玩家属性的可变引用。 |
+| `HealPlayer` | `amount: int = 1` | — | 对玩家应用即时（Instant）治疗效果。 |
+| `DamagePlayer` | `amount: int = 1` | — | 对玩家应用即时（Instant）伤害效果。 |
+| `AddHP` | `amount: int = 1` | — | 对玩家应用即时 HP 增减效果。 |
+| `AddGold` | `amount: int = 1` | — | 对玩家应用即时金币（Gold）增减效果。 |
+| `AddATK` | `amount: int = 1` | — | 对玩家应用即时攻击力（ATK）增减效果。 |
+| `AddDEF` | `amount: int = 1` | — | 对玩家应用即时防御力（DEF）增减效果。 |
+| `AddEXP` | `amount: int = 1` | — | 对玩家应用即时经验值（EXP）增减效果。 |
+| `MeetPlayer` | `actors: Engine.Actor[]` | `playerInfo: Union[Source.MapActors.Player, nil]` | 纯函数（Pure）。若 `actors` 包含主玩家则返回该玩家实例，否则返回 `nil`。 |
 
-属性辅助节点优先使用生成的 Player 属性。数值设置节点写入 Base 值。治疗、伤害和加属性节点施加 Instant 效果。State 节点见 [GlobalFunctions.Gameplay](<Gameplay.md>)。
+属性辅助节点优先访问生成的玩家属性；数值写入节点直接修改 Base 值。治疗、伤害与各项属性增减节点均应用即时（Instant）效果。状态（State）相关节点见 [GlobalFunctions.Gameplay](<Gameplay.md>)。

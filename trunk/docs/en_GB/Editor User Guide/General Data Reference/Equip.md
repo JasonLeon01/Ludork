@@ -1,17 +1,15 @@
 # Equip
 
-Source: `Data/General/Equip.json`
+Defines equippable items, the `Class` slot each item occupies, its passive attribute bonuses and optional equip/unequip ability graphs.
 
-| Property | Value |
-|---|---|
-| Member events | `onEquip`, `onUnequip` |
+**Source:** `Data/General/Equip.json` · **Member events:** `onEquip`, `onUnequip`
 
 ## Schema
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `name` | `string` | `""` | The display name of this equipment. |
-| `desc` | `string` | `""` | The display description of this equipment. |
-| `icon` | `file` | `""` | Full logical icon path. The selector root is `/Game/Assets/Icons`. |
-| `slot` | `string` | `""` | The `Class` slot key that this equipment occupies. |
+| `name` | `string` | `""` | Display name of this equipment. |
+| `desc` | `string` | `""` | Display description of this equipment. |
+| `icon` | `file` | `""` | Canonical logical icon path (picker root: `/Game/Assets/Icons`). |
+| `slot` | `string` | `""` | `Class` slot key occupied by this equipment. |
 | `attrPlus` | `Dict[string, int]` | `{}` | Attribute names mapped to integer modifiers applied while equipped. |

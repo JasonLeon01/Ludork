@@ -1,15 +1,15 @@
 # GlobalFunctions.Save
 
-`Save` declares the save, load and save-path nodes.
+`GlobalFunctions.Save` provides Blueprint nodes for saving game state, loading from a save file and resolving numbered save-slot file paths.
 
-Metadata source: `Scripts/GlobalFunctions/Save_meta.lua`
+**Metadata source:** `Scripts/GlobalFunctions/Save_meta.lua`
 
 ## Save
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `SaveGame` | `function` | filePath: string = "" | — | ExecSplit { [1] = "default", default = nil } |
-| `LoadGame` | `function` | filePath: string = "" | return: int | ExecSplit { [1] = "Loaded", [2] = "NotFound", Loaded = { [1] = 0 }, NotFound = { [1] = 1 } } |
-| `GetSavePath` | `function` | slot: int = 1 | path: string | Pure |
+| Function | Parameters | Returns | Notes |
+|---|---|---|---|
+| `SaveGame` | `filePath: string = ""` | — | Saves the current game state to `filePath`. |
+| `LoadGame` | `filePath: string = ""` | `int` | Execution branches: `Loaded` (`0`), `NotFound` (`1`). Loads a saved game from `filePath`. |
+| `GetSavePath` | `slot: int = 1` | `path: string` | Pure. Resolves the save file path for `slot`. |

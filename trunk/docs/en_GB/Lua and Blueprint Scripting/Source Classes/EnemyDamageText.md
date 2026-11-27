@@ -1,27 +1,29 @@
 # Source.MapActors.EnemyDamageText
 
-`EnemyDamageText` declares the required Item, text configuration and offset of the Enemy damage readout.
+`EnemyDamageText` is the child Actor that displays an Enemy's predicted damage readout on the map when the Player holds the required Item.
 
-Metadata source: `Scripts/Source/MapActors/EnemyDamageText_meta.lua`
+**Metadata source:** `Scripts/Source/MapActors/EnemyDamageText_meta.lua`
 
 ## EnemyDamageText
 
-Direct metadata bases: `{ "Engine", "Actor" }`
+**Inherits:** `Engine.Actor`
 
 `EnemyDamageText.EnemyDamageHintLevel` is the shared runtime setting controlled by `enemyDamageHintLevel` in [Gameplay configuration](<../Default Gameplay/Runtime Data Configuration and Saves.md#shared-gameplay-configuration>), which documents its enum values, script default and application timing.
 
 ### Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
 | `tickable` | `bool` | `true` | — |
 | `collisionEnabled` | `bool` | `false` | — |
-| `requiredItemID` | `{ enum = "Enums.GeneralData.Item", valueType = "string" }` | `"EnemyBook"` | — |
-| `textConfig` | `string` | `"Enemy/DamageReadout"` | — |
-| `damageTextOffset` | `sf.Vector2f` | `{ [1] = 0, [2] = 0 }` | — |
+| `requiredItemID` | `string` | `"EnemyBook"` | `Enums.GeneralData.Item` enum selector. |
+| `textConfig` | `string` | `"Enemy/DamageReadout"` | Text configuration key for the damage readout. |
+| `damageTextOffset` | `sf.Vector2f` | `sf.Vector2f(0, 0)` | Render offset for the damage readout. |
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `onTick` | `event` | deltaTime: float | — | ExecSplit { [1] = "default", default = nil } |
+Events omit the implicit `self` receiver (`Source.MapActors.EnemyDamageText`).
+
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `onTick` | `deltaTime: float` | — | Event. Default execution output. |

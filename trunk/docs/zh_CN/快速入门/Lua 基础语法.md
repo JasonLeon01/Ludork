@@ -1,10 +1,10 @@
 # Lua 基础语法
 
-Ludork 内置 Lua 5.5，本页介绍与 C 不同的语法和行为。引擎扩展见 [Ludork Lua 进阶](<Ludork Lua 进阶.md>)，图形与几何类型见 [SFML 快速入门](<SFML 快速入门.md>)。
+Ludork 运行 Lua 5.5。本指南介绍与 C 语言不同的语法与运行时行为；Ludork 的 Standard 扩展请参阅 [Ludork Lua 进阶](<Ludork Lua 进阶.md>)，图形与几何类型请参阅 [SFML 快速入门](<SFML 快速入门.md>)。
 
 ## 文件、注释与局部变量
 
-Lua 文件使用 `.lua` 扩展名，注释用 `--` 或 `--[[ ... ]]`。局部变量用 `local` 声明，未初始化时为 `nil`。
+Lua 脚本使用 `.lua` 扩展名，注释使用 `--`（单行）或 `--[[ ... ]]`（多行）。局部变量通过 `local` 声明，未初始化的变量求值为 `nil`。
 
 ```lua
 -- 单行注释
@@ -12,7 +12,7 @@ local playerName = "Hero"
 local level, alive, target = 1, true, nil
 ```
 
-Lua 的值包括 `nil`、boolean、number、string、function、table、userdata 与 thread。`type(value)` 返回这些内建类别之一。由 table 或 userdata 表示的应用对象，仍会报告底层的类别。
+Lua 值分为八种内置类别：`nil`、boolean、number、string、function、table、userdata 与 thread。`type(value)` 返回对应类别的名称；以 table 或 userdata 表示的应用对象仍报告其底层 Lua 类别。
 
 ## 运算符
 
@@ -24,7 +24,7 @@ Lua 的值包括 `nil`、boolean、number、string、function、table、userdata
 | 字符串 | `..` 拼接 |
 | 长度 | `#value` |
 
-Lua 只把 `nil` 与 `false` 当作假。`0`、空字符串、空 table 用作条件时都为真。
+Lua 仅将 `nil` 与 `false` 视为假值；`0`、空字符串（`""`）与空 table（`{}`）在条件判断中均求值为 `true`。
 
 ## 条件分支
 
@@ -38,11 +38,11 @@ else
 end
 ```
 
-需要把“缺失”与 `false`、`0` 或空值区分开时，应显式比较 `nil`。
+需要将“值缺失”与 `false`、`0` 或空值区分开时，请显式与 `nil` 比较。
 
 ## 表（table）
 
-table 既能当数组，也能当字典或记录。数组索引从 1 开始。
+table 可同时充当数组、字典或记录。数组索引从 1 开始。
 
 ```lua
 local items = { "Key", "Potion" }
@@ -55,7 +55,7 @@ items[#items + 1] = "Gem"
 player.hp = player.hp - 10
 ```
 
-给 table 的键赋值为 `nil` 即删除该键。数组应保持连续：空洞会使 `#` 的结果不可靠，`ipairs` 则在第一个 `nil` 处停止。
+将 table 的键赋值为 `nil` 即可删除该键。数组应保持连续：空洞会导致 `#` 的结果不可靠，且 `ipairs` 会在首个 `nil` 处终止遍历。
 
 ## 循环
 
@@ -69,11 +69,11 @@ for key, value in pairs(player) do
 end
 ```
 
-稠密数组用 `ipairs`，字典用 `pairs`。数值循环写作 `for i = first, last, step do ... end`，步长能到达时包含两个端点；while 循环写作 `while condition do ... end`。
+连续数组使用 `ipairs` 遍历，字典使用 `pairs` 遍历。数值循环写作 `for i = first, last, step do ... end`，在步长可达时包含起止两个端点；`while` 循环写作 `while condition do ... end`。
 
 ## 函数与方法
 
-函数本身也是值，而且可以返回多个结果。实例方法用冒号语法定义，接收者会作为 `self` 传入。
+函数是一等公民，且支持返回多个结果。实例方法使用冒号语法定义，自动将接收者作为 `self` 参数传入。
 
 ```lua
 local function clampHealth(value, maximum)
@@ -89,11 +89,11 @@ end
 local value, found = findItem("Key")
 ```
 
-`object:method(value)` 等价于 `object.method(object, value)`。定义和调用实例方法时都统一用冒号形式。
+`object:method(value)` 等价于 `object.method(object, value)`。定义与调用实例方法时请统一使用冒号语法。
 
 ## 模块
 
-模块是返回公开值的 Lua 文件。`require` 的路径以 `Scripts` 为根，用点号分隔目录层级，并且不带扩展名。
+模块是返回公开值的 Lua 文件。调用 `require` 时，路径以 `Scripts` 目录为根，使用点号分隔层级，并省略 `.lua` 扩展名。
 
 ```lua
 -- Scripts/Source/Score.lua
@@ -112,8 +112,8 @@ local Score = require("Source.Score")
 local total = Score.Add(10, 5)
 ```
 
-项目加载顺序和 `require` 约定见 [Lua 运行时与模块](<../Lua 与蓝图脚本/Lua 运行时与模块.md>)。
+项目加载顺序与 `require` 约定请参阅 [Lua 运行时与模块](<../Lua 与蓝图脚本/Lua 运行时与模块.md>)。
 
 ## 错误
 
-必须成立的条件用 `assert(condition, message)` 检查，需要主动失败时用 `error(message)`。项目必需的数据必须在源头直接失败，而不是悄悄产生不完整的状态。
+必须满足的前置条件使用 `assert(condition, message)` 检查，显式触发失败使用 `error(message)`。项目必需的数据应在源头直接失败，而非静默产生不完整状态。

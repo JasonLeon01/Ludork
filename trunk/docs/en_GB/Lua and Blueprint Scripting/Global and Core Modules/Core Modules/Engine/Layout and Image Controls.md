@@ -1,194 +1,202 @@
 # Engine: Layout and Image Controls
 
+This page documents image, character-preview, layout container and rectangle controls under `Engine`: `Image`, `CharacterView`, `ListView`, `WrapBox`, `ScrollBox`, `Rect`, `SolidRect` and `SpriteBase`. Instance method tables omit the implicit `self` receiver exposed as the first Blueprint target pin.
+
 ## Image
 
-Direct metadata bases: `{ "Engine", "SpriteBase" }`
+**Inherits:** `Engine.SpriteBase`
 
-`drawAs` uses the bound `Engine.ImageDrawAs` enum with members `Image` and `Tile`, and defaults to `Engine.ImageDrawAs.Image`. Read or write it through `getDrawAs()` and `setDrawAs(mode)`, or the `drawAs` property. Lua passes enum members, for example `image:setDrawAs(Engine.ImageDrawAs.Tile)`, rather than numeric or string values. `FunctionalImage` inherits this API.
+Displays a stretched or tiled image (`FunctionalImage` inherits this API).
 
-`Image` stretches the image when its local scale grows. `Tile` fills the same area through SFML texture repetition: local scaling increases the number of source-sized tiles, with partial tiles cropped at the edge. Global UI Scale still scales the complete result, including each tile.
-
-The repeating texture belongs to this Image, so changing its mode does not change other controls sharing the source texture. An optional `textureRect` defines the tile; changing either the texture or its Rect refreshes that private texture. Declarative assets serialise the enum member name as `"Image"` or `"Tile"`, and the native property decoder produces the enum value.
+- **`drawAs` mode:** Uses the bound `Engine.ImageDrawAs` enum (`Image` or `Tile`, defaulting to `Engine.ImageDrawAs.Image`) via `getDrawAs()`, `setDrawAs(mode)` or the `drawAs` property. Lua must pass enum members (such as `image:setDrawAs(Engine.ImageDrawAs.Tile)`) rather than numbers or strings; declarative JSON serialises `"Image"` or `"Tile"` and decodes to the enum value.
+- **Scaling and tiling:** `Image` stretches the picture as local scale grows, whereas `Tile` repeats source-sized tiles via SFML texture repetition and crops partial edge tiles. Global UI Scale scales the final result in both modes.
+- **Private repeating texture:** Each `Image` owns its repeating texture so switching modes does not affect other controls sharing the source texture. An optional `textureRect` defines the tile and refreshes that private texture whenever the texture or rectangle changes.
 
 ## CharacterView
 
-Direct metadata bases: `{ "Engine", "FunctionalImage" }`
+**Inherits:** `Engine.FunctionalImage`
 
-`CharacterView` renders frame-animated character and enemy sheets inside fixed `size` bounds. `textureRect` selects the initial frame, and `characterScale` is applied before the frame is centred and fitted without enlargement. A positive `switchInterval` advances equal-width horizontal frames when `animatable` is true, and a non-positive value pauses animation.
+Renders frame-animated character and enemy sheets inside fixed `size` bounds through the 2D material pipeline.
 
-`material` is empty or references a complete `Data/Materials/...json` path; `materialParameters` holds this control's own overrides. The control draws the current frame through the formal material graph. `setFrameRect` changes the reset frame, and changing the declarative `texture` resets it to the full texture. Asset properties (`size`, `texture`, optional `textureRect`, `characterScale`, `animatable`, `switchInterval`, `material`, `materialParameters`, `colour`) provide preview data; runtime passes the real Actor resource and parameter snapshot to `setCharacter`. Apply a new material before applying its parameters; mutable parameter state is not shared with other Actors.
-
-An invisible CharacterView skips rendering, including direct draw calls.
+- **Framing and animation:** `textureRect` selects the initial frame, `characterScale` scales it before centring and fitting without enlargement, and a positive `switchInterval` advances equal-width horizontal frames while `animatable` is `true` (non-positive pauses animation). `setFrameRect` updates the reset frame; changing declarative `texture` resets it to the full texture. An invisible `CharacterView` skips rendering, including direct draw calls.
+- **Materials and runtime data:** `material` is empty or a complete `Data/Materials/...json` path, and `materialParameters` holds per-control overrides (never shared with Actors). Apply a new material before applying its parameters. Asset properties (`size`, `texture`, optional `textureRect`, `characterScale`, `animatable`, `switchInterval`, `material`, `materialParameters`, `colour`) provide editor preview values; runtime code passes the live Actor resource and parameter snapshot to `setCharacter`.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `setCharacter` | `function` | self: { "Engine", "CharacterView" } = "self"; texture: sf.Texture; frameRect: sf.IntRect; characterScale: sf.Vector2f; animatable: bool; switchInterval: float; material: string = ""; materialParameters: Dict[string, any] = {} | — | — |
-| `setCharacterTexture` | `function` | self: { "Engine", "CharacterView" } = "self"; texture: sf.Texture | — | — |
-| `getCharacterScale` | `function` | self: { "Engine", "CharacterView" } = "self" | return: sf.Vector2f | Pure |
-| `setCharacterScale` | `function` | self: { "Engine", "CharacterView" } = "self"; scale: sf.Vector2f | — | — |
-| `getAnimatable` | `function` | self: { "Engine", "CharacterView" } = "self" | return: bool | Pure |
-| `setAnimatable` | `function` | self: { "Engine", "CharacterView" } = "self"; animatable: bool | — | — |
-| `getSwitchInterval` | `function` | self: { "Engine", "CharacterView" } = "self" | return: float | Pure |
-| `setSwitchInterval` | `function` | self: { "Engine", "CharacterView" } = "self"; switchInterval: float | — | — |
-| `getSwitchTimer` | `function` | self: { "Engine", "CharacterView" } = "self" | return: float | Pure |
-| `getFrameRect` | `function` | self: { "Engine", "CharacterView" } = "self" | return: sf.IntRect | Pure |
-| `setFrameRect` | `function` | self: { "Engine", "CharacterView" } = "self"; frameRect: sf.IntRect | — | — |
-| `resetFrameRectToTexture` | `function` | self: { "Engine", "CharacterView" } = "self" | — | — |
-| `getMaterial` | `function` | self: { "Engine", "CharacterView" } = "self" | return: string | Pure |
-| `setMaterial` | `function` | self: { "Engine", "CharacterView" } = "self"; material: string | — | — |
-| `getMaterialParameters` | `function` | self: { "Engine", "CharacterView" } = "self" | return: Dict[string, any] | Pure |
-| `setMaterialParameters` | `function` | self: { "Engine", "CharacterView" } = "self"; parameters: Dict[string, any] | — | — |
-| `resetAnimation` | `function` | self: { "Engine", "CharacterView" } = "self" | — | — |
-| `getSize` | `function` | self: { "Engine", "CharacterView" } = "self" | return: sf.Vector2f | Pure |
-| `getLocalBounds` | `function` | self: { "Engine", "CharacterView" } = "self" | return: sf.FloatRect | Pure |
-| `getGlobalBounds` | `function` | self: { "Engine", "CharacterView" } = "self" | return: sf.FloatRect | Pure |
-| `resize` | `function` | self: { "Engine", "CharacterView" } = "self"; size: sf.Vector2f | — | — |
-| `update` | `function` | self: { "Engine", "CharacterView" } = "self"; deltaTime: float | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `setCharacter` | `texture: sf.Texture`, `frameRect: sf.IntRect`, `characterScale: sf.Vector2f`, `animatable: bool`, `switchInterval: float`, `material: string = ""`, `materialParameters: Dict[string, any] = {}` | — | — |
+| `setCharacterTexture` | `texture: sf.Texture` | — | — |
+| `getCharacterScale` | — | `sf.Vector2f` | Pure. |
+| `setCharacterScale` | `scale: sf.Vector2f` | — | — |
+| `getAnimatable` | — | `bool` | Pure. |
+| `setAnimatable` | `animatable: bool` | — | — |
+| `getSwitchInterval` | — | `float` | Pure. |
+| `setSwitchInterval` | `switchInterval: float` | — | — |
+| `getSwitchTimer` | — | `float` | Pure. |
+| `getFrameRect` | — | `sf.IntRect` | Pure. |
+| `setFrameRect` | `frameRect: sf.IntRect` | — | — |
+| `resetFrameRectToTexture` | — | — | — |
+| `getMaterial` | — | `string` | Pure. |
+| `setMaterial` | `material: string` | — | — |
+| `getMaterialParameters` | — | `Dict[string, any]` | Pure. |
+| `setMaterialParameters` | `parameters: Dict[string, any]` | — | — |
+| `resetAnimation` | — | — | — |
+| `getSize` | — | `sf.Vector2f` | Pure. |
+| `getLocalBounds` | — | `sf.FloatRect` | Pure. |
+| `getGlobalBounds` | — | `sf.FloatRect` | Pure. |
+| `resize` | `size: sf.Vector2f` | — | — |
+| `update` | `deltaTime: float` | — | — |
 
 ## ListView
 
-Direct metadata bases: `{ "Engine", "ControlBase" }`, `{ "Engine", "FunctionalBase" }`
+**Inherits:** `Engine.ControlBase`, `Engine.FunctionalBase`
 
-An invisible ListView skips drawing and does not prepare layout during that draw. Visible lists draw only visible children. Each update phase (`update`, `lateUpdate`, `fixedUpdate`) processes visible functional children before invoking the list's own corresponding tick hook.
+Multi-column vertical layout container with optional horizontal marquee scrolling for wide children. An invisible `ListView` skips drawing and layout preparation during draw; visible lists draw only visible children. Each update phase (`update`, `lateUpdate`, `fixedUpdate`) updates visible functional children before running the list's own tick hook.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `getOrigin` | `function` | self: { "Engine", "ListView" } = "self" | return: sf.Vector2f | Pure |
-| `setOrigin` | `function` | self: { "Engine", "ListView" } = "self"; origin: sf.Vector2f | — | — |
-| `getColumns` | `function` | self: { "Engine", "ListView" } = "self" | return: int | Pure |
-| `getChildScrollingEnabled` | `function` | self: { "Engine", "ListView" } = "self" | return: bool | Pure |
-| `setChildScrollingEnabled` | `function` | self: { "Engine", "ListView" } = "self"; enabled: bool | — | — |
-| `getDefaultItemSize` | `function` | self: { "Engine", "ListView" } = "self" | return: sf.Vector2f | Pure |
-| `getItemLayoutRect` | `function` | self: { "Engine", "ListView" } = "self"; index: int | return: sf.FloatRect | Pure |
-| `getSize` | `function` | self: { "Engine", "ListView" } = "self" | return: sf.Vector2f | Pure |
-| `setSize` | `function` | self: { "Engine", "ListView" } = "self"; size: sf.Vector2i | — | — |
-| `setColumns` | `function` | self: { "Engine", "ListView" } = "self"; columns: int | — | — |
-| `getChildren` | `function` | self: { "Engine", "ListView" } = "self" | return: { "Engine", "ControlBase[]" } | Pure |
-| `addChild` | `function` | self: { "Engine", "ListView" } = "self"; child: { "Engine", "ControlBase" } | — | — |
-| `removeChild` | `function` | self: { "Engine", "ListView" } = "self"; child: { "Engine", "ControlBase" } | — | — |
-| `clearChildren` | `function` | self: { "Engine", "ListView" } = "self" | — | — |
-| `getRenderStates` | `function` | self: { "Engine", "ListView" } = "self" | return: sf.RenderStates | Pure |
-| `update` | `function` | self: { "Engine", "ListView" } = "self"; deltaTime: float | — | — |
-| `lateUpdate` | `function` | self: { "Engine", "ListView" } = "self"; deltaTime: float | — | — |
-| `fixedUpdate` | `function` | self: { "Engine", "ListView" } = "self"; fixedDelta: float | — | — |
-| `invalidatePositions` | `function` | self: { "Engine", "ListView" } = "self" | — | — |
-| `applyPositions` | `function` | self: { "Engine", "ListView" } = "self" | — | — |
-| `draw` | `function` | self: { "Engine", "ListView" } = "self"; target: sf.RenderTarget; states: sf.RenderStates | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `getOrigin` | — | `sf.Vector2f` | Pure. |
+| `setOrigin` | `origin: sf.Vector2f` | — | — |
+| `getColumns` | — | `int` | Pure. |
+| `getChildScrollingEnabled` | — | `bool` | Pure. |
+| `setChildScrollingEnabled` | `enabled: bool` | — | — |
+| `getDefaultItemSize` | — | `sf.Vector2f` | Pure. |
+| `getItemLayoutRect` | `index: int` | `sf.FloatRect` | Pure. |
+| `getSize` | — | `sf.Vector2f` | Pure. |
+| `setSize` | `size: sf.Vector2i` | — | — |
+| `setColumns` | `columns: int` | — | — |
+| `getChildren` | — | `Engine.ControlBase[]` | Pure. |
+| `addChild` | `child: Engine.ControlBase` | — | — |
+| `removeChild` | `child: Engine.ControlBase` | — | — |
+| `clearChildren` | — | — | — |
+| `getRenderStates` | — | `sf.RenderStates` | Pure. |
+| `update` | `deltaTime: float` | — | — |
+| `lateUpdate` | `deltaTime: float` | — | — |
+| `fixedUpdate` | `fixedDelta: float` | — | — |
+| `invalidatePositions` | — | — | — |
+| `applyPositions` | — | — | — |
+| `draw` | `target: sf.RenderTarget`, `states: sf.RenderStates` | — | — |
 
-With child scrolling disabled, `getContentBounds` returns the laid-out union of the visible children rather than only the declared ListView size. A scrolling parent uses that result after `applyPositions`, so a list becomes scrollable only when its real laid-out extent strictly exceeds the viewport.
+Layout queries and child-scrolling behaviour:
 
-`getDefaultItemSize()` returns the native column width and authored default row height in logical pixels. `getItemLayoutRect(index)` returns the cell of the item at a zero-based index, in list-local coordinates, including the column width and the row's fixed height or tallest child height. It settles pending layout and rejects out-of-range indices. Use these values for dynamic row sizes, selection and hit testing instead of reproducing ListView's spacing in Lua.
-
-`childScrollingEnabled` defaults to `false`. Enable it through the UI Inspector or `setChildScrollingEnabled(true)` to reveal wide children without widening their cells. Each visible child whose scaled local width exceeds `(size.x - 32) / columns` scrolls independently: it starts with its left edge at the column's left edge, pauses for one second, moves left at 30 logical pixels per second until its right edge is visible, pauses for one second, then returns. Children that fit remain centred. Origin and scale are included when placing the content. The speed and pause are fixed native constants, not asset or script options.
-
-Only `update(deltaTime)` advances this motion; drawing and layout queries do not. Hiding a child, the list or an ancestor pauses it. A change to the child's local bounds, origin or scale restarts it from the left edge when the next update measures it, or when layout is explicitly refreshed with `invalidatePositions()` followed by `applyPositions()`. Changing the list size or column count invalidates layout; a changed column width restarts the affected motion. Disabling the property restores centred placement immediately; re-enabling starts again. Removing a child discards its scroll state.
-
-While enabled, child drawing and descendant hit areas are clipped horizontally to their column, intersected with the enclosing clipping region; popup overlays keep their existing behaviour. The item's cell and selection rectangle stay fixed while its content moves. `getContentBounds()` reports the declared ListView width on the horizontal axis, so this motion does not create horizontal overflow in an enclosing ScrollBox. Vertical content bounds and scrolling still follow the laid-out child heights.
+- **Layout queries:** `getDefaultItemSize()` returns the native column width and authored default row height in logical pixels. `getItemLayoutRect(index)` returns the zero-based cell in list-local coordinates (column width and fixed height or tallest child height), settling pending layout and rejecting out-of-range indices. Use these values for dynamic row sizes, selection and hit testing rather than reimplementing list spacing in Lua.
+- **Content bounds:** With child scrolling disabled, `getContentBounds()` returns the laid-out union of visible children rather than only the declared size, so an enclosing `ScrollBox` scrolls only when laid-out extent strictly exceeds the viewport.
+- **Horizontal child scrolling:** `childScrollingEnabled` defaults to `false` (enable in the Inspector or via `setChildScrollingEnabled(true)`). Any visible child whose scaled local width exceeds `(size.x - 32) / columns` starts left-aligned, pauses `1` s, scrolls left at `30` logical pixels/s until its right edge is visible, pauses `1` s and resets (fitting children stay centred, respecting origin and scale; speed and pause are fixed native constants).
+- **Scrolling lifecycle:** Only `update(deltaTime)` advances scrolling; hiding the child, list or an ancestor pauses it. Local bounds, origin, scale or column-width changes restart motion when measured (or after `invalidatePositions()` and `applyPositions()`); disabling restores centred placement immediately and removing a child discards its scroll state.
+- **Clipping and bounds during scrolling:** While enabled, child drawing and descendant hit areas clip horizontally to their column (popup overlays keep their normal behaviour), item selection cells stay fixed, and `getContentBounds()` reports the declared width horizontally while keeping laid-out vertical heights.
 
 ## WrapBox
 
-`Engine.WrapBox` repeats one authored child template, including its complete subtree. The native asset-instantiation flow creates independent instances; Lua does not clone controls. Its declarative properties are `size` (default `[100,100]`), `count` (default `1`) and `spacing` (default `[0,0]`). The template uses an empty List Slot, and at most one template is allowed.
+Repeats a single authored child template (including its entire subtree) left to right, wrapping when the next item exceeds the available width. Native asset instantiation constructs independent instances without Lua cloning.
 
-Items flow left to right and wrap when the next item would exceed the available width. Cell dimensions come from the laid-out template. Negative spacing permits overlap as long as the resulting horizontal and vertical placement steps remain positive. Reflow preserves the existing instances and their state.
+Declarative properties are `size` (default `[100, 100]`), `count` (default `1`) and `spacing` (default `[0, 0]`), with at most one template in an empty List Slot. Cell dimensions come from the laid-out template; negative spacing allows overlap provided horizontal and vertical placement steps remain positive. Reflow preserves existing instances and state.
 
-| Method | Contract |
-|---|---|
-| `getSize()` / `setSize(size)` | Read or set the layout size as `sf.Vector2f`. |
-| `getCount()` / `setCount(count)` | Read or set the non-negative repetition count. Increasing appends instances; decreasing releases only the removed tail. |
-| `getSpacing()` / `setSpacing(spacing)` | Read or set the horizontal and vertical spacing as `sf.Vector2f`. |
-| `get(i)` | Return the i-th native `Engine.ControlBase`, using a 1-based index; an out-of-range index raises an error. |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `getSize` | — | `sf.Vector2f` | — |
+| `setSize` | `size: sf.Vector2f` | — | — |
+| `getCount` | — | `int` | — |
+| `setCount` | `count: int` | — | Non-negative count; increasing appends instances and decreasing releases only the removed tail. |
+| `getSpacing` | — | `sf.Vector2f` | — |
+| `setSpacing` | `spacing: sf.Vector2f` | — | — |
+| `get` | `i: int` | `Engine.ControlBase` | 1-based index; out-of-range raises an error. |
 
-Count zero or an absent template produces no instances. The WrapBox owns repeated controls' update, input and release lifetimes. Generated Views expose the WrapBox itself; template descendants sit inside each independent instance's boundary and are accessed through `get(i)` and that control's child APIs. The editor previews all repetitions, while editing any repetition updates the single authored template.
+Count `0` or an absent template creates no instances. `WrapBox` owns repeated controls' update, input and release lifetimes. Generated Views expose the `WrapBox` itself; template descendants live inside each instance boundary and are accessed via `get(i)` and that control's child APIs. The editor previews all repetitions while edits modify the single authored template.
 
 ## ScrollBox
 
-Direct metadata bases: `{ "Engine", "Canvas" }`
+**Inherits:** `Engine.Canvas`
 
-`ScrollBox` is a clipped layout viewport with multiple children. Declarative assets set `size` and `windowSkin`, and an empty `windowSkin` loads the current system window skin. It inherits the standard Canvas child functions. Its own methods are:
+Clipped multi-child viewport supporting wheel and touch scrolling with window-skin overflow indicators. Declarative assets configure `size` and `windowSkin` (an empty `windowSkin` loads the active system window skin). Inherits all `Engine.Canvas` child methods.
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `getSize` | `function` | self: { "Engine", "ScrollBox" } = "self" | return: sf.Vector2f | Pure |
-| `resize` | `function` | self: { "Engine", "ScrollBox" } = "self"; size: sf.Vector2f | — | — |
-| `setWindowSkin` | `function` | self: { "Engine", "ScrollBox" } = "self"; windowSkin: sf.Image | — | — |
-| `getScrollOffset` | `function` | self: { "Engine", "ScrollBox" } = "self" | return: sf.Vector2f | Pure |
-| `setScrollOffset` | `function` | self: { "Engine", "ScrollBox" } = "self"; offset: sf.Vector2f | — | — |
-| `getMaxScrollOffset` | `function` | self: { "Engine", "ScrollBox" } = "self" | return: sf.Vector2f | Pure |
-| `getScrollingEnabled` | `function` | self: { "Engine", "ScrollBox" } = "self" | return: bool | Pure |
-| `setScrollingEnabled` | `function` | self: { "Engine", "ScrollBox" } = "self"; enabled: bool | — | — |
-| `scrollDescendantIntoView` | `function` | self: { "Engine", "ScrollBox" } = "self"; descendant: { "Engine", "ControlBase" } | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `getSize` | — | `sf.Vector2f` | Pure. |
+| `resize` | `size: sf.Vector2f` | — | — |
+| `setWindowSkin` | `windowSkin: sf.Image` | — | Rebuilds overflow indicators immediately. |
+| `getScrollOffset` | — | `sf.Vector2f` | Pure. |
+| `setScrollOffset` | `offset: sf.Vector2f` | — | — |
+| `getMaxScrollOffset` | — | `sf.Vector2f` | Pure. |
+| `getScrollingEnabled` | — | `bool` | Pure. |
+| `setScrollingEnabled` | `enabled: bool` | — | — |
+| `scrollDescendantIntoView` | `descendant: Engine.ControlBase` | — | Rejects controls outside this `ScrollBox`. |
 
-Each axis uses the visible direct-child content bounds and is enabled only when those bounds exceed the viewport. Otherwise the offset and maximum are zero. Offsets are clamped after writes, resizes and content shrinks. Rendering and descendant hits are clipped, and `scrollDescendantIntoView` rejects controls outside this ScrollBox.
+Each axis derives from visible direct-child content bounds and activates only when those bounds exceed the viewport (otherwise offset and maximum are zero). Offsets clamp after writes, resizes and content shrinks; rendering and descendant hit testing clip to the viewport.
 
-Ordinary wheel input uses 32-logical-pixel steps, and precise deltas apply directly to the matching axis. Touch drag starts after the input threshold and has no inertia. Selectable-list taps, Config Slider direction ownership and DropBox popup input remain unchanged.
+Ordinary wheel ticks scroll by `32` logical pixels, while precise wheel deltas apply directly per axis. Touch drag begins after the input threshold with no inertia; selectable-list taps, Config Slider direction ownership and DropBox popup input stay unchanged.
 
 ### Window-skin overflow indicators
 
-The system window skin must contain the complete standard 32 × 32 indicator atlas at `(144, 16)`. A smaller skin is an error. ScrollBox never samples the centre `(156, 28, 8, 8)` or the four corners, and extracts only these nearest-neighbour regions:
+The system window skin must contain the complete `32×32` indicator atlas at `(144, 16)` (a smaller skin raises an error). `ScrollBox` ignores the centre `(156, 28, 8, 8)` and four corners, sampling these nearest-neighbour regions:
 
 | Direction | Source rectangle | Viewport position | Visible when |
 |---|---|---|---|
-| Up | `(156, 16, 8, 12)` | centred on the top edge | `offset.y > 0` |
-| Down | `(156, 36, 8, 12)` | centred on the bottom edge | `offset.y < maximum.y` |
-| Left | `(144, 28, 12, 8)` | centred on the left edge | `offset.x > 0` |
-| Right | `(164, 28, 12, 8)` | centred on the right edge | `offset.x < maximum.x` |
+| Up | `(156, 16, 8, 12)` | Centred on top edge | `offset.y > 0` |
+| Down | `(156, 36, 8, 12)` | Centred on bottom edge | `offset.y < maximum.y` |
+| Left | `(144, 28, 12, 8)` | Centred on left edge | `offset.x > 0` |
+| Right | `(164, 28, 12, 8)` | Centred on right edge | `offset.x < maximum.x` |
 
-Indicators scale with the global UI `Scale`, use nearest-neighbour sampling, render above content and do not affect scrolling, bounds or hits. `setWindowSkin` rebuilds them immediately.
+Indicators scale with global UI `Scale`, use nearest-neighbour sampling, draw above content and do not affect scrolling, bounds or hit testing.
 
 ## Rect
 
-Direct metadata bases: `{ "Engine", "SpriteBase" }`
+**Inherits:** `Engine.SpriteBase`
+
+Window-skin-styled selection or highlight rectangle with adjustable opacity multiplier.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `setOpacityMultiplier` | `function` | self: { "Engine", "Rect" } = "self"; multiplier: float | — | — |
-| `resize` | `function` | self: { "Engine", "Rect" } = "self"; size: sf.Vector2f | — | — |
-| `setWindowSkin` | `function` | self: { "Engine", "Rect" } = "self"; windowSkin: sf.Image | — | — |
-| `getSize` | `function` | self: { "Engine", "Rect" } = "self" | return: sf.Vector2u | Pure |
-| `update` | `function` | self: { "Engine", "Rect" } = "self"; deltaTime: float | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `setOpacityMultiplier` | `multiplier: float` | — | — |
+| `resize` | `size: sf.Vector2f` | — | — |
+| `setWindowSkin` | `windowSkin: sf.Image` | — | — |
+| `getSize` | — | `sf.Vector2u` | Pure. |
+| `update` | `deltaTime: float` | — | — |
 
 ## SolidRect
 
-Direct metadata bases: `{ "Engine", "ControlBase" }`
+**Inherits:** `Engine.ControlBase`
+
+Solid-colour rectangle control with configurable fill colour, outline colour and outline thickness.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `getSize` | `function` | self: { "Engine", "SolidRect" } = "self" | return: sf.Vector2f | Pure |
-| `setSize` | `function` | self: { "Engine", "SolidRect" } = "self"; size: sf.Vector2f | — | — |
-| `getFillColor` | `function` | self: { "Engine", "SolidRect" } = "self" | return: sf.Color | Pure |
-| `setFillColor` | `function` | self: { "Engine", "SolidRect" } = "self"; color: sf.Color | — | — |
-| `getOutlineColor` | `function` | self: { "Engine", "SolidRect" } = "self" | return: sf.Color | Pure |
-| `setOutlineColor` | `function` | self: { "Engine", "SolidRect" } = "self"; color: sf.Color | — | — |
-| `getOutlineThickness` | `function` | self: { "Engine", "SolidRect" } = "self" | return: float | Pure |
-| `setOutlineThickness` | `function` | self: { "Engine", "SolidRect" } = "self"; thickness: float | — | — |
-| `getLocalBounds` | `function` | self: { "Engine", "SolidRect" } = "self" | return: sf.FloatRect | Pure |
-| `getGlobalBounds` | `function` | self: { "Engine", "SolidRect" } = "self" | return: sf.FloatRect | Pure |
-| `draw` | `function` | self: { "Engine", "SolidRect" } = "self"; target: sf.RenderTarget; states: sf.RenderStates | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `getSize` | — | `sf.Vector2f` | Pure. |
+| `setSize` | `size: sf.Vector2f` | — | — |
+| `getFillColor` | — | `sf.Color` | Pure. |
+| `setFillColor` | `color: sf.Color` | — | — |
+| `getOutlineColor` | — | `sf.Color` | Pure. |
+| `setOutlineColor` | `color: sf.Color` | — | — |
+| `getOutlineThickness` | — | `float` | Pure. |
+| `setOutlineThickness` | `thickness: float` | — | — |
+| `getLocalBounds` | — | `sf.FloatRect` | Pure. |
+| `getGlobalBounds` | — | `sf.FloatRect` | Pure. |
+| `draw` | `target: sf.RenderTarget`, `states: sf.RenderStates` | — | — |
 
 ## SpriteBase
 
-Direct metadata bases: `{ "Engine", "ControlBase" }`
+**Inherits:** `Engine.ControlBase`
+
+Base class for textured UI controls exposing texture, source rectangle and tint colour.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `setTexture` | `function` | self: { "Engine", "SpriteBase" } = "self"; texture: sf.Texture; resetRect: bool | — | — |
-| `getTexture` | `function` | self: { "Engine", "SpriteBase" } = "self" | return: sf.Texture | Pure |
-| `setTextureRect` | `function` | self: { "Engine", "SpriteBase" } = "self"; rect: sf.IntRect | — | — |
-| `getTextureRect` | `function` | self: { "Engine", "SpriteBase" } = "self" | return: sf.IntRect | Pure |
-| `setColour` | `function` | self: { "Engine", "SpriteBase" } = "self"; colour: sf.Color | — | — |
-| `getColour` | `function` | self: { "Engine", "SpriteBase" } = "self" | return: sf.Color | Pure |
-| `getSize` | `function` | self: { "Engine", "SpriteBase" } = "self" | return: sf.Vector2f | Pure |
-| `getLocalBounds` | `function` | self: { "Engine", "SpriteBase" } = "self" | return: sf.FloatRect | Pure |
-| `getGlobalBounds` | `function` | self: { "Engine", "SpriteBase" } = "self" | return: sf.FloatRect | Pure |
-| `getRenderStates` | `function` | self: { "Engine", "SpriteBase" } = "self" | return: sf.RenderStates | Pure |
-| `draw` | `function` | self: { "Engine", "SpriteBase" } = "self"; target: sf.RenderTarget; states: sf.RenderStates | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `setTexture` | `texture: sf.Texture`, `resetRect: bool` | — | — |
+| `getTexture` | — | `sf.Texture` | Pure. |
+| `setTextureRect` | `rect: sf.IntRect` | — | — |
+| `getTextureRect` | — | `sf.IntRect` | Pure. |
+| `setColour` | `colour: sf.Color` | — | — |
+| `getColour` | — | `sf.Color` | Pure. |
+| `getSize` | — | `sf.Vector2f` | Pure. |
+| `getLocalBounds` | — | `sf.FloatRect` | Pure. |
+| `getGlobalBounds` | — | `sf.FloatRect` | Pure. |
+| `getRenderStates` | — | `sf.RenderStates` | Pure. |
+| `draw` | `target: sf.RenderTarget`, `states: sf.RenderStates` | — | — |

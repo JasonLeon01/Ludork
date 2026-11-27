@@ -1,27 +1,26 @@
 # General Data Reference Overview
 
-This group documents the General Data types that ship with the Game project. Every value in these tables is project data rather than an engine enumeration, so a project is free to redefine the same type. Each page is generated from the current schema in `Data/General`, states its source file, and lists that schema's fields, defaults and member events.
+Reference for the seven General Data schemas shipped with the Game project (`Class`, `Enemy`, `Equip`, `Item`, `Player`, `Special` and `State`). Because General Data is project data rather than fixed engine enumerations, each project can freely modify or extend these schemas.
 
 ## Where the data lives
 
-Each type is stored in `Data/General/<Type>.json`. Edit schemas, members and ability graphs through **Database → General Data** (`F10`); see [General Data and Text Config](<../General Data and Text Config.md#type-structure>) for field options and generated files.
+Each type lives in `Data/General/<Type>.json`. Edit schemas, members and member ability graphs in **Database → General Data** (`F10`); see [General Data and Text Config](<../General Data and Text Config.md#type-structure>) for field types and generated modules.
 
-## What each page documents
+## Built-in schemas
 
-| Page | Contents | Member events |
+| Schema | Purpose | Member events |
 |---|---|---|
-| [Class](<Class.md>) | The player class preset: display name and description, plus `slot` mapping equipment slot names to the equipment initially equipped in each slot. | — |
-| [Enemy](<Enemy.md>) | Enemy statistics (`MAXHP`, `ATK`, `DEF`, `EXP`, `GOLD`), `drops` as Blueprint class paths with map-cell offsets, `special` parameters and the attack animation. | — |
-| [Equip](<Equip.md>) | Equipment: icon, the `Class` slot key it occupies and `attrPlus` attribute modifiers applied while equipped. | `onEquip`, `onUnequip` |
-| [Item](<Item.md>) | Inventory items: `usable`, shop `price` and the derived sell price, icon and `cost`. | `onDrop`, `onUse` |
-| [Player](<Player.md>) | Player presets: the referenced `CLASS` member and the starting HP, attribute, experience, gold and level values. | — |
-| [Special](<Special.md>) | Presentation-only records — name, description and icon — whose parameters remain in `Enemy.special`. | — |
-| [State](<State.md>) | States, including whether `stackable` increases an existing state's stack count. | `onWalk`, `onHookTriggered` |
+| [Class](<Class.md>) | Player class presets: display name, description and `slot` mapping equipment slots to initial equipment. | — |
+| [Enemy](<Enemy.md>) | Enemy stats (`MAXHP`, `ATK`, `DEF`, `EXP`, `GOLD`), `drops` (Blueprint paths with map-cell offsets), `special` parameters and attack animation. | — |
+| [Equip](<Equip.md>) | Equipment records: icon, target `Class` slot key and `attrPlus` stat modifiers applied while equipped. | `onEquip`, `onUnequip` |
+| [Item](<Item.md>) | Inventory items: `usable` flag, shop `price` (and derived sell price), icon and `cost` stack-count display. | `onDrop`, `onUse` |
+| [Player](<Player.md>) | Player presets: referenced `CLASS` member plus starting HP, stats, experience, gold, level and attack animation. | — |
+| [Special](<Special.md>) | Presentation-only records (name, description and icon) for enemy special traits whose parameters live in `Enemy.special`. | — |
+| [State](<State.md>) | Status effects, including whether `stackable` increments an existing state's stack count. | `onWalk`, `onHookTriggered` |
 
-Project references are expressed directly in enum schemas: `Player.CLASS` uses `Enums.GeneralData.Class`, `Enemy.special` uses `Enums.GeneralData.Special` as its dictionary key, and attack animations use `Enums.Animation`. Their stored values remain strings.
-
-Member events are activated explicitly through `Source.Gameplay.GeneralDataGraphAbility`; a missing start node returns `NoGraph`. The individual pages describe type-specific callers and contexts.
+- **Enum references:** Cross-type references use enum schemas backed by string IDs — `Player.CLASS` uses `Enums.GeneralData.Class`, `Enemy.special` keys use `Enums.GeneralData.Special`, and attack animations use `Enums.Animation`.
+- **Member events:** Activated explicitly via `Source.Gameplay.GeneralDataGraphAbility` (a missing start node returns `NoGraph`). See each schema page for callers and event contexts.
 
 ## Brace-wrapped display strings
 
-Display fields can contain locale keys such as `{WARRIOR}`. Resolve them when displaying text; see [Game Localisation Workflow](<../../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md#runtime>) for formatting and language changes.
+Display fields can store localisation keys such as `{WARRIOR}`, resolved at display time rather than load time. See [Game Localisation Workflow](<../../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md#runtime>) for formatting and language switching.

@@ -1,26 +1,22 @@
 # Actor Components
 
-Components add optional presentation or child-Actor behaviour to an Actor. Configure class defaults in a Blueprint and override them for individual map instances when needed.
+Attach optional presentation or child-Actor behaviour to an Actor by configuring components as class defaults in a Blueprint or overriding them on individual map instances.
 
-| Component | Field | Available on | Use |
+| Component | Field | Available on | Purpose |
 |---|---|---|---|
-| [Billboard](<Billboard.md>) | `billboardComp` | `Engine.Actor` and derived classes | Images and text above the Actor |
-| [Light](<Light.md>) | `lightComp` | `Engine.Actor` and derived classes | A light that follows the Actor |
-| [Emitter](<Emitter.md>) | `emitterComp` | `Engine.Actor` and derived classes | A Common Particle effect attached to the Actor |
-| [ChildActor](<ChildActor.md>) | `childActorComp` | Default Gameplay `Source.MapActors.Enemy` and derived classes | A child Actor, used for the enemy damage readout |
+| [Billboard](<Billboard.md>) | `billboardComp` | `Engine.Actor` and derived classes | Stack of images and text above the Actor |
+| [Light](<Light.md>) | `lightComp` | `Engine.Actor` and derived classes | Dynamic light following the Actor's transform |
+| [Emitter](<Emitter.md>) | `emitterComp` | `Engine.Actor` and derived classes | Common Particle effect attached to the Actor |
+| [ChildActor](<ChildActor.md>) | `childActorComp` | Default Gameplay `Source.MapActors.Enemy` and derived classes | Child Actor (used for the enemy damage readout) |
 
-The component list comes from the selected class's metadata and inheritance chain. `childActorComp` is declared by Enemy, not by the native Actor base; adding a component does not introduce a new field on an arbitrary class.
+Available components come from the selected class's metadata and inheritance chain. For example, `childActorComp` is declared on `Enemy`, not native `Engine.Actor`; adding a component never introduces a new field onto an arbitrary class.
 
 ## Configuration
 
-1. Open an Actor Blueprint to edit shared defaults, or select a placed Actor and open **Actor Info** to edit that instance.
-2. In **Components**, use **+** to add an available optional component. Double-click an existing component to edit its fields. See the corresponding component page for its configuration.
-3. Save the Blueprint or map document you edited.
+1. Open an Actor Blueprint to edit class defaults, or select a placed Actor and open **Actor Info** for instance overrides.
+2. In **Components**, click **+** to add an available optional component, or double-click an existing component to edit its fields.
+3. Save the edited Blueprint or map document.
 
-A child Blueprint inherits an omitted value; an explicit value is used in preference to an ancestor's default. Optional components remain available even if no ancestor supplies a default; an unset component without a default is omitted from a new Blueprint's JSON. A map instance override takes precedence over its Blueprint defaults. In **Actor Info**, reset an overridden field to inherit again, or use **Reset All** to remove all class-field overrides for that instance.
+Child Blueprints inherit omitted values and override ancestor defaults when explicitly configured; unset optional components without ancestor defaults are omitted from new Blueprint JSON. Map instance overrides take precedence over Blueprint defaults — use a field's reset button in **Actor Info** to inherit again, or **Reset All** to clear every class-field override on that instance.
 
-## References
-
-- [Blueprints, Common Functions and Actors](<../Blueprints Common Functions and Actors.md>)
-- [Engine Actor and Component APIs](<../../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Gameplay Types.md#component>)
-- [Default Gameplay: Actors, Enemies, Items and Equipment](<../../Lua and Blueprint Scripting/Default Gameplay/Actors Enemies Items and Equipment.md>)
+**Related guides and APIs:** [Blueprints, Common Functions and Actors](<../Blueprints Common Functions and Actors.md>) · [Engine Actor and Component APIs](<../../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Gameplay Types.md#component>) · [Default Gameplay: Actors, Enemies, Items and Equipment](<../../Lua and Blueprint Scripting/Default Gameplay/Actors Enemies Items and Equipment.md>)

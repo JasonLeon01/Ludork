@@ -1,80 +1,85 @@
 # Resources, Audio, Video and Effects
 
+This page covers Default Gameplay's logical resource paths, animation caches, map audio and DSP effects, 2D materials, procedural fog, panoramas, composite-world environments and FFmpeg video playback.
+
 ## Resource paths
 
-Stored resources use exact-case `/Game/Assets/...` paths with `/` separators and extensions. Generic managers require that complete form. Category helpers such as `loadCharacter("actors/Hero.png")` and `playSE("cursor.ogg")` accept only category-relative arguments and add their own prefix.
+Stored assets use exact-case `/Game/Assets/...` paths with `/` separators and file extensions. Generic resource managers require this full path, whereas category helpers such as `loadCharacter("actors/Hero.png")` and `playSE("cursor.ogg")` accept category-relative paths and prepend their own prefix.
 
-The runtime reads loose files and `.ldpak` entries through the same logical paths, with streaming and seeking for music and video. Standard filesystem APIs and LuaSF file constructors do not resolve paths inside archives.
+The runtime reads both loose files and `.ldpak` archives through the same logical paths, including streaming and seeking for music and video. Standard Lua filesystem APIs and LuaSF file constructors do not resolve paths inside archives.
 
 ## Animation caches
 
-Animation sources live in `Data/Animations`. `Engine.getAnimationCacheRoot()` creates `Cache/Animations` under `Engine.getUserDataPath()` for both loose and archived Data. All launch modes use the [application user-data location](<../../Editor User Guide/Project Settings and Asset Layout.md#game-configuration>).
+Animation sources live in `Data/Animations`. `Engine.getAnimationCacheRoot()` resolves and creates `Cache/Animations` under `Engine.getUserDataPath()` for both loose and archived data, following the [application user-data location](<../../Editor User Guide/Project Settings and Asset Layout.md#game-configuration>) in every launch mode.
 
-Initialisation generates missing `.anim.json`/`.anim.ldc` caches and rebuilds them when source data or referenced frame assets change, preserving paths relative to `Data/Animations`. Caches are disposable and excluded from templates and player packages. Sources are decoded through `Engine.decodeData` and caches are written through `Engine.saveData`; `.anim.ldc` contains binary data, with no intermediate JSON conversion. Delete old caches containing compressed JSON so initialisation regenerates them.
-
-`Source.Utils.AnimationCache` provides source-key extraction, frame-asset discovery and staleness checks for the loading scene. `Global.Data.LoadAnimations()` loads the prepared caches.
+- **Build and invalidation**: Startup generates missing `.anim.json`/`.anim.ldc` caches and rebuilds them whenever source definitions or referenced frame assets change, preserving relative paths under `Data/Animations`. Caches are disposable and omitted from templates and player packages.
+- **Binary format**: Sources decode through `Engine.decodeData` and caches write through `Engine.saveData`. `.anim.ldc` stores direct binary data without intermediate JSON; delete legacy compressed-JSON caches so startup regenerates them.
+- **Modules**: `Source.Utils.AnimationCache` handles key extraction, frame-asset discovery and staleness checks for `SceneInit`; `Global.Data.LoadAnimations()` loads prepared caches.
 
 ## Audio
 
-Music, sound effects and voices have independent enable flags and volumes in the [game configuration](<../../Editor User Guide/Project Settings and Asset Layout.md#game-configuration>). Use the [GlobalFunctions Manager helpers](<../Global and Core Modules/Core Modules/GlobalFunctions.md#manager>) for gameplay playback.
+Music, sound effects and voices each have separate enable switches and volumes in the [game configuration](<../../Editor User Guide/Project Settings and Asset Layout.md#game-configuration>). Play gameplay audio through the [GlobalFunctions Manager helpers](<../Global and Core Modules/Core Modules/GlobalFunctions.md#manager>).
 
-`Global.Audio.MapAudio` manages map BGM/BGS playback and filters, using `Global.Audio.MapAudioState` for source reuse and fades. A custom scene creates an instance with `MapAudio.new()`, calls its `playMapAudio(mapData, transitionSeconds?)`, advances transitions through `onTick(deltaTime)` and stops playback with `stopMapAudio()`.
+### Map BGM and BGS (`Global.Audio.MapAudio`)
 
-The user's music enable and volume settings take effect immediately during fades. Changing a track's filter volume preserves fade progress. Requesting the current file again reuses its source, reapplies the requested filter and cancels the fade. For scene-stack returns, see [SceneMap lifetime](<../Source Classes/SceneMap.md#script-operations-and-lifetime>).
+`Global.Audio.MapAudio` manages map BGM/BGS playback and filters using `Global.Audio.MapAudioState` for source reuse and fades. Custom scenes construct an instance with `MapAudio.new()`, trigger tracks via `playMapAudio(mapData, transitionSeconds?)`, advance fades in `onTick(deltaTime)` and halt playback with `stopMapAudio()`.
 
-Audio effects used by the gameplay Manager and Blueprint nodes are Lua DSP processors defined by `Source.Utils.AudioEffects`. The Game project provides the case-sensitive `Echo`, `Distortion`, `Underwater` and `BehindWall` presets. Their defaults remain a 0.3-second/0.5-decay echo, a 2.0-drive/0.7-threshold distortion, a 0.7-depth/0.3-bubble underwater effect, and a 900-Hz/0.35-transmission behind-wall filter.
+User music enable and volume settings apply immediately during fades, and updating a track's filter volume preserves fade progress. Requesting the already-playing file reuses its source, reapplies the filter and cancels any active fade. See [Script operations and lifetime](<../Source Classes/SceneMap.md#script-operations-and-lifetime>) for scene-stack returns.
 
-`GlobalFunctions.Audio.SetEffect(audioType, effect)` resolves the name with `AudioEffects.Get` and stores the resulting attacher independently for the `Sound`, `Voice` or `Music` category. Metadata presents both parameters as drop-downs. Selection does not create a processor and does not modify a source that is already playing. Each later source invokes the attacher, which creates an isolated audio Lua state and a fresh processor for that source. Select the literal string `nil` to clear the preset for future playback. Any other unknown name raises an error immediately. `Source.Utils.AudioEffects` is the sole preset registry, so a change to the preset registry also requires an update to the `SetEffect` metadata drop-down. Effect selection is not part of `SoundFilter` or `MusicFilter`. The project attacher explicitly supplies `"Source.Utils.AudioEffects"`, `"Get"` and the selected name to [`AudioEffectControl.attachLuaProcessor`](<../Global and Core Modules/Core Modules/GlobalCore/Resource Managers.md#audiomanager>); replacing the registry module requires updating this project-owned call.
+### Lua DSP audio effects
 
-For a non-empty preset, source creation captures the current playback-device sample rate before play. An active source keeps those coefficients after device rerouting, so start a new Manager playback to use the new rate. Presets are not chained or mixed; processor attachment follows the [AudioManager callback contract](<../Global and Core Modules/Core Modules/GlobalCore/Resource Managers.md#audiomanager>).
+`Source.Utils.AudioEffects` defines the case-sensitive DSP presets used by the gameplay Manager and Blueprint audio nodes:
 
-After hot reload, start a new playback to use updated audio code; see [Lua Runtime and Modules](<../Lua Runtime and Modules.md#lua-hot-reload>). Playing sources and buffered tails continue unchanged.
+| Preset | Default parameters |
+|---|---|
+| `Echo` | `0.3` s delay, `0.5` decay |
+| `Distortion` | `2.0` drive, `0.7` threshold |
+| `Underwater` | `0.7` depth, `0.3` bubble |
+| `BehindWall` | `900` Hz cutoff, `0.35` transmission |
 
-`Echo` drains its buffered tail after a natural end of stream. An explicit Manager stop, a dialogue skip or shutdown discards the remaining tail. Direct `sf.SoundSource:setEffectProcessor` use is a separate low-level API, and it does not receive the Manager isolation, EOS or cancellation protocol.
-
-`GlobalFunctions.Scene.ShowVoiceMessageByTag` and `ShowVoiceMessage` capture the exact Voice handle started by that call for the lifetime of their dialogue. When the dialogue finishes, their latent condition stops that handle before `FinishedDialogue` resumes downstream Blueprint execution. A following `SetEffect` therefore configures the next Voice. Leaving or destroying a map scene also stops the current global Voice. Ordinary message nodes do not change Voice playback.
+- **Selecting a preset**: `GlobalFunctions.Audio.SetEffect(audioType, effect)` resolves `effect` via `AudioEffects.Get` and stores the attacher independently for `Sound`, `Voice` or `Music` (both parameters appear as drop-downs in metadata). Selecting an effect does not instantiate a processor or alter playing sources; each subsequent source invokes the attacher in an isolated audio Lua state with a fresh processor. Pass the literal string `"nil"` to clear future playback; any other unknown name raises an error immediately.
+- **Registry ownership**: `Source.Utils.AudioEffects` is the sole preset registry — adding or renaming presets also requires updating `SetEffect`'s metadata drop-down. The project attacher passes `"Source.Utils.AudioEffects"`, `"Get"` and the preset name to [`AudioEffectControl.attachLuaProcessor`](<../Global and Core Modules/Core Modules/GlobalCore/Resource Managers.md#audiomanager>); replacing the registry module requires updating that call. Effect selection is separate from `SoundFilter` and `MusicFilter`.
+- **Sample rate, hot reload and tail draining**: Non-empty presets capture the active playback device's sample rate on source creation (active sources keep their coefficients across device rerouting; start a new Manager playback to adopt the new rate or pick up [hot-reloaded](<../Lua Runtime and Modules.md#lua-hot-reload>) audio code). Presets do not chain or mix. `Echo` drains its buffered tail after natural end of stream, whereas an explicit Manager stop, dialogue skip or shutdown discards the tail. Direct `sf.SoundSource:setEffectProcessor` calls bypass Manager isolation, EOS handling and cancellation.
+- **Dialogue voice lifetime**: `GlobalFunctions.Scene.ShowVoiceMessageByTag` and `ShowVoiceMessage` track the Voice handle started by that call and stop it when dialogue ends before `FinishedDialogue` resumes downstream nodes (so a subsequent `SetEffect` applies to the next Voice). Leaving or destroying a map scene also stops the active global Voice; ordinary message nodes leave Voice playback untouched.
 
 ## Shaders, fog and transitions
 
-Actors and tile layers draw through the official 2D material system; projects compose effects with general-purpose nodes. SceneInit prepares the shaders and runtime metadata in the user data directory before gameplay. Drawing uses the prepared numeric analysis instructions with current instance parameters. A separate preparation stage runs after material generation; its [platform shader cache](<../../Native C++ Development/Build and Module Layout.md#mrb-rendering>) must be ready before gameplay. See [Runtime generation](<../../Editor User Guide/Materials.md#runtime-generation>) for cache validation, generation failures and file ownership.
+### 2D materials and shaders
 
-Initialisation includes all individual materials and scans saved maps for tile/layer combinations. If gameplay creates a different combination by constructing a map or changing a layer's material, add it through [Game → Material Combinations](<../../Editor User Guide/Materials.md#material-combinations>) before preparation. Actor/UI material switches and parameter changes need no extra entry.
+Actors and tile layers render through Ludork's 2D material system. `SceneInit` generates material shaders and runtime metadata in the user data directory before gameplay, followed by a separate [platform shader cache](<../../Native C++ Development/Build and Module Layout.md#mrb-rendering>) preparation stage; see [Runtime generation](<../../Editor User Guide/Materials.md#runtime-generation>) for cache validation and ownership.
 
-Built-in weather and fog retain their cross-platform shader pipelines, and loading or compilation errors propagate. World entry prewarms the shared renderer for the current viewport and repeats after regional geometry changes. HarmonyOS compiles programs on their first normal draw after complete render-state and uniform binding.
+- **Material combinations**: Startup prepares all individual materials and scans saved maps for tile/layer combinations. If runtime scripts construct maps or swap layer materials into new combinations, register them in [Game → Material Combinations](<../../Editor User Guide/Materials.md#material-combinations>) before preparation. Actor and UI material switches and parameter edits need no extra entry.
+- **Sharing and evaluation**: Material resources and compiled programs are shared while per-instance parameters stay independent. Character effects are standard `Data/Materials` graphs (for example, hue shifts use a HueShift node and parameter). Alpha, light blocking and vertex displacement evaluate from the same graph, so a dissolved silhouette updates its shadow mask automatically. Emission composites within each surface without illuminating neighbours or bypassing foreground occlusion.
+- **Built-in pipelines and platform support**: Built-in weather and fog use cross-platform shader pipelines whose load and compile errors propagate. World entry prewarms the shared renderer for the current viewport and repeats after regional geometry changes. HarmonyOS compiles programs on first normal draw once render state and uniforms are bound. Shader availability depends on the target runtime GPU — a working editor preview does not guarantee target hardware support.
+- **Particles**: Attach GPU [Common Particle](<../../Editor User Guide/Common Particles.md>) emitters to Actor Components and UI; Default Gameplay's code-driven particles work alongside them.
 
-Material resources and generated programs can be shared while instance parameters remain independent; each draw binds that object's effective values. Character effects are ordinary graphs under `Data/Materials`, and hue is expressed with a HueShift node and parameter. Alpha, light blocking and vertex displacement use the relevant branches of the same graph, so a dissolved silhouette does not retain the original mask. Emission is composed within each surface; it neither illuminates nearby objects nor bypasses foreground occlusion. Particles are separate [Common Particle](<../../Editor User Guide/Common Particles.md>) GPU emitter assets for Actor Components and UI; the code-driven particles and effects already in the Game project remain available.
+### Enemy defeat shatter effect
 
-Fog is generated on the GPU from world coordinates, absolute time and a deterministic seed. Four noise layers produce sparse and dense patches; density controls coverage and colour alpha scales their opacity without adding a uniform veil. Smaller scales produce smaller patches, including for black fog. Map data stores an object with `enabled`, `colour`, `density`, `scale`, `velocity`, `turbulence` and `seed`; there is no fog texture. The shared renderer composites fog after materials and lighting, before foreground weather and particles. Fog responds to scene light. Each map session owns its fog state.
+Default Gameplay's project-wide defeat shatter effect is toggled by `Enemy.DefeatShatterEffectEnabled` in [Shared Gameplay configuration](<Runtime Data Configuration and Saves.md#shared-gameplay-configuration>) rather than per Enemy Blueprint. Its shader snapshots the enemy and scatters world-space logical-pixel fragments radially outwards over ~`0.65` seconds. Because the enemy is already recorded and destroyed, the effect is visual only and never blocks movement, collision or light. When disabled or when `sf.Shader.isAvailable()` is `false`, defeated enemies disappear immediately.
 
-See [FogController](<../Global and Core Modules/Core Modules/GlobalCore/Map and Fog.md#fogcontroller>) for fog fields, defaults and accepted values.
+### Procedural fog and panoramas
 
-Map panorama data uses an optional-string protocol. `panorama` is a canonical `/Game/Assets/...` path, and panorama is disabled when it is missing, `nil` or blank. The image Cover-scales to fill `GameMap.MapViewRect` while preserving the aspect ratio, and then crops the overflow using the Camera origin as a fraction of `(mapPixels - viewPixels)` on each axis. An axis with no camera travel uses `0.5`. Transparent tiles and canvas margins reveal the panorama multiplied by ambient light only, while point lights still apply to opaque tiles. A missing texture is a required-resource failure.
+- **GPU fog**: Generated procedurally from world coordinates, absolute time and a deterministic seed using four noise layers (no fog texture). Density controls coverage, colour alpha scales patch opacity without adding a flat veil, and smaller scales create finer patches (including for black fog). Map data stores `enabled`, `colour`, `density`, `scale`, `velocity`, `turbulence` and `seed` (see [FogController](<../Global and Core Modules/Core Modules/GlobalCore/Map and Fog.md#fogcontroller>)). Fog composites after materials and lighting, before foreground weather and particles, responds to scene light, and resets per map session.
+- **Map panorama**: Optional canonical `/Game/Assets/...` string on `panorama` (missing, `nil` or blank disables it). The texture Cover-scales to `GameMap.MapViewRect` preserving aspect ratio and crops overflow by the Camera origin as a fraction of `(mapPixels - viewPixels)` per axis (`0.5` when an axis cannot scroll). Transparent tiles and canvas margins show the panorama tinted by ambient light only, while point lights apply to opaque tiles. A missing panorama texture fails loading.
 
 ### Composite-world environment
 
-A world manifest may define global fog and a global panorama, but not BGM, BGS, audio filters or ambient light. Global fog covers the world bounds, including holes. Child fog is clipped to its placement and sampled in the same world coordinates and time. It is composed after global fog in stable placement order; matching settings remain continuous across adjacent regions. Evicting a child removes its regional fog until reload. Global panorama covers the world Camera using the world size for scroll. A child's `panorama` applies only when that child is loaded as a standalone map.
-
-BGM, BGS and ambient light follow the child beneath the player. Audio and later ambient-light changes fade for 0.5 seconds. Holes have no map audio and use white ambient light; world fog and panorama remain active there.
-
-The Game project's advanced enemy-defeat effect is controlled project-wide by [Gameplay configuration](<Runtime Data Configuration and Saves.md#shared-gameplay-configuration>), not by an individual Enemy Blueprint. Its shader renders a snapshot as world-space logical-pixel fragments scattering radially outward from the centre for about 0.65 seconds. The defeated enemy has already been recorded and destroyed, so the snapshot does not affect passability, collision or light blocking. When `Enemy.DefeatShatterEffectEnabled` is `false` or `sf.Shader.isAvailable()` is false, the enemy disappears immediately instead.
+- **Fog and panorama**: A world manifest may set global fog (covering the whole world, including holes) and a global panorama (scrolling across total world bounds). Child fog clips to its placement, samples the same world coordinates and time, composites after global fog in stable placement order (blending continuously across matching neighbours), and disappears on child eviction until reload. A child's `panorama` applies only when loaded as a standalone map.
+- **Audio and ambient light**: World manifests cannot define BGM, BGS, audio filters or ambient light — these follow the child map under the player, with `0.5`-second fades for audio and subsequent ambient-light transitions. Holes have no map audio and use white ambient light while keeping world fog and panorama active.
+- **World lighting**: Lights operate in world coordinates, so Actor `LightComponent` lights illuminate and cast shadows across child boundaries. Tile light masks clip to their placements, and holes contribute neither surfaces nor blockers. See [PreviewHost: Map and World Previews](<../../PreviewHost/Map and World Previews.md>) for editor preview controls.
 
 ## Video
 
-Video playback requires an FFmpeg-enabled project or template. Keep files beneath `Assets/Videos` and reference them as `/Game/Assets/Videos/...`. Loose files and entries in the root `Assets.ldpak` share the same seekable playback contract. Android supports MOV, H.264/AAC, swscale and swresample, but not network, JNI, MediaCodec or hardware acceleration. WebGL uses the same FFmpeg software decoding and resource paths, including mute, skip and subtitles; it does not depend on the browser's HTML video codecs. Audio follows the [browser startup policy](<../../Editor User Guide/Run Debug and Package.md#webgl>); focus loss pauses the video clock. Decoding shares the browser main thread, so supported frame sizes and playback speed depend on the device. Build and distribution requirements are in [Project Templates](<../../Getting Started/Project Templates.md#ffmpeg-option>).
+Video playback requires an FFmpeg-enabled project or template. Store videos under `Assets/Videos` and reference them as `/Game/Assets/Videos/...` (loose files and `Assets.ldpak` entries share the same seekable playback contract). See [FFmpeg option](<../../Getting Started/Project Templates.md#ffmpeg-option>) for build and packaging details.
 
-Call `Video.PlayVideo(videoFileName, mute, skipable, subtitleFileName)` through `require("GlobalFunctions.Video")`. The optional fourth argument is a project-relative `Data/Subtitles/...json` path; omission or an empty string preserves video-only playback.
+- **Android**: Supports MOV, H.264/AAC, `swscale` and `swresample`; excludes network streams, JNI, MediaCodec and hardware acceleration.
+- **WebGL**: Uses the same FFmpeg software decoder, resource paths, mute, skip and subtitles without relying on browser HTML codecs. Audio obeys [browser startup policy](<../../Editor User Guide/Run Debug and Package.md#webgl>), focus loss pauses the video clock, and decoding runs on the main thread (so smooth resolution depends on the device).
+
+Play videos with `GlobalFunctions.Video.PlayVideo(videoFileName, mute, skipable, subtitleFileName?)`, where the optional fourth argument is a project-relative `Data/Subtitles/...json` path (omitted or `""` plays without subtitles):
 
 ```lua
 local Video = require("GlobalFunctions.Video")
 Video.PlayVideo("/Game/Assets/Videos/intro.mp4", false, true, "Data/Subtitles/intro.json")
 ```
 
-[Subtitle data](<../../Editor User Guide/Video Subtitles.md>) contains `type: "subtitle"` and a `sections` array. Each section supplies start/end times in seconds and either a shared string array or a language-to-array dictionary. Dictionary content selects the current game language, then `en_GB` only if the requested key is missing; an existing empty array suppresses subtitles. Subtitles follow the video clock and display centred at the bottom of the viewport using the default font, white text and a black outline.
-
-## Limitations
-
-Shader availability is determined by the runtime graphics environment, and a successful editor preview does not guarantee equivalent target hardware support.
-
-World lighting uses world coordinates, so Actor lights illuminate and cast shadows across child boundaries. Tile masks remain clipped to their placements, and holes contribute neither surfaces nor blockers. Attach a `LightComponent` to an Actor to create a light.
-
-Editor display options are described in [PreviewHost: Map and World Previews](<../../PreviewHost/Map and World Previews.md>).
+[Subtitle files](<../../Editor User Guide/Video Subtitles.md>) define `type: "subtitle"` and a `sections` array with start/end times (seconds) plus either a shared string array or a language-keyed dictionary. Dictionary entries select the active game language, falling back to `en_GB` only if the key is absent (an explicit empty array suppresses subtitles). Subtitles track the video clock and render centred at the bottom of the viewport in white with a black outline using the default font.

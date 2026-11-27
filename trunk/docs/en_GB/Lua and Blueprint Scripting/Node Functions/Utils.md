@@ -1,56 +1,56 @@
 # GlobalFunctions.Utils
 
-`Utils` declares the general-purpose nodes for flow control, local and game variables, attributes, animation helpers, the event bus and common functions.
+`GlobalFunctions.Utils` provides general-purpose Blueprint nodes for flow control, local and game variables, party management, attributes, animations, the event bus and common functions.
 
-Metadata source: `Scripts/GlobalFunctions/Utils_meta.lua`
+**Metadata source:** `Scripts/GlobalFunctions/Utils_meta.lua`
 
 `RunCommonFunction` shares the caller's local context and graph owner, including nested calls. `SELF` returns that owner, which is also the default for unconnected instance-method receivers inside the Common Function.
 
-`SUPER(obj, params)` calls the parent implementation of the current Blueprint event. See [Parent event calls](<../Blueprint Scripting/Execution Flow Events and Variables.md#parent-event-calls>) for inheritance, parameter-array and nil fallback rules.
+`SUPER(obj, params)` calls the parent implementation of the current Blueprint event. See [Parent event calls](<../Blueprint Scripting/Execution Flow Events and Variables.md#parent-event-calls>) for inheritance, parameter-array and `nil` fallback rules.
 
 ## Utils
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `IF` | `function` | condition: bool = false | return: int | ExecSplit { [1] = "TRUE", [2] = "FALSE", TRUE = { [1] = 0 }, FALSE = { [1] = 1 } } |
-| `SetLocalValue` | `function` | valueName: string; value: any | — | ExecSplit { [1] = "default", default = nil } |
-| `GetLocalValue` | `function` | valueName: string; default: any | value: any | Pure |
-| `GetLocalValueRef` | `function` | valueName: string; default: any | value: any | Pure |
-| `SetGameVariable` | `function` | valueName: string; value: any | — | ExecSplit { [1] = "default", default = nil }; Meta { InstVar = { [1] = "valueName" }, InstVarValue = { value = "valueName" } } |
-| `GetGameVariable` | `function` | valueName: string; default: any | value: any | Pure; Meta { InstVar = { [1] = "valueName" }, InstVarValue = { default = "valueName" } } |
-| `GetGameVariableRef` | `function` | valueName: string; default: any | value: any | Pure; Meta { InstVar = { [1] = "valueName" }, InstVarValue = { default = "valueName" } } |
-| `AddPlayerByClass` | `function` | playerClass: string = ""; mapPath: string = ""; position: sf.Vector2i | — | ExecSplit { [1] = "default", default = nil }; Meta { BlueprintClassVars = { [1] = "playerClass" }, Transfer = { [1] = { [1] = "position", [2] = "mapPath" } } } |
-| `SetPlayerByClass` | `function` | playerClass: string = "" | — | ExecSplit { [1] = "default", default = nil }; Meta { BlueprintClassVars = { [1] = "playerClass" } } |
-| `RemovePlayerByClass` | `function` | playerClass: string = "" | — | ExecSplit { [1] = "default", default = nil }; Meta { BlueprintClassVars = { [1] = "playerClass" } } |
-| `AddAnim` | `function` | animName: { enum = "Enums.Animation", valueType = "string" }; position: sf.Vector2f = { [1] = 0, [2] = 0 }; rotation: float = 0; scale: sf.Vector2f = { [1] = 1, [2] = 1 } | — | ExecSplit { [1] = "default", default = nil } |
-| `AddAnimOn` | `function` | animName: { enum = "Enums.Animation", valueType = "string" }; actorTag: string; rotation: float = 0; scale: sf.Vector2f = { [1] = 1, [2] = 1 } | — | ExecSplit { [1] = "default", default = nil } |
-| `GetAnimLength` | `function` | animName: { enum = "Enums.Animation", valueType = "string" } | value: float | Pure |
-| `GetAnimVisualLength` | `function` | animName: { enum = "Enums.Animation", valueType = "string" } | value: float | Pure |
-| `SUPER` | `function` | obj: any; params: any[] = {  } | value: bool | ExecSplit { [1] = "default", default = nil } |
-| `SELF` | `function` | — | value: any | Pure |
-| `GetAttrRef` | `function` | obj: any; attrName: string | value: any | Pure |
-| `GetAttr` | `function` | obj: any; attrName: string | value: any | Pure |
-| `SetAttr` | `function` | obj: any; attrName: string; value: any | — | ExecSplit { [1] = "default", default = nil } |
-| `GetScene` | `function` | — | value: { "GlobalCore", "SceneBase" } | Pure |
-| `IsValidValue` | `function` | value: any | value: bool | Pure |
-| `ToShortNumber` | `function` | value: any = 0 | value: any | Pure |
-| `RunCommonFunction` | `function` | commonFunctionName: string = "" | return: any | ExecSplit { [1] = "default", default = nil }; Meta { CommonFunctionVars = { [1] = "commonFunctionName" } } |
-| `RegisterEventBus` | `function` | key: string; obj: any; functionName: string | — | ExecSplit { [1] = "default", default = nil } |
-| `RegisterEventBusEvent` | `function` | key: string; obj: any; eventName: string | — | ExecSplit { [1] = "default", default = nil } |
-| `UnregisterEventBus` | `function` | key: string | value: bool | ExecSplit { [1] = "default", default = nil } |
-| `UnregisterEventBusEvent` | `function` | key: string; obj: any | value: bool | ExecSplit { [1] = "default", default = nil } |
-| `TriggerEventBus` | `function` | key: string; kwargs: any = {  } | — | ExecSplit { [1] = "default", default = nil } |
-| `TriggerBlueprintEvent` | `function` | obj: any; eventName: string | — | ExecSplit { [1] = "default", default = nil } |
-| `BackToTitle` | `function` | — | — | ExecSplit { [1] = "default", default = nil } |
-| `Print` | `function` | message: any = "" | — | ExecSplit { [1] = "default", default = nil } |
-| `EXEC` | `function` | script: string = "" | — | ExecSplit { [1] = "default", default = nil } |
-| `GetSelfAttr` | `function` | attrName: string | value: any | Pure |
-| `SetSelfAttr` | `function` | attrName: string; value: any | — | ExecSplit { [1] = "default", default = nil } |
-| `IfPlayerOverlaps` | `function` | — | value: bool | Pure |
-| `IfGameVar` | `function` | varName: string = ""; op: string = "=="; value: any | return: bool | ExecSplit { [1] = "TRUE", [2] = "FALSE", TRUE = { [1] = true }, FALSE = { [1] = false } }; Meta { DropBox = { op = { [1] = "==", [2] = "!=", [3] = "<", [4] = "<=", [5] = ">", [6] = ">=" } }, InstVar = { [1] = "varName" }, InstVarValue = { value = "varName" } } |
+| Function | Parameters | Returns | Notes |
+|---|---|---|---|
+| `IF` | `condition: bool = false` | `int` | Execution branches: `TRUE` (`0`), `FALSE` (`1`). |
+| `SetLocalValue` | `valueName: string`, `value: any` | — | Sets a node-local variable in the current graph context. |
+| `GetLocalValue` | `valueName: string`, `default: any` | `value: any` | Pure. Reads a node-local variable, returning `default` if unset. |
+| `GetLocalValueRef` | `valueName: string`, `default: any` | `value: any` | Pure. Returns a mutable reference to a node-local variable. |
+| `SetGameVariable` | `valueName: string`, `value: any` | — | `InstVar` selector on `valueName`; `InstVarValue` adapts `value` to `valueName`'s type. |
+| `GetGameVariable` | `valueName: string`, `default: any` | `value: any` | Pure. `InstVar` selector on `valueName`; `InstVarValue` adapts `default` to `valueName`'s type. |
+| `GetGameVariableRef` | `valueName: string`, `default: any` | `value: any` | Pure. Returns a mutable reference to a game variable. `InstVar` on `valueName`; `InstVarValue` binds `default` to `valueName`. |
+| `AddPlayerByClass` | `playerClass: string = ""`, `mapPath: string = ""`, `position: sf.Vector2i` | — | Blueprint class picker on `playerClass` (`BlueprintClassVars`); `Transfer` links `position` to `mapPath`. |
+| `SetPlayerByClass` | `playerClass: string = ""` | — | Blueprint class picker on `playerClass` (`BlueprintClassVars`). Switches the primary Player. |
+| `RemovePlayerByClass` | `playerClass: string = ""` | — | Blueprint class picker on `playerClass` (`BlueprintClassVars`). Removes a party member. |
+| `AddAnim` | `animName: string`, `position: sf.Vector2f = sf.Vector2f(0, 0)`, `rotation: float = 0`, `scale: sf.Vector2f = sf.Vector2f(1, 1)` | — | `Enums.Animation` selector. Spawns an animation at `position`. |
+| `AddAnimOn` | `animName: string`, `actorTag: string`, `rotation: float = 0`, `scale: sf.Vector2f = sf.Vector2f(1, 1)` | — | `Enums.Animation` selector. Spawns an animation centred on the Actor matching `actorTag`. |
+| `GetAnimLength` | `animName: string` | `value: float` | Pure. `Enums.Animation` selector. Returns the animation duration. |
+| `GetAnimVisualLength` | `animName: string` | `value: float` | Pure. `Enums.Animation` selector. Returns the animation visual duration. |
+| `SUPER` | `obj: any`, `params: any[] = {}` | `value: bool` | Invokes the parent Blueprint event implementation on `obj`. |
+| `SELF` | — | `value: any` | Pure. Returns the current graph owner. |
+| `GetAttrRef` | `obj: any`, `attrName: string` | `value: any` | Pure. Returns a mutable reference to a component field or object attribute. |
+| `GetAttr` | `obj: any`, `attrName: string` | `value: any` | Pure. Reads a component field or object attribute. |
+| `SetAttr` | `obj: any`, `attrName: string`, `value: any` | — | Writes a component field or object attribute. |
+| `GetScene` | — | `value: GlobalCore.SceneBase` | Pure. Returns the active Scene from `SceneManager`. |
+| `IsValidValue` | `value: any` | `value: bool` | Pure. Returns `true` when `value` is not `nil`. |
+| `ToShortNumber` | `value: any = 0` | `value: any` | Pure. Formats a number using compact short notation. |
+| `RunCommonFunction` | `commonFunctionName: string = ""` | `any` | Common Function picker on `commonFunctionName` (`CommonFunctionVars`). |
+| `RegisterEventBus` | `key: string`, `obj: any`, `functionName: string` | — | Registers an object method on the event bus under `key`. |
+| `RegisterEventBusEvent` | `key: string`, `obj: any`, `eventName: string` | — | Registers a Blueprint event on the event bus under `key`. |
+| `UnregisterEventBus` | `key: string` | `value: bool` | Unregisters all handlers for `key` from the event bus. |
+| `UnregisterEventBusEvent` | `key: string`, `obj: any` | `value: bool` | Unregisters `obj`'s event handler for `key` from the event bus. |
+| `TriggerEventBus` | `key: string`, `kwargs: any = {}` | — | Triggers all event-bus handlers registered under `key`. |
+| `TriggerBlueprintEvent` | `obj: any`, `eventName: string` | — | Triggers the named Blueprint event on `obj`. |
+| `BackToTitle` | — | — | Returns to the title Scene. |
+| `Print` | `message: any = ""` | — | Logs `message` to the console output. |
+| `EXEC` | `script: string = ""` | — | Executes a Lua script string. |
+| `GetSelfAttr` | `attrName: string` | `value: any` | Pure. Reads a component field or attribute on the current graph owner. |
+| `SetSelfAttr` | `attrName: string`, `value: any` | — | Writes a component field or attribute on the current graph owner. |
+| `IfPlayerOverlaps` | — | `value: bool` | Pure. Returns whether the Player overlaps the current Actor. |
+| `IfGameVar` | `varName: string = ""`, `op: string = "=="`, `value: any` | `bool` | Execution branches: `TRUE` (`true`), `FALSE` (`false`). `op` drop-down: `==`, `!=`, `<`, `<=`, `>`, `>=`. `InstVar` on `varName`; `InstVarValue` binds `value` to `varName`. |
 
-`AddPlayerByClass` stores the new member's map and cell without changing the primary player. `SetPlayerByClass` moves that class to `playerKeys[1]`, rebinds Scene UI, and loads the stored map.
+`AddPlayerByClass` stores the new member's map and cell without changing the primary player. `SetPlayerByClass` moves that class to `playerKeys[1]`, rebinds Scene UI and loads the stored map.
 
-`GetAttr` and a read through `GetAttrRef` both return the component field value when it is non-nil. Otherwise they read the object's attribute. Both preserve `false`, `0` and empty strings, and both raise an error when no non-nil value exists. Reading an Actor's `tag` returns its string value, which can connect directly to the `refActorTag` input of dialogue nodes.
+`GetAttr` and a read through `GetAttrRef` both return the component field value when it is non-nil; otherwise they read the object's attribute. Both preserve `false`, `0` and empty strings, and both raise an error when no non-nil value exists. Reading an Actor's `tag` returns its string value, which can connect directly to the `refActorTag` input of dialogue nodes.

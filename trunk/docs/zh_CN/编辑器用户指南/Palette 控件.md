@@ -1,251 +1,257 @@
 # Palette 控件
 
-Palette（控件面板）列出可拖入 UI 资产的内置控件，以及启用了 **Exposed** 的项目资产。本页介绍各控件的用途、子节点规则和常用属性，运行时 API 见各条目中的链接。
+查阅 UI 资产编辑器 Palette 中全部内置控件的用途、子节点与 Slot 规则、序列化属性及运行时 API 参考。
 
 ## 如何阅读本页
 
-条目按 Palette 分类排列，以节点中保存的 `controlId` 为标题。每张表列出子节点策略、Slot 类型与各控件特有的序列化属性。
+条目按 Palette 分类组织，并以写入 UI 资产 JSON 的精确 `controlId` 为标题。表格列出各控件的子节点策略、Slot 类型及控件特有的序列化属性键（中文界面下 Inspector 显示**颜色**、**填充颜色**、**描边颜色**、**光晕颜色**与**背景颜色**等本地化标签，资产 JSON 与代码仍使用下表中的精确键名）。
 
 ### 子节点与 Slot
 
-`childPolicy` 与 `slotType` 分别规定容器能容纳哪些子节点，以及如何排列这些子节点：
+`childPolicy` 与 `slotType` 决定容器可接受的子节点数量及排布方式：
 
-| childPolicy | slotType | 控件 | 子节点布局 |
+| `childPolicy` | `slotType` | 控件 | 子节点布局 |
 |---|---|---|---|
-| `multiple` | `canvas` | Canvas | 锚点、偏移、对齐、自动尺寸与层叠顺序 |
-| `multiple` | `list` | ListView、ScrollBox | 由父容器排列 |
-| `single` | `list` | WrapBox | 由父容器排列，只允许一个模板子节点 |
+| `multiple` | `canvas` | `Canvas` | 锚点、偏移、对齐、自动尺寸与层叠顺序 |
+| `multiple` | `list` | `ListView`、`ScrollBox` | 由父容器管理的列表排布 |
+| `single` | `list` | `WrapBox` | 单个模板子节点的列表排布 |
 | `none` | — | 其余 19 个控件 | 不接受子节点 |
 
-Canvas Slot 定位子节点的本地边界；List Slot 不接受 Canvas Slot 字段。完整字段契约见 [UI 资产 Schema 与 Control Registry](<../Lua 与蓝图脚本/声明式 UI/资产 Schema 与 Control Registry.md#slot-与资源路径>)。
+Canvas Slot 定位子节点的本地边界；List Slot 拒绝 Canvas Slot 字段。详见 [Slot 与资源路径](<../Lua 与蓝图脚本/声明式 UI/资产 Schema 与 Control Registry.md#slot-与资源路径>)。
 
 ### 所有控件共有的属性
 
-23 个控件都带 `visible`、`rotation`、`scale`、`origin`，因此下面的条目表不再列出。
-
-PlainText、RichText、FunctionalPlainText、FunctionalRichText、TextBox 和 DropBox 还提供 `previewText`，便于在 Controller 填入实际文本前查看布局。它保存在节点的 `editor` 对象中，仅供设计时使用。
+全部 23 个内置控件均包含 `visible`、`rotation`、`scale` 与 `origin`，下文条目表中不再重复列出。6 个文本控件（`PlainText`、`RichText`、`FunctionalPlainText`、`FunctionalRichText`、`TextBox` 与 `DropBox`）还在 `editor` 中保存仅编辑器使用的 `previewText`，便于在 Controller 赋值前于 Designer 中预览排版。
 
 ### 内联文本样式组
 
-7 个控件共用同一组内联文本样式属性：`textConfig`、`font`、`characterSize`、`bold`、`italic`、`underlined`、`strikeThrough`、`slantAngle`、`fillColor`、`letterSpacing`、`lineSpacing`、`lineAlignment`、`outlineColor`、`outlineThickness`，4 个 `glow*` 字段和 3 个 `gradient*` 字段。它们是 CheckBox、DropBox、FunctionalPlainText、GamepadHintBar、PlainText、TabView、TextBox。下面的条目用*文本样式*指代这一组，不再逐项列出。`textConfig` 非空时，编辑器会禁用这些内联字段，运行时改用 TextConfig。
+7 个控件（`CheckBox`、`DropBox`、`FunctionalPlainText`、`GamepadHintBar`、`PlainText`、`TabView` 与 `TextBox`）共用同一组内联文本样式属性：`textConfig`、`font`、`characterSize`、`bold`、`italic`、`underlined`、`strikeThrough`、`slantAngle`、`fillColor`、`letterSpacing`、`lineSpacing`、`lineAlignment`、`outlineColor`、`outlineThickness`，4 个 `glow*` 字段与 3 个 `gradient*` 字段。
 
-RichText 与 FunctionalRichText 只接受 `textConfig`，没有内联字段；它们通过 TextConfig 为命名标签设定样式。
+下表以*文本样式*代称该属性组。当 `textConfig` 非空时，编辑器会禁用内联字段，运行时改用对应文字配置。
+
+`RichText` 与 `FunctionalRichText` 仅接受 `textConfig`，并通过其中的命名标签控制样式。
 
 ### 系统控件与项目资产
 
-以下 23 个是内置控件。Palette 还会列出启用了 **Exposed**（`palette.exposed = true`）的项目 UI 资产。添加后可将其作为整体使用；修改内部内容时，需要打开原资产。
+以下 23 个控件为引擎内置控件。启用了 **Exposed**（`palette.exposed = true`）的项目 UI 资产也会作为可复用组件出现在 Palette 中，修改其内部结构须打开源资产。
 
 ## Layout 控件
 
-Layout 控件负责组织子节点，也是唯一接受子节点的一类。
+Layout 控件用于组织子节点，也是唯一接受子节点的控件分类。
 
 ### Engine.Canvas
 
-自由定位容器，新屏幕通常以它为根。子节点由各自的 Canvas Slot 定位，而不是由父级流式排布。
+自由定位容器，新界面的标准根节点。子节点通过各自的 Canvas Slot 定位，而非自动流式排布。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
-| Layout | 任意数量 | canvas | `size` |
+| Layout | 任意数量 | `canvas` | `size` |
 
-Canvas 决定内部控件的坐标空间和层叠顺序。详见 [Engine：运行时值与功能控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/运行时值与功能控件.md#canvas>)。
+定义其子内容的坐标空间与绘制顺序。API：[Canvas](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/运行时值与功能控件.md#canvas>)。
 
 ### Engine.ListView
 
-多子节点列表，把子节点排成行与列，并且只绘制当前可见的那些。
+多子节点网格／列表容器，按行列排布子节点并仅绘制当前可见项。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
-| Layout | 任意数量 | list | `size`、`columns`、`defaultItemHeight`、`fixItemHeight`、`childScrollingEnabled` |
+| Layout | 任意数量 | `list` | `size`、`columns`、`defaultItemHeight`、`fixItemHeight`、`childScrollingEnabled` |
 
-`columns` 默认为 1，`defaultItemHeight` 默认为 32；启用 `fixItemHeight` 后，每行使用固定高度。在 Inspector 中开启 `childScrollingEnabled` 可让超宽子项在列内滚动显示，默认关闭。详见 [Engine：布局与图像控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#listview>)。
+默认值：`columns = 1`、`defaultItemHeight = 32`、`childScrollingEnabled = false`（在 Inspector 中开启可令超宽子项在列内滚动）。启用 `fixItemHeight` 可强制统一行高。API：[ListView](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#listview>)。
 
 ### Engine.ScrollBox
 
-带裁剪的可滚动视口，用于容纳放不下的内容。滚动、溢出指示器与裁剪都由原生控件负责。
+带裁剪的可滚动视口，由原生控件负责滚动、裁剪与窗口皮肤溢出指示器。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
-| Layout | 任意数量 | list | `size`、`windowSkin` |
+| Layout | 任意数量 | `list` | `size`、`windowSkin` |
 
-`windowSkin` 为空时加载当前系统窗口皮肤。详见 [Engine：布局与图像控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#scrollbox>)，其中也介绍了窗口皮肤溢出指示器。
+`windowSkin` 留空时加载当前系统窗口皮肤。API：[ScrollBox](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#scrollbox>)。
 
 ### Engine.WrapBox
 
-按等间距重复同一个子节点模板，适合状态火焰、图标网格、格子背景等。
+按等间距重复渲染单个子模板，适合状态图标、网格与单元格背景。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
-| Layout | 单个模板 | list | `size`、`count`、`spacing` |
+| Layout | 单个模板 | `list` | `size`、`count`、`spacing` |
 
-重复项从左到右排列，空间不足时换行。编辑方式见 [UI 资产编辑器](<UI 资产编辑器.md>)，运行时访问方式见 [Engine：布局与图像控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#wrapbox>)。
+子项从左向右排列并在超出可用宽度时自动换行。模板编辑见 [UI 资产编辑器](<UI 资产编辑器.md>)，运行时访问见 [WrapBox](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#wrapbox>)。
 
 ## Visual 控件
 
-Visual 控件只负责绘制，不接受输入。
+Visual 控件仅负责绘制内容，不接受焦点或输入。
 
 ### Engine.CharacterView
 
-在固定边界内渲染逐帧动画的角色与敌人图集。
+在固定边界内渲染逐帧动画的角色或敌人精灵表。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
 | Visual | 无 | — | `size`、`texture`、`textureRect`、`characterScale`、`animatable`、`switchInterval`、`material`、`materialParameters`、`colour` |
 
-`textureRect` 选择初始帧，`characterScale` 调整画面大小。启用 `animatable` 并设置正数 `switchInterval` 后，会按顺序播放水平排列的等宽帧。`material` 使用完整的 `Data/Materials/...json` 路径，空字符串表示默认材质；`materialParameters` 保存公开参数的实例覆盖，更换材质时清空。属性面板按所选材质提供参数控件。详见 [Engine：布局与图像控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#characterview>)。
+`textureRect` 选定初始帧，`characterScale` 控制缩放；启用 `animatable` 并设置正数 `switchInterval` 后，按水平顺序循环播放等宽帧。
+
+`material` 填写完整的 `Data/Materials/...json` 路径（留空使用默认材质），`materialParameters` 保存实例覆盖值并在更换材质时清空，可通过 Inspector 中的材质参数控件编辑。API：[CharacterView](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#characterview>)。
 
 ### Engine.EmitterView
 
-在 UI 中显示一个 GPU 粒子发射器。
+在 UI 布局中渲染 GPU 粒子发射器。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
 | Visual | 无 | — | `particle`、`size`、`anchor`、`autoPlay` |
 
-`particle` 使用 `Data/Particles` 下不带扩展名的资源键。选中效果后，可设置尺寸、锚点和自动播放。制作方法见[通用粒子](<通用粒子.md>)，代码中的播放控制见 [EmitterView](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/时间、渲染与粒子.md#emitterview>)。
+`particle` 为 `Data/Particles` 下不含扩展名的相对键。资产制作见[通用粒子](<通用粒子.md>)，运行时播放控制见 [EmitterView](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/时间、渲染与粒子.md#emitterview>)。
 
 ### Engine.Image
 
-一张静态图片，可拉伸或平铺。
+支持拉伸或平铺绘制的静态图片。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
 | Visual | 无 | — | `drawAs`、`texture`、`textureRect`、`colour` |
 
-**Draw As** 在 Inspector 中是枚举选择器：**Image** 拉伸图片，**Tile** 重复其纹理区域以填满布局区域，并裁掉不完整的最后一块。两种模式下全局 UI Scale 都缩放完整结果。`textureRect` 可选，用于定义平铺单元。详见 [Engine：布局与图像控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#image>)。
+在 Inspector 中将 **Draw As** 设为 **Image**（拉伸）或 **Tile**（在布局区域内重复平铺 `textureRect`，末尾不完整块自动裁剪）；全局 UI 缩放作用于最终合成结果。API：[Image](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#image>)。
 
 ### Engine.ProgressBar
 
-一层背景加一层从左向右显现的填充。
+由背景层与自左向右显现的填充层组成的进度条。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
 | Visual | 无 | — | `size`、`progress`、`backgroundTexture`、`fillTexture`、`backgroundTextureRect`、`fillTextureRect`、`backgroundColor`、`fillColor` |
 
-`progress` 取值 0 到 1，超出范围会被夹紧，非有限值变为 0。两个纹理默认为空，此时是纯色层；非空值使用规范的 `/Game/Assets/...` 路径。填充按当前进度裁剪，而不是被压缩进当前宽度。每层颜色与对应图片的颜色相乘，设为白色 `[255,255,255,255]` 可保留原色。详见 [Engine：交互与声明式 UI 控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md#progressbar>)。
+`progress` 夹紧至 `[0, 1]`（非有限值视为 `0`），按进度裁剪填充而非压扁图像。纹理留空时绘制纯色层，非空值使用规范的 `/Game/Assets/...` 路径。各层颜色对对应纹理染色（`[255, 255, 255, 255]` 保留原色）。API：[ProgressBar](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md#progressbar>)。
 
 ### Engine.Rect
 
-用窗口皮肤画出的矩形——面板、边框、选中高亮。
+使用窗口皮肤绘制的矩形，常用于面板、边框与选中高亮。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
 | Visual | 无 | — | `size`、`windowSkin`、`opacityCurve` |
 
-`opacityCurve` 相对于 `Data/Curves`，不带目录前缀与扩展名，解析为一条标量曲线。详见 [Engine：布局与图像控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#rect>)。
+`opacityCurve` 是相对于 `Data/Curves` 且不含扩展名的标量曲线键。API：[Rect](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#rect>)。
 
 ### Engine.SolidRect
 
-单色填充的矩形，可带描边。
+带可选描边的纯色矩形。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
 | Visual | 无 | — | `size`、`fillColor`、`outlineColor`、`outlineThickness` |
 
-`outlineThickness` 默认为 0，`outlineColor` 默认全透明，因此未改动的 SolidRect 就是纯色填充。详见 [Engine：布局与图像控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#solidrect>)。
+默认 `outlineThickness = 0` 且 `outlineColor` 全透明，未配置描边时仅绘制纯色填充。API：[SolidRect](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#solidrect>)。
 
 ### Engine.Window
 
-带窗口皮肤的窗框——对话框、菜单、消息框的标准背景。
+采用窗口皮肤的九宫格窗框，适合作为对话框、菜单与消息框的标准背景。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
 | Visual | 无 | — | `size`、`windowSkin`、`repeated`、`colour` |
 
-`repeated` 为真时背景采用纹理重复，为假时拉伸；四边始终在两个角之间平铺。`colour` 是 RGBA 染色，默认 `[255,255,255,255]`，因此半透明窗框要在 JSON 里改它的 alpha。详见 [Engine：文本与窗口](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/文本与窗口.md#window>)。
+`repeated` 控制背景平铺（`true`）或拉伸（`false`），四条边框始终在四角之间平铺。`colour` 默认为 `[255, 255, 255, 255]`，调低其 Alpha 通道可实现半透明窗框。API：[Window](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/文本与窗口.md#window>)。
 
 ## Input 控件
 
-Input 控件接受焦点与玩家输入。它们都是 `FunctionalBase`：只有当自身与所有 `FunctionalBase` 祖先都处于 active、且自身与所有 `ControlBase` 祖先都可见时，才接受焦点与输入。
+Input 控件继承自 `FunctionalBase`，仅当自身与全部 `FunctionalBase` 祖先均处于激活状态，且自身与全部 `ControlBase` 祖先均可见时，才响应焦点与玩家输入。
 
 ### Engine.Button
 
-可点击按钮，带悬停与按下染色，并可选绑定手柄。
+支持悬停／按下染色与可选手柄提示绑定的可点击按钮。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
 | Input | 无 | — | `texture`、`textureRect`、`colour`、`hoverColour`、`pressedColour`、`gamepadButton`、`gamepadLongPress` |
 
-`texture` 为空时使用当前窗口皮肤的选中 Rect 图像。默认背景和自定义纹理在所有输入设备下均保持可见；`Engine.Input.getInputHintDevice()` 选择 Gamepad 时显示绑定的手柄图标，尺寸、全局边界、命中区域与独立的文本控件都不变。`gamepadButton` 是诸如 `"X"` 的逻辑名，默认为空；`gamepadLongPress` 默认为 false。Button 不接受子节点，因此它的文字标签是另一个文本控件。详见 [Engine：运行时值与功能控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/运行时值与功能控件.md#button>)。
+`texture` 留空时回退至当前窗口皮肤的选中矩形图像；背景在所有输入设备下均保持可见。按钮不接受子节点，文字标签请使用独立的文本控件。
+
+当 `Engine.Input.getInputHintDevice()` 返回手柄时，绑定的 `gamepadButton` 图标（逻辑按键名如 `"X"`，默认 `""`；`gamepadLongPress` 默认 `false`）会自动叠加显示，不改变尺寸、边界、命中区域或同级文本控件。API：[Button](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/运行时值与功能控件.md#button>)。
 
 ### Engine.CheckBox
 
-自带文字标签的双态开关，状态变化时会向外报告。
+自带文本标签并在状态变化时触发回调的双态复选框。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
 | Input | 无 | — | `size`、`checked`、`windowSkin`、*文本样式* |
 
-标签使用内联文本样式组或某个 `textConfig`。`toggle()` 由代码翻转状态，结果通过 `setOnCheckedChanged` 回调。详见 [Engine：交互与声明式 UI 控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md#checkbox>)。
+代码中可调用 `toggle()` 切换状态，并绑定 `setOnCheckedChanged` 监听变化。API：[CheckBox](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md#checkbox>)。
 
 ### Engine.DropBox
 
-收起状态的单选列表，点开后显示为弹出层。
+可展开弹出列表的收起式单选下拉框。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
 | Input | 无 | — | `size`、`windowSkin`、*文本样式* |
 
-列表选项由 Controller 调用 `setItems` 设置，不保存在资产属性中。选择和音效回调见 [Engine：交互与声明式 UI 控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md#dropbox>)。
+选项需在运行时由 Controller 调用 `setItems` 填充，不保存在 UI 资产中。API：[DropBox](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md#dropbox>)。
 
 ### Engine.FunctionalImage
 
-同时接受焦点与输入的 Image，也是 CharacterView 的基类。
+可聚焦、可点击的 `Image`，也是 `CharacterView` 的基类。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
 | Input | 无 | — | `drawAs`、`texture`、`textureRect`、`colour` |
 
-它序列化的属性与 Image 相同，并继承其 `drawAs` API。如果不需要点击图片，就选 Image。详见 [Engine：运行时值与功能控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/运行时值与功能控件.md#functionalimage>)。
+与 `Image` 共用序列化属性与 `drawAs` 行为；无需点击或焦点交互时请选用 `Engine.Image`。API：[FunctionalImage](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/运行时值与功能控件.md#functionalimage>)。
 
 ### Engine.FunctionalPlainText
 
-同时接受焦点与输入的 PlainText。
+可聚焦、可点击的 `PlainText`。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
 | Input | 无 | — | `text`、`colour`、*文本样式* |
 
-详见 [Engine：运行时值与功能控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/运行时值与功能控件.md#functionalplaintext>)。
+API：[FunctionalPlainText](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/运行时值与功能控件.md#functionalplaintext>)。
 
 ### Engine.FunctionalRichText
 
-同时接受焦点与输入的 RichText。
+可聚焦、可点击的 `RichText`。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
 | Input | 无 | — | `textConfig`、`text`、`colour` |
 
-详见 [Engine：运行时值与功能控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/运行时值与功能控件.md#functionalrichtext>)。
+API：[FunctionalRichText](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/运行时值与功能控件.md#functionalrichtext>)。
 
 ### Engine.GamepadHintBar
 
-显示最多三条手柄提示，在自身尺寸内居中。
+手柄接入时居中显示最多三条由 Controller 提供的 `Engine.GamepadHint` 提示。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
 | Input | 无 | — | `size`、*文本样式* |
 
-接入手柄后才会显示提示。Controller 可设置最多三条 `Engine.GamepadHint`。详见 [Engine：交互与声明式 UI 控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md#gamepadhintbar>)。
+API：[GamepadHintBar](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md#gamepadhintbar>)。
 
 ### Engine.Slider
 
-通过拖动滑块选择范围内的数值。
+支持指针、键盘与触摸操作的整数范围滑块。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
 | Input | 无 | — | `size`、`minValue`、`maxValue`、`value`、`lineTexture`、`handleTexture` |
 
-`minValue` 与 `maxValue` 是整数，默认 0 与 100；两个纹理默认为 `/Game/Assets/System/SliderLine.png` 与 `/Game/Assets/System/SliderHandle.png`。编辑涵盖指针、键盘与触摸输入，变化通过 `setOnValueChanged` 上报。详见 [Engine：交互与声明式 UI 控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md#slider>)。
+默认值：`minValue = 0`、`maxValue = 100`、`lineTexture = "/Game/Assets/System/SliderLine.png"`、`handleTexture = "/Game/Assets/System/SliderHandle.png"`。通过 `setOnValueChanged` 监听数值变更。API：[Slider](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md#slider>)。
 
 ### Engine.TabView
 
-一排可选标签页。
+横向排列的可选标签栏。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
 | Input | 无 | — | `size`、`windowSkin`、`items`、*文本样式* |
 
-`items` 是仅构造期生效的非空 `string[]`。在第一帧可见之前，由 Controller 提供本地化标签文字并绑定选择行为。`selectedIndex` 与按键提示表只在运行时存在，`tabCount` 不是资产属性（见[序列化契约](<../Lua 与蓝图脚本/声明式 UI/资产 Schema 与 Control Registry.md#控件序列化契约>)与[运行时行为](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md#tabview>)）。详见 [Engine：交互与声明式 UI 控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md#tabview>)。
+`items` 为仅构造期生效的非空 `string[]`；须在首帧显示前由 Controller 提供本地化标签文本并绑定选中回调。`selectedIndex` 与按键提示表仅存在于运行时，`tabCount` 不属于资产属性。
+
+详见[控件序列化契约](<../Lua 与蓝图脚本/声明式 UI/资产 Schema 与 Control Registry.md#控件序列化契约>)与 [TabView](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md#tabview>)。
 
 ### Engine.TextBox
 
@@ -255,32 +261,32 @@ Input 控件接受焦点与玩家输入。它们都是 `FunctionalBase`：只有
 |---|---|---|---|
 | Input | 无 | — | `size`、`windowSkin`、`text`、*文本样式* |
 
-用 `text` 设置游戏中的初始文本；`previewText` 只影响设计区预览。编辑操作和回调见 [Engine：交互与声明式 UI 控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md#textbox>)。
+`text` 定义运行时初始内容，`previewText` 仅在 Designer 中预览。API：[TextBox](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md#textbox>)。
 
 ## Text 控件
 
-Text 控件只绘制字符串，不接受输入。如果文本自身需要获得焦点或可点击，请改用对应的 Functional 变体。
+Text 控件仅渲染静态文本，不接受焦点或输入；需要交互时请改用对应的 Functional 变体。
 
 ### Engine.PlainText
 
-样式直接写在节点上的静态文本。
+直接在节点上配置样式或通过文字配置染色的静态文本。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
 | Text | 无 | — | `text`、`colour`、*文本样式* |
 
-详见 [Engine：文本与窗口](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/文本与窗口.md#plaintext>)。
+API：[PlainText](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/文本与窗口.md#plaintext>)。
 
 ### Engine.RichText
 
-静态文本，命名标签样式由 TextConfig 解析。
+通过文字配置解析命名富文本标签的静态文本。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
 | Text | 无 | — | `textConfig`、`text`、`colour` |
 
-详见 [Engine：文本与窗口](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/文本与窗口.md#richtext>)。
+API：[RichText](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/文本与窗口.md#richtext>)。
 
 ## 仅供代码使用的类型
 
-`Engine.SectorShape` 和 `Engine.AssetInstance` 可在代码中使用，但不是内置 Palette 控件。API 见[交互控件参考](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md>)。已启用 Exposed 的项目资产以自己的名称出现在 Palette 中，生成的 View 通过 `.instance` 提供对运行时资产的访问。
+`Engine.SectorShape` 与 `Engine.AssetInstance` 仅可在代码中使用，不作为内置控件出现在 Palette 中（见[交互与声明式 UI 控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md>)）。启用了 **Exposed** 的项目 UI 资产以自身名称显示在 Palette 中，其生成的 View 通过 `.instance` 暴露底层运行时资产。

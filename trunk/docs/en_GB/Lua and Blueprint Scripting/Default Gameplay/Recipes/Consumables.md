@@ -1,27 +1,20 @@
 # Consumables
 
-Create a collision-driven healing or attribute pickup with a Script Mixin.
+Create collision-driven healing bottles and stat-boosting gems using Default Gameplay's Script Mixins. This workflow requires a Blueprint derived from `ConditionalActor` with collision enabled, a matching numeric field in the generated Player Attribute Set and a valid Audio configuration fallback.
 
-## Prerequisites
+## Configure a consumable Blueprint
 
-- A saved Blueprint derived from an Actor, with collision enabled.
-- A matching numeric field in the generated Player Attribute Set and a valid Audio configuration fallback.
+1. Create a Blueprint derived from `Source.MapActors.ConditionalActor.ConditionalActor`, enable collision and enable **Script Mixin**.
+2. Attach `Consumables/Bottle.lua` (healing) or `Consumables/Gem.lua` (attribute boost).
+3. Configure `HP_plus` for a healing bottle, or `ATTR_key` and `plus` for a gem.
+4. Choose a pickup sound in `getSE`, or leave it at its default to use `Audio.getSE` from the Audio configuration.
 
-## Steps
+On collision, the shared pickup flow locates the Player, applies an Instant Add Effect (`Bottle` modifies `HP`; `Gem` modifies the `int` or `float` Player attribute named by `ATTR_key`), records the pickup as destroyed and destroys the Actor.
 
-1. Create a Blueprint derived from `ConditionalActor` and enable Script Mixin.
-2. Attach `Consumables/Bottle.lua` or `Consumables/Gem.lua`.
-3. Set `HP_plus` for a healing bottle, or `ATTR_key` and `plus` for a gem.
-4. Select a sound, or leave the value empty to use the Audio configuration fallback.
+## Default template examples
 
-The Bottle script applies an Instant Add Effect to `HP`. The Gem script applies an Instant Add Effect to an `int` or `float` Player attribute selected by `ATTR_key`. The shared pickup flow finds the Player, records the pickup as destroyed and then destroys it.
+- **`BP_Bottle_200.json`**: Derives directly from `Source.MapActors.ConditionalActor.ConditionalActor`, enables `scriptMixin`, attaches `Consumables/Bottle.lua`, enables collision, sets `HP_plus = 200` and assigns the potion texture.
+- **`BP_Gem_1_1.json`**: Attaches `Consumables/Gem.lua`, sets `ATTR_key = "ATK"` and `plus = 1`, and assigns the gem texture.
+- Both Blueprints keep `getSE` at its metadata default so runtime pickup resolves `Audio.getSE`.
 
-## Game walkthrough
-
-- `BP_Bottle_200.json` derives directly from `Source.MapActors.ConditionalActor.ConditionalActor` and enables `scriptMixin`. It selects `Consumables/Bottle.lua`, sets `HP_plus = 200`, enables collision and selects the potion texture.
-- `BP_Gem_1_1.json` selects `Consumables/Gem.lua`, sets `ATTR_key = "ATK"` and `plus = 1`, and selects the gem texture.
-- Both entries leave `getSE` at its metadata default, so the script resolves `Audio.getSE`.
-
-## Limitations
-
-The Game project scripts depend on the parent capabilities, metadata fields and General Data or configuration keys that they declare. They are not universal inventory components.
+> **Note:** These template mixins rely on their declared parent capabilities, metadata fields and General Data or configuration keys; adapt or replace them if your project uses a custom inventory or attribute model.

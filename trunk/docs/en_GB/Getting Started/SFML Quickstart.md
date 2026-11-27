@@ -1,6 +1,6 @@
 # SFML Quickstart
 
-SFML supplies Ludork's graphics, audio, windows, input and geometry types. LuaSF exposes it as the global `sf` table, available to project scripts without `require`.
+SFML supplies Ludork's graphics, audio, window, input and geometry types. LuaSF exposes it as the global `sf` table, available to project scripts without `require`.
 
 ## Official documentation
 
@@ -14,7 +14,7 @@ Use `sf` for graphics values and resources; use `Engine`, `GlobalCore` and `Glob
 
 `sf` contains classes, enums and helper functions:
 
-| sf group | Members |
+| `sf` group | Members |
 |---|---|
 | Vector and matrix | `sf.Vector2i`, `sf.Vector2u`, `sf.Vector2f`, `sf.Vector2b`, `sf.Vector3i`, `sf.Vector3u`, `sf.Vector3f`, `sf.Vector3b`, `sf.Vector4i`, `sf.Vector4f`, `sf.Vector4b`, `sf.Mat3`, `sf.Mat4`, and the GLSL aliases `sf.Vec2`, `sf.Vec3`, `sf.Vec4`, `sf.Ivec2`, `sf.Ivec3`, `sf.Ivec4`, `sf.Bvec2`, `sf.Bvec3`, `sf.Bvec4` |
 | Geometry | `sf.Color`, `sf.IntRect`, `sf.FloatRect`, `sf.Angle`, `sf.Time`, `sf.Transform` |
@@ -24,7 +24,7 @@ Use `sf` for graphics values and resources; use `Engine`, `GlobalCore` and `Glob
 | System | `sf.Clock`, `sf.sleep`, `sf.Version`, `sf.InputStream`, `sf.FileInputStream`, `sf.MemoryInputStream` |
 | Network | `sf.IpAddress`, `sf.Dns`, `sf.Http`, `sf.Ftp`, `sf.Sftp`, `sf.TcpSocket`, `sf.TcpListener`, `sf.UdpSocket`, `sf.SocketSelector`, `sf.Packet` |
 
-Helpers sit directly on `sf`: `sf.seconds`, `sf.milliseconds` and `sf.microseconds` build an `sf.Time`, while `sf.degrees` and `sf.radians` build an `sf.Angle`. Named blend modes such as `sf.BlendAlpha` and `sf.BlendAdd` are also `sf` fields.
+Helpers sit directly on `sf`: `sf.seconds`, `sf.milliseconds` and `sf.microseconds` build an `sf.Time`, while `sf.degrees` and `sf.radians` build an `sf.Angle`. Named blend modes such as `sf.BlendAlpha` and `sf.BlendAdd` are also fields on `sf`.
 
 ## Value types
 
@@ -61,9 +61,10 @@ local moved = start + step * 2.0   -- Vector2f(96, 64)
 local isSame = moved == sf.Vector2f.new(96.0, 64.0) -- true
 ```
 
-Operators are `+`, `-`, unary `-` and `==`, plus `*` and `/` with a scalar number. `==` is the only comparison operator, so ordering comparisons such as `<` are not available on vectors. Multiplication between two vectors is a method rather than an operator. `lengthSquared`, `perpendicular`, `dot`, `cross`, `componentWiseMul`, `componentWiseDiv` and `unpack` exist on all three `Vector2` types, and `unpack` returns the components as separate values. The floating-point type adds `length`, `normalized`, `angle`, `angleTo`, `rotatedBy` and `projectedOnto`, which works in `sf.Angle` rather than degrees.
+- **Operators:** 2D vectors support `+`, `-`, unary `-` and `==`, plus `*` and `/` with a scalar number. Ordering comparisons such as `<` are not defined, and vector-by-vector multiplication is a method rather than an operator.
+- **Methods:** All three `Vector2` types provide `lengthSquared`, `perpendicular`, `dot`, `cross`, `componentWiseMul`, `componentWiseDiv` and `unpack` (returning the components as separate values). `sf.Vector2f` adds `length`, `normalized`, `angle`, `angleTo`, `rotatedBy` and `projectedOnto`, which work in `sf.Angle` rather than degrees.
 
-`sf.Vector2f.new` also accepts a length and an `sf.Angle`, which builds the vector from polar coordinates:
+`sf.Vector2f.new` also accepts a length and an `sf.Angle`, constructing the vector from polar coordinates:
 
 ```lua
 local forward = sf.Vector2f.new(1.0, sf.degrees(90)) -- Vector2f(0, 1)
@@ -71,16 +72,16 @@ local forward = sf.Vector2f.new(1.0, sf.degrees(90)) -- Vector2f(0, 1)
 
 ### Colour, rectangles and time
 
-`sf.Color` holds `r`, `g`, `b` and `a` in the range 0 to 255. The four-argument constructor takes red, green, blue and alpha, and shorter forms use defaults for the missing components:
+`sf.Color` holds `r`, `g`, `b` and `a` in the range 0–255. The four-argument constructor takes red, green, blue and alpha, and shorter forms use defaults for omitted components:
 
 ```lua
 local solid = sf.Color.new(32, 96, 160)
 local veil = sf.Color.new(0, 0, 0, 160)
 ```
 
-Predefined colours are fields of `sf.Color`: `Black`, `White`, `Red`, `Green`, `Blue`, `Yellow`, `Cyan`, `Magenta` and `Transparent`. `toInteger` returns the packed 32-bit value. `sf.Color` has no operators, so it cannot be added or compared; read and compare its components if that is needed.
+Predefined colours are fields on `sf.Color`: `Black`, `White`, `Red`, `Green`, `Blue`, `Yellow`, `Cyan`, `Magenta` and `Transparent`. `toInteger` returns the packed 32-bit value. `sf.Color` defines no operators, so it cannot be added or compared directly; read and compare its components instead.
 
-`sf.IntRect.new` and `sf.FloatRect.new` take a position and a size, and both also accept four numbers. The last two numbers are width and height, not the bottom-right corner:
+`sf.IntRect.new` and `sf.FloatRect.new` take a position and a size, or four numbers. The last two numbers are width and height, not the bottom-right corner:
 
 ```lua
 local tile = sf.IntRect.new(sf.Vector2i.new(0, 0), sf.Vector2i.new(32, 32))
@@ -93,7 +94,7 @@ local inside = tile.contains(sf.Vector2i.new(16, 16)) -- true
 local overlap = tile.findIntersection(sub) -- an sf.IntRect, or nil, when the rectangles do not overlap
 ```
 
-`sf.Angle` carries a rotation. It is not a number, so an angle value has to go through `sf.degrees` or `sf.radians` rather than being passed as degrees:
+`sf.Angle` represents a rotation rather than a raw number, so pass values through `sf.degrees` or `sf.radians`:
 
 ```lua
 local facing = sf.degrees(90)
@@ -103,9 +104,9 @@ local degrees = facing.asDegrees()
 local wrapped = sf.degrees(450).wrapSigned().asDegrees() -- 90
 ```
 
-`wrapSigned` normalises to `[-180°, 180°)` and `wrapUnsigned` to `[0°, 360°)`. Other angles remain valid. `sf.Angle.new()` and `sf.Angle.Zero` are both zero.
+`wrapSigned` normalises to `[-180°, 180°)` and `wrapUnsigned` to `[0°, 360°)`; unwrapped angles are also valid. `sf.Angle.new()` and `sf.Angle.Zero` are both zero.
 
-`sf.Time` carries a duration, and `sf.seconds`, `sf.milliseconds` and `sf.microseconds` build one:
+`sf.Time` represents a duration constructed with `sf.seconds`, `sf.milliseconds` or `sf.microseconds`:
 
 ```lua
 local cooldown = sf.seconds(0.75)
@@ -113,11 +114,11 @@ local cooldown = sf.seconds(0.75)
 local milliseconds = cooldown.asMilliseconds() -- 750
 ```
 
-`sf.Time.new()` is zero as well; `sf.sleep` pauses the calling thread for a duration.
+`sf.Time.new()` is zero, and `sf.sleep` pauses the calling thread for the given duration.
 
 ## Object types
 
-The graphics objects follow the SFML hierarchy, and Lua sees the same relationships:
+Graphics objects mirror the SFML inheritance hierarchy in Lua:
 
 ```text
 sf.Drawable
@@ -128,7 +129,7 @@ sf.Sprite : sf.Drawable, sf.Transformable
 sf.Text : sf.Drawable, sf.Transformable
 ```
 
-Every `sf.Transformable` exposes `setPosition` and `getPosition` with `sf.Vector2f`, `setRotation` and `getRotation` with `sf.Angle`, `setScale`, `getScale`, `setOrigin` and `getOrigin` with `sf.Vector2f`, plus `move`, `rotate`, `scale` and `getTransform`.
+Every `sf.Transformable` exposes `setPosition` and `getPosition` (`sf.Vector2f`), `setRotation` and `getRotation` (`sf.Angle`), `setScale` and `getScale`, `setOrigin` and `getOrigin` (`sf.Vector2f`), plus `move`, `rotate`, `scale` and `getTransform`.
 
 ```lua
 local cell = sf.RectangleShape.new(sf.Vector2f.new(32.0, 32.0))
@@ -142,15 +143,17 @@ cell:move(sf.Vector2f.new(8.0, 0.0))
 local bounds = cell:getGlobalBounds()
 ```
 
-`sf.RectangleShape.new` takes a size, `sf.CircleShape.new` takes a radius and a point count, `sf.ConvexShape.new` takes a point count, and `sf.Text.new` takes a font, a string and a character size. Shapes also carry `setFillColor` and `setOutlineColor` with an `sf.Color`, and `setOutlineThickness` with a number.
+`sf.RectangleShape.new` takes a size, `sf.CircleShape.new` takes a radius and a point count, `sf.ConvexShape.new` takes a point count and `sf.Text.new` takes a font, a string and a character size. Shapes also provide `setFillColor` and `setOutlineColor` (`sf.Color`), and `setOutlineThickness` (number).
 
-The abstract bases above are present as tables but have no `new`: `sf.Drawable`, `sf.Shape`, `sf.RenderTarget`, `sf.InputStream`, `sf.SoundSource`, `sf.SoundStream`, `sf.SoundRecorder`, `sf.SoundFileReader`, `sf.SoundFileWriter` and `sf.Socket` cannot be constructed. Create a concrete subclass instead, and treat the base as the type a parameter or a return value declares. `sf.Drawable` is the one exception that Lua can implement: `sf.LuaDrawable.new(drawCallback)` produces a drawable whose `draw` runs in Lua.
+The abstract base classes (`sf.Drawable`, `sf.Shape`, `sf.RenderTarget`, `sf.InputStream`, `sf.SoundSource`, `sf.SoundStream`, `sf.SoundRecorder`, `sf.SoundFileReader`, `sf.SoundFileWriter` and `sf.Socket`) exist as tables without `new` and cannot be constructed directly. Construct a concrete subclass instead and treat the base class as the parameter or return type.
 
-Events follow the same pattern in reverse. The payload types such as `sf.Event_Closed` and `sf.Event_Resized` are constructible, while `sf.Event.new` requires one of them as its argument. Project code normally receives events instead of building them.
+`sf.Drawable` is the one base that Lua can implement directly: `sf.LuaDrawable.new(drawCallback)` creates a drawable whose `draw` runs in Lua.
+
+Events follow this pattern in reverse: payload types such as `sf.Event_Closed` and `sf.Event_Resized` are constructible, while `sf.Event.new` requires one as its argument. Project code normally receives events rather than constructing them.
 
 ## Using SFML in a project
 
-Positions, sizes and rectangles travel across the Engine API as `sf` values, so converting between cell coordinates and world positions is ordinary vector arithmetic:
+Positions, sizes and rectangles cross the Engine API as `sf` values, so converting between cell coordinates and world positions uses ordinary vector arithmetic:
 
 ```lua
 local Engine = require("Engine")
@@ -172,10 +175,10 @@ if player ~= nil then
 end
 ```
 
-Check the declared type before passing a value. An API that declares `sf.Vector2f` does not accept an `sf.Vector2i`, a Standard `tuple` or a plain table, and does not convert between them.
+Check the declared type before passing a value: an API expecting `sf.Vector2f` rejects `sf.Vector2i`, a Standard `tuple` or a plain table without converting between them.
 
-JSON and metadata hold pure data, while `sf` values are native userdata, so converting between the two forms is explicit rather than automatic. The Game project's save codec writes a `sf.Vector2i` as `{ x, y }` and rebuilds it on load, and its record normaliser turns `sf.Vector2i`, `sf.Vector3i`, `sf.IntRect`, `sf.FloatRect` and `sf.Color` into numeric arrays. Store the components whenever the destination is data, and build the `sf` value again where it is used.
+JSON and metadata store pure data whereas `sf` values are native userdata, so conversion is explicit. The Game project's save codec writes an `sf.Vector2i` as `{ x, y }` and rebuilds it on load, and its record normaliser turns `sf.Vector2i`, `sf.Vector3i`, `sf.IntRect`, `sf.FloatRect` and `sf.Color` into numeric arrays. Store raw components for data destinations and reconstruct the `sf` value where it is used.
 
 ## Where to read more
 
-`Scripts/stub/LuaSF.d.lua` contains the complete Lua declarations and SFML comments, indexed by EmmyLua for completion and hover. The official C++ reference linked above uses member names and argument order that closely match the Lua declarations.
+`Scripts/stub/LuaSF.d.lua` provides the complete Lua declarations and SFML comments indexed by EmmyLua for completion and hover. Member names and parameter order closely follow the official SFML C++ reference linked above.

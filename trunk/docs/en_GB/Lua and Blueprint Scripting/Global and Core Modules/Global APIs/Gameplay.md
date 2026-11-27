@@ -1,121 +1,120 @@
 # GlobalCore Gameplay API
 
-`require("GlobalCore")` exposes the native ability system, which covers `AttributeSet`, `AbilitySystemComponent`, and the ability, result, event, Effect and spec types.
-
-The signatures below describe Lua instance calls. Blueprint nodes for these instance methods additionally expose a typed first `self` input, defaulting to the graph owner when unset. Connect the intended Attribute Set, Ability System Component or Ability instance when it differs from that owner.
+`require("GlobalCore")` exposes the native ability system covering `AttributeSet`, `AbilitySystemComponent`, abilities, results, events, Effects and runtime specs. Instance method tables below omit the implicit Lua `self` receiver; Blueprint nodes expose it as a typed first `self` input defaulting to the graph owner when unset (connect the intended `AttributeSet`, `AbilitySystemComponent` or `GameplayAbility` when it differs from the owner).
 
 ## AttributeSet
 
-An `AttributeSet` subclass declares ordered `ATTRIBUTE_NAMES` and `{ type, default }` entries in `SCHEMA`. `ID` identifies the General Data member. Missing fields use the schema defaults, and an explicit stored nil branch overrides a default. Stored General Data is loaded through `Source.Configs.GeneralDataTypes.Create`.
+An `AttributeSet` subclass declares ordered `ATTRIBUTE_NAMES` and `{ type, default }` entries in `SCHEMA`, with `ID` identifying the General Data member. Missing fields use schema defaults, while an explicit stored `nil` branch overrides a default. Stored General Data loads through `Source.Configs.GeneralDataTypes.Create`.
 
-| Member | Signature | Behaviour |
-|---|---|---|
-| `init` | `(values?)` | Initialises every declared attribute and `ID` |
-| `initialize` | `(values)` | Copies and validates runtime values |
-| `initializeStored` | `(values)` | Materialises schema-directed stored values before copying them |
-| `getAttributeNames` | `() -> string[]` | Returns a copy of the ordered names |
-| `getAttributeSchema` | `(name) -> AttributeSchema?` | Returns the attribute's `type` schema and `default` value |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `init` | `values?: table` | — | Initialises every declared attribute and `ID`. |
+| `initialize` | `values: table` | — | Copies and validates runtime values. |
+| `initializeStored` | `values: table` | — | Materialises schema-directed stored values before copying them. |
+| `getAttributeNames` | — | `string[]` | Returns a copy of the ordered attribute names. |
+| `getAttributeSchema` | `name: string` | `AttributeSchema?` | Returns the attribute's `type` schema and `default` value. |
 
-Only `int` and `float` fields have Base and Current values and modifiers. Values must be finite. `int` values require a Lua integer, while `float` values accept any finite number. Other fields remain direct typed data.
+Only `int` and `float` fields maintain Base and Current values and accept modifiers. All numeric values must be finite: `int` requires a Lua integer, while `float` accepts any finite number. Other fields store direct typed data.
 
 ## AbilitySystemComponent
 
-`AbilitySystemComponent.new(owner, attributeSet)` owns attributes, abilities, active Effects and counted tags.
+`AbilitySystemComponent.new(owner, attributeSet)` creates a component owning attributes, granted abilities, active Effects and counted gameplay tags.
 
 ### Attributes
 
-| Member | Signature | Behaviour |
-|---|---|---|
-| `getOwner` | `() -> any` | Returns the owning gameplay object |
-| `getAttributeSet` | `() -> AttributeSet` | Returns the live Attribute Set |
-| `getNumericAttribute` | `(name) -> number` | Returns the current value after active modifiers |
-| `getNumericAttributeBase` | `(name) -> number` | Returns the unmodified base value |
-| `setNumericAttributeBase` | `(name, value)` | Changes one Base and recalculates every numeric Current |
-| `setNumericAttributeBases` | `(values)` | Changes several Base values, then recalculates all numeric attributes |
-| `getNumericAttributeBases` | `() -> table<string, number>` | Returns a copy suitable for persistence |
-| `addAttributeChangeListener` | `(name, callback, params?)` | Calls `callback(oldValue, newValue, change, ...)` after a relevant Current or Base change |
-| `setNumericAttributeConstraint` | `(name, callback?)` | Installs or removes a final Current-value constraint and recalculates immediately |
-| `getRevision` | `() -> integer` | Returns the revision, which changes on attribute, ability or effect mutations. Attribute listeners observe the revision after this commit |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `getOwner` | — | `any` | Returns the owning gameplay object. |
+| `getAttributeSet` | — | `GlobalCore.AttributeSet` | Returns the live Attribute Set. |
+| `getNumericAttribute` | `name: string` | `number` | Returns the Current value after active modifiers. |
+| `getNumericAttributeBase` | `name: string` | `number` | Returns the unmodified Base value. |
+| `setNumericAttributeBase` | `name: string`, `value: number` | — | Updates one Base value and recalculates every numeric Current value. |
+| `setNumericAttributeBases` | `values: table<string, number>` | — | Updates multiple Base values, then recalculates all numeric attributes. |
+| `getNumericAttributeBases` | — | `table<string, number>` | Returns a copy suitable for persistence. |
+| `addAttributeChangeListener` | `name: string`, `callback: function`, `params?: any[]` | — | Calls `callback(oldValue, newValue, change, ...)` after a relevant Current or Base change. |
+| `setNumericAttributeConstraint` | `name: string`, `callback?: function` | — | Installs or removes (`nil`) a final Current-value constraint and recalculates immediately. |
+| `getRevision` | — | `integer` | Returns the component revision, incremented on attribute, ability or effect mutations. Attribute listeners observe the post-commit revision. |
 
 Base setters validate the complete candidate Base and Current state before committing. Unknown attributes, non-finite values or schema mismatches fail without partial mutation. Direct numeric field assignment is treated as a Base write.
 
-Listener `oldValue` and `newValue` are always Current values. The third argument is an `AttributeChange` context:
+Listener `oldValue` and `newValue` arguments are always Current values, followed by an `AttributeChange` context and any bound `params`:
 
-| Field | Type | Meaning |
-|---|---|---|
-| `source` | `"Base" \| "Effect" \| "Constraint"` | Operation that caused resolution: `GameplayAttributeChangeSource.BASE` (`"Base"`), `EFFECT` (`"Effect"`) or `CONSTRAINT` (`"Constraint"`) |
-| `force` | `boolean` | A Base write may notify even when the visible Current did not change |
-| `oldBase` | `number \| Class.MissingValue \| nil` | Previous Base for a `Base` source; otherwise nil |
-| `newBase` | `number \| nil` | New Base for a `Base` source; otherwise nil |
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `source` | `"Base" \| "Effect" \| "Constraint"` | — | Operation that triggered resolution: `GameplayAttributeChangeSource.BASE` (`"Base"`), `EFFECT` (`"Effect"`) or `CONSTRAINT` (`"Constraint"`). |
+| `force` | `boolean` | — | `true` when a Base write notifies even if the visible Current value did not change. |
+| `oldBase` | `number \| Class.MissingValue \| nil` | — | Previous Base for a `"Base"` source; otherwise `nil`. |
+| `newBase` | `number \| nil` | — | New Base for a `"Base"` source; otherwise `nil`. |
 
-The source constants are static, read-only fields on `GlobalCore.GameplayAttributeChangeSource`; `change.source` remains a string.
+The source constants are static, read-only fields on `GlobalCore.GameplayAttributeChangeSource`; `change.source` is always a string.
 
-Listener `params` follow `change`, and batch writes notify only the final state. Base writes notify even when Current is unchanged, while Effect and Constraint notifications require a Current change.
-
-A constraint receives `(value, abilitySystem, resolvedValues)` after modifier aggregation. It must return exactly one schema-valid finite number, and it must never write Base. Passing nil removes it. Resolution follows `ATTRIBUTE_NAMES`, with HP last. `resolvedValues` contains the fields already resolved in that pass.
+- **Notifications:** Batch writes notify only the final state. Base writes notify even when Current is unchanged, while Effect and Constraint notifications fire only when Current changes.
+- **Constraints:** A constraint receives `(value, abilitySystem, resolvedValues)` after modifier aggregation, must return exactly one schema-valid finite number and must never write Base. Passing `nil` removes it. Resolution runs in `ATTRIBUTE_NAMES` order with HP last; `resolvedValues` holds fields already resolved in the current pass.
 
 ### Abilities and events
 
-| Member | Signature | Behaviour |
-|---|---|---|
-| `giveAbility` | `(ability, sourceKey?) -> GameplayAbilitySpec` | Grants an ability and records its source |
-| `removeAbilitiesBySource` | `(sourceKey)` | Removes every ability granted by that exact source |
-| `tryActivateAbility` | `(abilityID, eventData?) -> GameplayAbilityResult` | Activates the highest-priority eligible ability with that ID |
-| `getGameplayEventAbilities` | `(eventTag) -> GameplayAbilitySpec[]` | Returns subscribed granted specs in event execution order without calling gates or abilities |
-| `handleGameplayEvent` | `(eventData) -> GameplayAbilityResult[]` | Runs every ability whose trigger tag matches the event |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `giveAbility` | `ability: GlobalCore.GameplayAbility`, `sourceKey?: any` | `GlobalCore.GameplayAbilitySpec` | Grants an ability and records its source. |
+| `removeAbilitiesBySource` | `sourceKey: any` | — | Removes every ability granted by that exact source. |
+| `tryActivateAbility` | `abilityID: string`, `eventData?: GlobalCore.GameplayEventData` | `GlobalCore.GameplayAbilityResult` | Activates the highest-priority eligible ability with that ID. |
+| `getGameplayEventAbilities` | `eventTag: string` | `GlobalCore.GameplayAbilitySpec[]` | Returns subscribed granted specs in event execution order without calling gates or abilities. |
+| `handleGameplayEvent` | `eventData: GlobalCore.GameplayEventData` | `GlobalCore.GameplayAbilityResult[]` | Runs every ability whose trigger tag matches the event. |
 
-Abilities run in descending `priority` order, then in grant order. Tags match hierarchically. Direct activation returns `AbilityNotFound` for a missing ID, or `AbilityNotActivated` when every matching ability fails its gate.
+Abilities execute in descending `priority` order, then in grant order, using hierarchical tag matching. Direct activation returns `AbilityNotFound` for a missing ID or `AbilityNotActivated` when every matching ability fails its gate.
 
-`getGameplayEventAbilities` uses the same tag matching and ordering as `handleGameplayEvent`, including abilities granted directly or by Effects. It requires a non-empty event tag and returns an empty array when none match. The array contains the existing granted specs; changing the array does not grant or remove abilities. The query does not invoke `canActivate` or `activate` and does not change the component revision.
+`getGameplayEventAbilities` uses the same tag matching and ordering as `handleGameplayEvent`, covering abilities granted directly or by Effects. It requires a non-empty event tag and returns an empty array when none match. Mutating the returned array does not grant or remove abilities, and calling it does not invoke `canActivate` or `activate` or change the component revision.
 
 ### Effects and tags
 
-| Member | Signature | Behaviour |
-|---|---|---|
-| `applyGameplayEffectSpec` | `(spec) -> integer?` | Applies an Instant effect or returns an Infinite effect handle |
-| `validateGameplayEffectSpec` | `(spec) -> bool` | Validates and previews the spec without changing ability system state |
-| `removeActiveGameplayEffect` | `(handle, stacks?) -> bool` | Removes stacks or the whole active effect |
-| `getActiveEffectStacks` | `(effectID) -> integer` | Sums stacks across active effects with that ID |
-| `getActiveGameplayEffects` | `() -> ActiveGameplayEffect[]` | Returns active effects in application order |
-| `hasMatchingGameplayTag` | `(tag) -> bool` | Tests an exact or child owned tag |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `applyGameplayEffectSpec` | `spec: GlobalCore.GameplayEffectSpec` | `integer?` | Applies an Instant Effect (returns `nil`) or returns an Infinite Effect handle. |
+| `validateGameplayEffectSpec` | `spec: GlobalCore.GameplayEffectSpec` | `bool` | Validates and previews the spec without changing ability system state. |
+| `removeActiveGameplayEffect` | `handle: integer`, `stacks?: integer` | `bool` | Removes the requested stacks or the entire active Effect. |
+| `getActiveEffectStacks` | `effectID: string` | `integer` | Sums stacks across active Effects with that ID. |
+| `getActiveGameplayEffects` | — | `GlobalCore.ActiveGameplayEffect[]` | Returns active Effects in application order. |
+| `hasMatchingGameplayTag` | `tag: string` | `bool` | Tests for an exact or child owned tag. |
 
-Instant modifiers update Base in order, apply each modifier's `minimum` immediately and return no handle. Infinite modifiers recalculate Current until they are removed. Add magnitudes sum, and Multiply magnitudes multiply. The latest Override wins, then the highest matching `minimum` clamps Current. Aggregate stacks scale Add linearly and Multiply exponentially. `None` deduplicates the same non-empty ID and source pair.
+Effect application and modifier resolution follow these rules:
 
-Magnitudes, minima, Base and Current must be finite and schema-valid. Instant Effects cannot grant tags or abilities. `None` requires one stack, and Aggregate Infinite Effects require a non-empty ID. Removing an Infinite Effect also removes its tags and granted abilities.
+- **Instant vs Infinite:** Instant modifiers update Base in order, apply each modifier's `minimum` immediately and return no handle. Infinite modifiers recalculate Current until removed, and removing an Infinite Effect also removes its granted tags and abilities.
+- **Aggregation and stacking:** `Add` magnitudes sum and `Multiply` magnitudes multiply; the latest `Override` wins, and the highest matching `minimum` clamps Current. `Aggregate` stacks scale `Add` linearly and `Multiply` exponentially. `None` deduplicates by non-empty ID and source pair.
+- **Validation constraints:** Magnitudes, minima, Base and Current must be finite and schema-valid. Instant Effects cannot grant tags or abilities. `None` requires one stack, and `Aggregate` Infinite Effects require a non-empty ID.
 
-Applying, stacking and removing Effects preview the complete resulting ability system state before mutation. `validateGameplayEffectSpec` performs that preview without mutation, and application validates again. Magnitude functions and constraints run during preview and must avoid external side effects. Listener errors after commit are not rolled back.
+> **Important:** Applying, stacking and removing Effects preview the complete resulting state before committing, and `validateGameplayEffectSpec` runs that preview without mutating state. Magnitude functions and constraints execute during preview and must avoid external side effects. Listener errors raised after commit are not rolled back.
 
 ## GameplayAbility
 
-`GameplayAbility` defines activation policy and behaviour.
+`GameplayAbility` defines activation policy, tags and execution hooks for an ability.
 
-| Field | Type | Default |
-|---|---|---|
-| `id` | `string` | `""` |
-| `priority` | `integer` | `0` |
-| `abilityTags` | `string[]` | `{}` |
-| `requiredTags` | `string[]` | `{}` |
-| `blockedTags` | `string[]` | `{}` |
-| `triggerTags` | `string[]` | `{}` |
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `id` | `string` | `""` | Granted abilities require a non-empty ID. |
+| `priority` | `integer` | `0` | Higher priorities run first. |
+| `abilityTags` | `string[]` | `{}` | — |
+| `requiredTags` | `string[]` | `{}` | — |
+| `blockedTags` | `string[]` | `{}` | — |
+| `triggerTags` | `string[]` | `{}` | — |
 
-| Member | Signature | Behaviour |
-|---|---|---|
-| `canActivate` | `(abilitySystem, eventData) -> GameplayAbilityResult` | Checks required and blocked owned tags |
-| `calculate` | `(abilitySystem, eventData) -> GameplayAbilityResult` | Computes a result without committing by default |
-| `activate` | `(abilitySystem, eventData) -> GameplayAbilityResult` | Delegates to `calculate`; subclasses override it to commit work |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `canActivate` | `abilitySystem: GlobalCore.AbilitySystemComponent`, `eventData: GlobalCore.GameplayEventData` | `GlobalCore.GameplayAbilityResult` | Checks required and blocked owned tags. |
+| `calculate` | `abilitySystem: GlobalCore.AbilitySystemComponent`, `eventData: GlobalCore.GameplayEventData` | `GlobalCore.GameplayAbilityResult` | Computes a result without committing by default. |
+| `activate` | `abilitySystem: GlobalCore.AbilitySystemComponent`, `eventData: GlobalCore.GameplayEventData` | `GlobalCore.GameplayAbilityResult` | Delegates to `calculate`; override in subclasses to commit work. |
 
-Granted abilities require a non-empty ID, and overrides must return `GameplayAbilityResult`.
+All method overrides must return a `GameplayAbilityResult`.
 
 ## GameplayAbilityResult
 
-`GameplayAbilityResult` contains `ok`, a string or integer `code` (default `""`), and arbitrary `data`.
+`GameplayAbilityResult` carries a boolean `ok`, a string or integer `code` (default `""`) and arbitrary `data`.
 
-| Static member | Signature | Behaviour |
-|---|---|---|
-| `Success` | `(code?, data?) -> GameplayAbilityResult` | Creates a successful result; default code is `Success` |
-| `Failure` | `(code, data?) -> GameplayAbilityResult` | Creates a failed result and requires a non-empty string or non-zero integer code |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `Success` | `code?: string \| integer`, `data?: any` | `GlobalCore.GameplayAbilityResult` | Static. Creates a successful result; defaults `code` to `"Success"`. |
+| `Failure` | `code: string \| integer`, `data?: any` | `GlobalCore.GameplayAbilityResult` | Static. Creates a failed result; requires a non-empty string or non-zero integer `code`. |
 
-Built-in result codes are read-only fields on `GlobalCore.GameplayAbilityResult`. Custom abilities can still return their own string or integer codes.
+Built-in result codes are static, read-only fields on `GlobalCore.GameplayAbilityResult`. Custom abilities may return their own string or integer codes.
 
 | Constant | String value | Meaning |
 |---|---|---|
@@ -127,46 +126,50 @@ Built-in result codes are read-only fields on `GlobalCore.GameplayAbilityResult`
 
 ## GameplayEventData
 
-`GameplayEventData.new(instigator?, target?, eventTag?, payload?)` carries one activation or event.
+`GameplayEventData.new(instigator?, target?, eventTag?, payload?)` carries context for one activation or event dispatch.
 
-| Field | Type | Default |
-|---|---|---|
-| `instigator` | `any` | `nil` |
-| `target` | `any` | `nil` |
-| `eventTag` | `string` | `""` |
-| `payload` | `table<string, any>` | `{}` |
-
-Handlers may update `payload`. `handleGameplayEvent` requires a non-empty tag, while direct activation does not.
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `instigator` | `any` | `nil` | — |
+| `target` | `any` | `nil` | — |
+| `eventTag` | `string` | `""` | Required to be non-empty for `handleGameplayEvent`; optional for direct activation. |
+| `payload` | `table<string, any>` | `{}` | Handlers may mutate `payload`. |
 
 ## GameplayEffect and GameplayEffectSpec
 
-`GameplayEffect` describes modifiers and grants, and `GameplayEffectSpec` binds an Effect to event data, stacks and source identity.
+`GameplayEffect` defines attribute modifiers and grants, and `GameplayEffectSpec` binds an Effect to event data, stacks and source identity.
 
-| GameplayEffect field | Type | Values/default |
-|---|---|---|
-| `id` | `string` | `""` |
-| `durationPolicy` | `string` | `GameplayEffect.DURATION_INSTANT` (`"Instant"`) or `DURATION_INFINITE` (`"Infinite"`); default `DURATION_INSTANT` |
-| `stackingPolicy` | `string` | `GameplayEffect.STACKING_NONE` (`"None"`) or `STACKING_AGGREGATE` (`"Aggregate"`); default `STACKING_NONE` |
-| `modifiers` | `GameplayModifier[]` | `{}` |
-| `grantedTags` | `string[]` | `{}`; Infinite only |
-| `grantedAbilities` | `GameplayAbility[]` | `{}`; Infinite only |
-| `data` | `table<string, any>` | `{}` |
+**`GameplayEffect` fields:**
 
-| GameplayModifier field | Type | Values/default |
-|---|---|---|
-| `attribute` | `string` | Target numeric attribute |
-| `operation` | `string` | `GameplayModifier.OPERATION_ADD` (`"Add"`), `OPERATION_MULTIPLY` (`"Multiply"`) or `OPERATION_OVERRIDE` (`"Override"`) |
-| `magnitude` | `number` or `function` | Required at validation: a finite number, or `(spec, stacks)` returning exactly one finite number |
-| `minimum` | `number?` | Optional finite lower bound |
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `id` | `string` | `""` | Required non-empty for `Aggregate` Infinite Effects. |
+| `durationPolicy` | `string` | `GameplayEffect.DURATION_INSTANT` | `GameplayEffect.DURATION_INSTANT` (`"Instant"`) or `DURATION_INFINITE` (`"Infinite"`). |
+| `stackingPolicy` | `string` | `GameplayEffect.STACKING_NONE` | `GameplayEffect.STACKING_NONE` (`"None"`) or `STACKING_AGGREGATE` (`"Aggregate"`). |
+| `modifiers` | `GlobalCore.GameplayModifier[]` | `{}` | — |
+| `grantedTags` | `string[]` | `{}` | Infinite Effects only. |
+| `grantedAbilities` | `GlobalCore.GameplayAbility[]` | `{}` | Infinite Effects only. |
+| `data` | `table<string, any>` | `{}` | Opaque to the ability system. |
 
-Policy and operation constants are static, read-only properties of their owning `GlobalCore` classes. Policies and operations carry the string values shown above.
+**`GameplayModifier` fields:**
 
-`data` is opaque to the ability system. `GameplayEffectSpec.new(effect, eventData?, stacks?, sourceKey?)` requires positive integer stacks. Effect ID plus Lua-equal `sourceKey` identifies an Infinite Effect for deduplication or stacking. Matching definitions are a caller invariant. Aggregate retains the first active spec.
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `attribute` | `string` | — | Target numeric attribute name. |
+| `operation` | `string` | — | `GameplayModifier.OPERATION_ADD` (`"Add"`), `OPERATION_MULTIPLY` (`"Multiply"`) or `OPERATION_OVERRIDE` (`"Override"`). |
+| `magnitude` | `number \| function` | — | Required at validation: a finite number, or `fun(spec, stacks)` returning exactly one finite number. |
+| `minimum` | `number?` | `nil` | Optional finite lower bound. |
+
+Policy and operation constants are static, read-only properties on their owning `GlobalCore` classes and hold the string values shown above.
+
+`GameplayEffectSpec.new(effect, eventData?, stacks?, sourceKey?)` requires a positive integer `stacks` count. Effect ID combined with a Lua-equal `sourceKey` identifies an Infinite Effect for deduplication or stacking; matching definitions are a caller invariant, and `Aggregate` keeps the first active spec.
 
 ## Runtime specs
 
-`GameplayAbilitySpec` stores `ability`, `sourceKey` and `grantOrder`. `ActiveGameplayEffect` stores `handle`, `spec`, `stacks`, `applicationOrder` and granted ability specs.
+- `GameplayAbilitySpec` stores `ability`, `sourceKey` and `grantOrder`.
+- `ActiveGameplayEffect` stores `handle`, `spec`, `stacks`, `applicationOrder` and granted ability specs.
 
 ## Scope
 
-Supported: Instant and Infinite Effects, Add, Multiply and Override modifiers, aggregate stacking, hierarchical tags and synchronous abilities. Unsupported: timers, periodic Effects, prediction, replication, async tasks and built-in persistence.
+- **Supported:** Instant and Infinite Effects, `Add`, `Multiply` and `Override` modifiers, aggregate stacking, hierarchical tags and synchronous abilities.
+- **Unsupported:** timers, periodic Effects, prediction, replication, async tasks and built-in persistence.

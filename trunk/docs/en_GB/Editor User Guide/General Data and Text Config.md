@@ -1,85 +1,78 @@
 # General Data and Text Config
 
-General Data is the editor-managed database beneath `Data/General`, suited to enemies, items, equipment, player presets, states and other data shared by many maps or Blueprints. Each JSON file defines a type schema and named members. Its Form, Table and member ability-graph windows share one document and one Undo/Redo history for that type file.
+Author structured project databases under `Data/General`, declare shared runtime Game Variables and configure reusable rich-text styles in Text Config.
+
+General Data suits enemies, items, equipment, player presets, states and other records shared across maps and Blueprints. Each JSON file defines one type schema and its named members; its Form, Table and member ability-graph windows share a single document and Undo/Redo history.
 
 ## Type structure
 
-| Key | Meaning |
+| Key | Purpose |
 |---|---|
-| `params` | Ordered field definitions with `type`, `defaultValue`, optional `comment`, and recursive type schemas for enums and containers |
-| `members` | Named records that store values for those fields |
-| `events` | Optional ordered event names; each member may store an independent graph for each one |
+| `params` | Ordered field definitions with `type`, `defaultValue`, optional `comment`, and recursive schemas for enums and containers. |
+| `members` | Named records storing values for every schema field. |
+| `events` | Optional ordered event names; each member can define an independent graph per event. |
 
-Supported fields include strings, booleans, integers, floating-point values, files, lists, dictionaries, `sf.Vector2f/i/u`, `sf.Vector3f/i/u`, `sf.Color` and `sf.IntRect`. New and edited fields save a complete recursive `type`, such as `{ "list": "int" }` or `{ "dict": "int", "key": { "enum": "Enums.GeneralData.Item", "valueType": "string" } }`. Existing `"type": "list"` with `itemType` and `"type": "dict"` with `valueType` remain readable. Enum, tuple and union composition follows [Metadata Schema and Decorators](<../Lua and Blueprint Scripting/Blueprint Scripting/Metadata Schema and Decorators.md>). Select a union branch before entering its value.
+### Supported types and enums
 
-In **Add Field** or **Edit Field**, select `enum`, choose its module through **kind**, and select an inferred or explicit scalar value type and a default value. Managed project enums use `string`. An empty source enum requires an explicit scalar type. For a dictionary, select its key type and key enum independently of its value type. These selectors write the schema itself; no separate `kind` or `reference` property is saved.
+Supported types include strings, booleans, integers, floats, files, lists, dictionaries, `sf.Vector2f/i/u`, `sf.Vector3f/i/u`, `sf.Color`, `sf.IntRect` and `any` (preserves heterogeneous JSON literal types without evaluating strings). Enum, tuple and union composition follows [Metadata Schema and Decorators](<../Lua and Blueprint Scripting/Blueprint Scripting/Metadata Schema and Decorators.md>); choose a union branch before entering its value.
 
-Use `{ "enum": "Enums.GeneralData.Item", "valueType": "string" }` for an Item key, `Enums.GeneralDataKey` for a type key, `Enums.Animation` for an animation key, and `Enums.Particle` for a particle key. Selectors include unsaved additions, renames and deletions. Lists, dictionary keys and values, tuples and unions support these enums.
+New and edited fields write complete recursive `type` objects — such as `{ "list": "int" }` or `{ "dict": "int", "key": { "enum": "Enums.GeneralData.Item", "valueType": "string" } }` — while legacy `"type": "list"` + `itemType` and `"type": "dict"` + `valueType` remain readable.
 
-Loading fails on a missing subtype, on a missing or unknown non-underscore member field, and on any value that does not match the schema. Use `any` for heterogeneous JSON values, because it preserves literal types and never evaluates strings.
+- **Adding or editing enum fields:** In **Add Field** / **Edit Field**, choose `enum`, pick its module in **kind**, choose an inferred or explicit scalar value type (managed project enums use `string`; empty source enums require an explicit scalar type) and set a default. Dictionaries select key and value types independently. Selectors write directly to `type` without saving separate `kind` or `reference` fields.
+- **Built-in managed enums:** Reference Item keys with `{ "enum": "Enums.GeneralData.Item", "valueType": "string" }`, type keys with `Enums.GeneralDataKey`, animations with `Enums.Animation` and particles with `Enums.Particle` (including inside lists, dictionary keys/values, tuples and unions). Selectors reflect unsaved additions, renames and deletions.
+- **Enum rules:** String enum pickers include **— None —** (`""`), retain unknown non-empty values (validation checks scalar type rather than option membership), preserve literal whitespace and quotes in IDs, and allow empty managed collections. Enum-keyed dictionary rows stay pending until a non-empty unique key is selected so no placeholder key is saved. Enum declarations count as dependencies even when unused by any member.
+- **Rejected legacy and invalid schemas:** Loading fails on missing subtypes, missing or unknown non-underscore member fields, type mismatches, `linkedType`, the old `GeneralDataVars` decorator and the old `reference` protocol.
+- **Field comments:** Enter optional plain English tooltips in **Comment** (omitted when empty; shown on hover over Form labels and Table headers; not locale keys or member data).
 
-`linkedType` is unsupported and rejected.
+### Renaming types and member IDs
 
-Each field definition may store an optional English `comment`. Enter it through **Comment** when adding or editing a field; an empty comment is omitted. Form field names and Table headers show the comment on hover. Comments are plain project text, not locale keys or member data.
+- **Type renames:** Update recognised module paths across editable JSON (including self-references and modules reassigned due to identifier collisions). Lua metadata dependencies appear in the reference tree but must be updated manually. Remove and save all dependencies before deleting a referenced type.
+- **Member ID renames (`Change ID`):** Update typed member references across defaults, Blueprint and map fields, graph parameters and containers (including dictionary keys). Inherited values update at their declaring definition without creating child or map overrides. Animation and particle renames similarly update typed scalar references. Dictionary key collisions reject the entire rename. Undo/Redo follows [Editing and saving](<Start Page Workspace and Shortcuts.md#editing-and-saving>); update arbitrary strings and Lua/C++ source manually.
 
-String enum selectors include **— None —**, stored as an empty string. Unknown non-empty values are retained; enums validate scalar types rather than option membership. Empty managed collections remain valid string enums. An enum-keyed dictionary row remains pending until a non-empty, unique key is chosen, so no placeholder key is saved. The old `GeneralDataVars` decorator and General Data field `reference` protocol are unsupported; express these choices in the type schema.
-
-Enum declarations count as dependencies even when no member selects a value. Enum IDs preserve whitespace and quote characters literally.
-
-Renaming a type updates recognised module paths in editable JSON, including self references and module names reassigned by identifier collisions. Lua metadata dependencies remain visible, but their source is not rewritten.
-
-**Change ID** updates typed member references in defaults, Blueprint and map fields, graph parameters and containers, including dictionary keys. Inherited values change in their owning definition; child Blueprints and map Actors receive no overrides. Animation and particle renames update typed scalar references. Dictionary key collisions reject the whole rename. Undo/Redo follows the shared [reference-update rules](<Start Page Workspace and Shortcuts.md#editing-and-saving>). Ordinary strings and Lua or C++ source require manual updates. Remove and save dependencies before deleting a referenced type.
-
-## Steps
+## Authoring workflow
 
 1. Open **Database → General Data** (`F10`).
 2. Select a type, or right-click the type-tab strip to create one.
-3. Define fields before creating many members. Right-click a Form field name to edit its definition.
-4. Add members and fill their values. Right-click a member in the list or a Table row to change its ID, duplicate it, remove it or open an available ability graph.
-5. Manage type events from the type tab's context menu, then open member graphs with **Edit Ability Graph**. Event renames and deletions update all member graphs, and the runtime activates the graphs explicitly.
-6. Inspect references before renaming or deleting types and members.
-7. Save the data.
+3. Define fields before creating many members (right-click a Form field name to edit its definition).
+4. Add members and enter values. Right-click a member in the list or Table to change its ID, duplicate it, delete it or open its ability graph.
+5. Manage events from the type tab's context menu, then open member graphs via **Edit Ability Graph**. Renaming or deleting an event updates all member graphs.
+6. Inspect references before renaming or deleting types or members, then save.
 
-Save generates `Enums.GeneralDataKey`, each `Enums.GeneralData.<TypeName>` module, `Enums.Animation`, `Enums.Particle`, and `Source.Configs.GeneralDataTypes` with its LuaLS declaration. For example, `local Item = require("Enums.GeneralData.Item")` exposes `Item.EnemyBook`. Edit database records rather than these generated files. Type renames and deletions update their generated modules; handwritten files are retained.
-
-Use `GeneralDataTypes.Create(typeName, memberID, memberData)` to restore a stored member with its ID and field types.
-
-Editing a field can change its name, type, container item or value type, default and comment. Renaming preserves each member's current field value. Changing the field type, a list's item type or a dictionary's key or value type first asks for confirmation, then resets that field in every existing member to the new default value. Changing only the default does not overwrite existing members. Removing a field removes its meaning but does not automatically repair the scripts that read it.
-
-Member graphs allow only declared events and synchronous nodes, with no class inheritance, Parent or self node. Use global nodes and the `GameplayEventData` context. Activation and results are described in [General Data event execution](<../Lua and Blueprint Scripting/Blueprint Scripting/Execution Flow Events and Variables.md#events>).
+- **Generated Lua modules:** Saving generates `Enums.GeneralDataKey`, each `Enums.GeneralData.<TypeName>` (e.g. `require("Enums.GeneralData.Item")` exposes `Item.EnemyBook`), `Enums.Animation`, `Enums.Particle` and `Source.Configs.GeneralDataTypes` (with its LuaLS declaration). Do not edit these generated files by hand; type renames and deletions update generated modules while preserving handwritten files. Use `GeneralDataTypes.Create(typeName, memberID, memberData)` to restore a typed member record.
+- **Schema edits:** Renaming a field preserves member values; changing only the default leaves existing members unchanged. Changing a field's type or a container's item/key/value type asks for confirmation and resets every existing member's field to the new default. Removing a field does not automatically update scripts that read it.
+- **Member graphs:** Support only declared type events and synchronous nodes, with no inheritance, Parent or `self` node; use global nodes and `GameplayEventData`. Runtime code activates member graphs explicitly (see [General Data event execution](<../Lua and Blueprint Scripting/Blueprint Scripting/Execution Flow Events and Variables.md#events>)).
 
 ## Search and views
 
-Search matches member IDs and direct scalar values such as names, numbers and booleans, ignoring case. It does not search inside containers or graphs. Each type retains its search, selection and Form/Table view while the window remains open.
+Search filters case-insensitively across member IDs and direct scalar fields (strings, numbers, booleans), excluding containers and graphs. Each type remembers its search query, selection and Form/Table mode while the window stays open.
 
-Form edits one member in full. Table shows the ID and schema fields in declaration order, with direct editing for booleans, numbers and strings. For structured values, choose **Edit** to open that member in Form. Columns scroll horizontally. Editing follows the shared [Undo rules](<Start Page Workspace and Shortcuts.md#editing-and-saving>).
+- **Form view:** Edits one member completely.
+- **Table view:** Lists IDs and fields in declaration order with horizontal scrolling and inline editing for booleans, numbers and strings; click **Edit** on structured cells to jump to Form view. Editing follows the shared [Undo rules](<Start Page Workspace and Shortcuts.md#editing-and-saving>).
 
 ![General Data editor](../../../images/editor/general-data.png)
 
 ## Game Variable Manager
 
-Open **Database → Game Variables** (`F9`) to declare mutable values shared by Blueprints and the active game instance. The left side lists the declared variable names. Select one to edit its type, initial value and optional remark on the right; the remark remains editor-only with no runtime effect. Variable names are runtime identifiers, so keep them stable once graphs, maps or scripts begin to reference them.
-
-Use the search box to filter variable names, ignoring case. **New Variable** adds a declaration after asking for its name and type, and **Delete Variable** removes the selected declaration after confirmation.
+Open **Database → Game Variables** (`F9`) to declare mutable runtime variables shared across Blueprints and the active game instance. Filter names case-insensitively with the search box, click **New Variable** to add a declaration, select an entry to edit its type, initial value and editor-only remark, or click **Delete Variable** to remove it after confirmation. Keep variable names stable once referenced by graphs, maps or scripts.
 
 ![Game Variable Manager with a selected integer variable](../../../images/editor/game-variables.png)
 
-The manager offers `bool`, `int`, `float`, `string`, `list` and `dict`, and these are written to metadata as `bool`, `int`, `float`, `string`, `any[]` and `Dict[string, any]` respectively. Lists and dictionaries use ordinary Lua tables, not the native `list` or `dict` of Standard. Changing an existing variable's type clears its initial value and replaces it with the empty default of the new type.
+| Manager type | Written metadata type | Notes |
+|---|---|---|
+| `bool`, `int`, `float`, `string` | `bool`, `int`, `float`, `string` | Scalar defaults |
+| `list` | `any[]` | Ordinary Lua table (not Standard native `list`) |
+| `dict` | `Dict[string, any]` | Ordinary Lua table (not Standard native `dict`) |
 
-Save generates `Scripts/Source/Configs/GameVariables.lua` and `GameVariables_meta.lua` together. The first holds initial values and the second holds declarations. Edit variables through the manager, not these files; opening the manager alone writes nothing.
+Changing an existing variable's type clears its initial value and resets it to the new type's empty default. Saving generates `Scripts/Source/Configs/GameVariables.lua` (initial values) and `GameVariables_meta.lua` (declarations) together; edit declarations through the manager only (opening the window alone writes nothing).
 
-Blueprint fields or node parameters marked with `InstVar` use a searchable selector instead of a free-form text box. A corresponding `InstVarValue` field reads the type of the selected declaration and switches to the normal editor for that type. A type-filtered selector, such as the Game project's conditional door, lists compatible variables only.
+Blueprint fields and node pins marked with `InstVar` display a searchable variable selector (type-filtered selectors, such as conditional doors in the Game project, show compatible variables only), and paired `InstVarValue` fields automatically adapt their editor to the selected variable's type.
+
+> **Important:** Schema and Game Variable edits cannot automatically repair scripts, graphs, save files or hardcoded string references. General Data and generated variable declarations are project definition data, not stores for mutable play-session state.
 
 ## Text Config
 
-Ordinary UI text is styled on its UI node. Use **Game → New Text Config** for shared styles or named rich-text tags.
+Style ordinary UI text directly on its UI node; use **Game → New Text Config** for reusable shared styles or named rich-text tags.
 
 ![Text Config editor](../../../images/editor/text-config.png)
 
-Display strings such as `{ITEM_NAME}` are resolved when presented, not when data is loaded. See [Game Localisation Workflow](<../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md>) for authoring and using localised text.
-
-See [General Data Reference](<General Data Reference/Overview.md>) for the Game schemas.
-
-## Limitations
-
-Changing a schema or a game-variable declaration cannot automatically repair scripts, graphs, saves or string references. General Data and the generated game-variable declarations are project definition data, not stores for mutable play-session state.
+Localised display keys such as `{ITEM_NAME}` resolve at presentation time rather than load time; see [Game Localisation Workflow](<../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md>). For the Game project's built-in database schemas, see [General Data Reference](<General Data Reference/Overview.md>).

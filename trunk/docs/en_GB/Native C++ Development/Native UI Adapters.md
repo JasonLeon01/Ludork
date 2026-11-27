@@ -1,16 +1,10 @@
 # Native UI Adapters
 
-Add a native control to Ludork's declarative UI contract so the runtime, the preview host and the editor's live control registry describe the same control.
-
-## Prerequisites
-
-- A C++ Source project.
-- A native control type and generic adapter operations for construction, property assignment, measurement, arrangement and child attachment.
-- Familiarity with the [Declarative UI Runtime Contract](<../Lua and Blueprint Scripting/Declarative UI/Runtime Contract.md>).
+Add a native C++ control to Ludork's declarative UI contract so the runtime, PreviewHost and editor control registry share one descriptor definition. This workflow applies to C++ Source projects and assumes familiarity with the [Declarative UI Runtime Contract](<../Lua and Blueprint Scripting/Declarative UI/Runtime Contract.md>).
 
 ## Descriptor contract
 
-System control descriptors are defined in `Engine/Source/Core/include/UI/UiControlAdapterDescriptors.hpp` using the private `BIND_UI_CONTROL` X-macro, not a Core bindgen annotation. Its logical signature is:
+System control descriptors live in `Engine/Source/Core/include/UI/UiControlAdapterDescriptors.hpp` and use the private `BIND_UI_CONTROL` X-macro (not a Core bindgen annotation):
 
 ```cpp
 BIND_UI_CONTROL(TAG, CONTROL_ID, ADAPTER, DISPLAY_NAME, CATEGORY,
@@ -20,40 +14,48 @@ BIND_UI_CONTROL(TAG, CONTROL_ID, ADAPTER, DISPLAY_NAME, CATEGORY,
 | Argument | Meaning |
 |---|---|
 | `TAG` | Unique C++ tag used to specialise `UiControlAdapterTraits` |
-| `CONTROL_ID` | Stable serialised system-control identifier; use the native class's canonical module-root path |
-| `ADAPTER` | Runtime adapter identifier; use the same canonical module-root path |
-| `DISPLAY_NAME` | Palette label |
+| `CONTROL_ID` | Stable serialised system-control identifier; must be the native class's canonical module-root path |
+| `ADAPTER` | Runtime adapter identifier; must match `CONTROL_ID` |
+| `DISPLAY_NAME` | Palette display label |
 | `CATEGORY` | Palette category |
 | `CHILD_POLICY` | `UiChildPolicy::None`, `Single` or `Multiple` |
 | `SLOT_TYPE` | `UiControlSlotType::None`, `Canvas` or `List` |
 | `...PROPERTIES` | One or more property descriptors |
 
-Properties use one of three descriptor macros. `UI_CONTROL_COMMON_PROPERTY` applies to every control. `UI_CONTROL_PROPERTY` is written to and consumed by the runtime adapter. `UI_CONTROL_EDITOR_PROPERTY` is available only to the editor or preview. Each macro takes `(ID, DISPLAY_NAME, TYPE, REQUIRED, DEFAULT_JSON)`. Plain-text controls use `UI_CONTROL_PLAIN_TEXT_PROPERTIES(DEFAULT_SIZE)`, and rich-text controls use `UI_CONTROL_RICH_TEXT_PROPERTIES`. These groups also determine the expected TextConfig type for editor and packaging validation.
+For every system control, `CONTROL_ID` and `ADAPTER` must be identical canonical paths (for example, `Engine.Canvas` for a bound `Canvas` in `Engine`); nested or abbreviated identifiers are invalid. Before exporting descriptors, the native registry validates IDs, property types and defaults, property responsibilities and adapter registration.
 
-Before exporting descriptors, the native registry validates IDs, property types and defaults, property responsibilities and adapter registration.
+### Property descriptor macros
 
-For a system control, the two path fields must be identical. A bound `Canvas` in Engine therefore uses `Engine.Canvas` for both `CONTROL_ID` and `ADAPTER`. Nested or abbreviated identifiers are invalid.
+Each property descriptor takes `(ID, DISPLAY_NAME, TYPE, REQUIRED, DEFAULT_JSON)` and uses one of three macros:
 
-Read asset JSON as `RuntimeData` and decode each property through its descriptor into `UiControlPropertyValue`. Factories receive the resulting `UiControlProperties` dictionary. Setters receive one typed property value.
+| Macro | Scope |
+|---|---|
+| `UI_CONTROL_COMMON_PROPERTY` | Shared property applied to every control |
+| `UI_CONTROL_PROPERTY` | Serialised property read and applied by the runtime adapter |
+| `UI_CONTROL_EDITOR_PROPERTY` | Editor- and preview-only property |
 
-Image `drawAs` uses the bound C++ `Image::DrawAs` enum, exported as `Engine.ImageDrawAs`. JSON stores the member name, but native decoding and runtime setters carry the enum itself. A runtime `AssetInstance:setProperty` call therefore passes `Engine.ImageDrawAs.Tile`. Keep the decoder, property-value variant, Inspector enum selector, Toolchain validation and generated declarations in agreement.
+Plain-text controls include `UI_CONTROL_PLAIN_TEXT_PROPERTIES(DEFAULT_SIZE)`, and rich-text controls include `UI_CONTROL_RICH_TEXT_PROPERTIES`. These property groups also determine the expected `TextConfig` type for editor and packaging validation.
 
-`Engine.WrapBox` uses `UiChildPolicy::Single` and List Slots. Its authored child is a template for repeated instances; see the [UI Asset Schema and Control Registry](<../Lua and Blueprint Scripting/Declarative UI/Asset Schema and Control Registry.md>) for its child behaviour.
+### Decoding and special controls
 
-## Steps
+Asset JSON is read as `RuntimeData` and each property is decoded through its descriptor into `UiControlPropertyValue`. Factories receive the decoded `UiControlProperties` dictionary, and setters receive one typed property value.
 
-1. Implement the native control.
-2. Add one `BIND_UI_CONTROL` entry to `LUDORK_UI_CONTROL_DEFINITIONS`. Choose a stable control ID and specify the exact child policy and Slot type.
-3. Declare properties using the existing supported types and resource handling. A new property type also requires changes to the native decoder, editor and Toolchain.
-4. Register the tag in `UiControlAdapterRegistry`. Supply the factory, setter, arranger and child functions required by the descriptor. The registry copies adapter-property IDs from the descriptor.
-5. Build the C++ project with the platform `tools/build_cpp` entry point to update the preview host and registry, and validate UI assets. Controls using supported property types do not require rebuilding the editor or Toolchain.
+- **Enum properties (`Image::DrawAs`):** Image `drawAs` uses the bound C++ `Image::DrawAs` enum, exported as `Engine.ImageDrawAs`. JSON stores the member name, whereas native decoding and runtime setters carry the enum value itself (`AssetInstance:setProperty` therefore passes `Engine.ImageDrawAs.Tile`). Keep the decoder, property-value variant, Inspector enum selector, Toolchain validation and generated declarations in sync.
+- **Template children (`Engine.WrapBox`):** Uses `UiChildPolicy::Single` and List Slots, treating its authored child as a template for repeated instances. See [UI Asset Schema and Control Registry](<../Lua and Blueprint Scripting/Declarative UI/Asset Schema and Control Registry.md>).
 
-`Engine.TabView` is the childless Input example: serialise construction and visual resources only, and bind labels and callbacks at runtime. Details are in the [UI Asset Schema and Control Registry](<../Lua and Blueprint Scripting/Declarative UI/Asset Schema and Control Registry.md>) and [Engine: Interactive and Declarative UI Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md>).
+## Registering a native control
 
-`Engine.CharacterView` is the childless animated Visual example. Its adapter constructs the native preview state from `size`, texture/Rect, Actor scale, animation, material reference and instance parameters. Its class owns cropping, frame advancement and effect composition, while the adapter owns resource-path conversion and property assignment.
+1. Implement the native control type together with generic adapter operations for construction, property assignment, measurement, arrangement and child attachment.
+2. Add a `BIND_UI_CONTROL` entry to `LUDORK_UI_CONTROL_DEFINITIONS` with a stable canonical control ID, child policy and Slot type.
+3. Declare properties using existing supported property types and resource handling. Introducing a new property type also requires updating the native decoder, editor and Toolchain.
+4. Register the tag in `UiControlAdapterRegistry`, providing the factory, setter, arranger and child callbacks required by the descriptor. The registry copies adapter-property IDs directly from the descriptor.
+5. Build the C++ project using the platform `tools/build_cpp` script to refresh PreviewHost, update the control registry and validate UI assets. Controls using existing property types do not require rebuilding the editor or Toolchain.
 
-Preview build artefacts, registry publication and packaging rules are described in [PreviewHost: Build, Publish and Troubleshooting](<../PreviewHost/Build Publish and Troubleshooting.md>).
+### Built-in reference adapters
 
-## Limitations
+- **`Engine.TabView` (childless Input control):** Serialises construction and visual resources only, binding labels and callbacks at runtime. See [UI Asset Schema and Control Registry](<../Lua and Blueprint Scripting/Declarative UI/Asset Schema and Control Registry.md>) and [Interactive and Declarative UI Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md>).
+- **`Engine.CharacterView` (childless animated Visual control):** Constructs native preview state from `size`, texture and `Rect`, Actor scale, animation, material reference and instance parameters. The control class owns cropping, frame advancement and effect composition, while the adapter handles resource-path conversion and property assignment.
 
-Native controls must be added through the project's Core UI source and adapter registration, and they must satisfy the preview runtime's dependency boundary. Editor plug-ins cannot register them through the Palette. A control with `UiChildPolicy::None` cannot contain children, and `Single` accepts at most one child.
+For preview build artefacts, registry publication and packaging rules, see [PreviewHost: Build, Publish and Troubleshooting](<../PreviewHost/Build Publish and Troubleshooting.md>).
+
+> **Note:** Native controls must live in the project's Core UI source and satisfy the preview runtime's dependency boundary; editor plug-ins cannot register native controls in the Palette. Controls with `UiChildPolicy::None` cannot host children, and `UiChildPolicy::Single` accepts at most one child.

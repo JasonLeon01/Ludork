@@ -1,15 +1,15 @@
 # GlobalFunctions.Save
 
-`Save` 声明存档、读档与存档路径节点。
+`GlobalFunctions.Save` 提供用于保存游戏进度、从存档文件读取进度以及解析编号存档槽文件路径的蓝图节点。
 
-Metadata 来源：`Scripts/GlobalFunctions/Save_meta.lua`
+**元数据来源**：`Scripts/GlobalFunctions/Save_meta.lua`
 
 ## Save
 
 ### 函数与事件
 
-| 名称 | 种类 | 参数 | 返回 | 执行语义与 metadata |
-|---|---|---|---|---|
-| `SaveGame` | `function` | filePath: string = "" | — | ExecSplit { [1] = "default", default = nil } |
-| `LoadGame` | `function` | filePath: string = "" | return: int | ExecSplit { [1] = "Loaded", [2] = "NotFound", Loaded = { [1] = 0 }, NotFound = { [1] = 1 } } |
-| `GetSavePath` | `function` | slot: int = 1 | path: string | Pure |
+| 函数 | 参数 | 返回值 | 说明 |
+|---|---|---|---|
+| `SaveGame` | `filePath: string = ""` | — | 将当前游戏状态保存至 `filePath`。 |
+| `LoadGame` | `filePath: string = ""` | `int` | 执行分支：`Loaded`（`0`）、`NotFound`（`1`）。从 `filePath` 读取游戏存档。 |
+| `GetSavePath` | `slot: int = 1` | `path: string` | 纯函数（Pure）。解析编号 `slot` 对应的存档文件路径。 |

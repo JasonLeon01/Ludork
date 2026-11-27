@@ -1,40 +1,43 @@
 # GlobalCore: Scenes and System
 
+This page documents the `SceneBase` lifecycle and timer API together with the static runtime services under `GlobalCore`: `System`, `Display`, `Graphics`, `ScreenEffects`, `Transition`, `SceneManager` and `RuntimeDiagnostics`. `SceneBase` method tables omit the implicit `self` receiver exposed as the first Blueprint target pin; all runtime services below `SceneBase` are static types whose methods take no receiver.
+
 ## SceneBase
 
-On HarmonyOS, the game thread runs the scene’s `onTick`, advances any `onFixedTick` steps due, and then renders the frame. WebGL runs the same callbacks and rendering on the browser main thread. Other native game hosts run these callbacks on a separate scene logic worker while the game thread handles rendering.
+Base class for gameplay scenes, managing per-frame callbacks, UI managers, animations and timers.
 
-Closing the window during runtime or input processing ends the current frame before further UI updates, emitter simulation or rendering. Closing it from an input or UI callback also skips the remaining frame work. The loop stops scene logic and runs `onQuit` through the normal Scene exit lifecycle.
-
-On Android, iOS, HarmonyOS and WebGL, losing focus pauses scene and UI updates, rendering, runtime callbacks and scene timers while the loop continues processing system events. Hiding a Web page also pauses its scene. Returning to the foreground in the same process preserves the scene and Lua state, resets the frame and fixed-update timing, and resumes without catching up on time spent in the background. An actual close still follows the normal exit lifecycle.
+- **Threading model:** On HarmonyOS, the game thread runs `onTick`, advances due `onFixedTick` steps and renders the frame. WebGL runs the same callbacks and rendering on the browser main thread. Other native hosts run scene logic on a dedicated logic worker while the game thread renders.
+- **Window close:** Closing the window during runtime or input processing (including from an input or UI callback) ends the current frame before further UI updates, emitter simulation or rendering, stops scene logic and runs `onQuit` through the normal scene exit lifecycle.
+- **Focus loss and suspend:** On Android, iOS, HarmonyOS and WebGL, losing focus (or hiding a Web page) pauses scene and UI updates, rendering, runtime callbacks and scene timers while system event processing continues. Returning to the foreground in the same process preserves the scene and Lua state, resets frame and fixed-update clocks, and resumes without catching up on background time. Closing follows the normal exit lifecycle.
 
 ### Scene timers
 
-`scene:addTimer(interval, task, params, blocking)` returns an `Engine.AsyncOperation`. On expiry, it runs `task` before completing with `true` and resuming the Blueprint `TimeUp` branch. If the callback raises a Lua runtime error, the engine logs the Lua stack trace, cancels the operation and releases its input block. Waiters follow the [operation cancellation rules](<../Engine/Events and Module Root.md#asyncoperation>), and other timers due in the same update continue.
+`scene:addTimer(interval, task, params, blocking)` returns an `Engine.AsyncOperation`. On expiry, it runs `task` before completing with `true` and resuming the Blueprint `TimeUp` branch.
 
-The Lua-only `scene:cancelTimers()` cancels unfinished timers and clears their input blocking. Calling it from a timer callback also cancels the current operation and skips any remaining callbacks. Scene exit or destruction cancels timers automatically.
+If the callback raises a Lua runtime error, the engine logs the Lua stack trace, cancels the operation and releases its input block; waiters follow the [operation cancellation rules](<../Engine/Events and Module Root.md#asyncoperation>), and other timers due in the same update continue.
+
+The Lua-only `scene:cancelTimers()` cancels unfinished timers and clears their input blocks. Calling it from a timer callback also cancels the current operation and skips remaining callbacks. Scene exit or destruction cancels timers automatically.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `getUIManager` | `function` | self: { "GlobalCore", "SceneBase" } = "self" | return: { "GlobalCore", "UIManager" } | Pure |
-| `addTimer` | `function` | self: { "GlobalCore", "SceneBase" } = "self"; interval: float = nil; task: function = nil; params: any[] = {  }; blocking: bool = false | return: { "Engine", "AsyncOperation" } | Latent; LatentStates { [1] = "TimeUp", TimeUp = true } |
-| `isInputBlocked` | `function` | self: { "GlobalCore", "SceneBase" } = "self" | blocked: bool | Pure |
-| `addAnim` | `function` | self: { "GlobalCore", "SceneBase" } = "self"; anim: { "GlobalCore", "Animation" } | — | ExecSplit { [1] = "default", default = nil } |
-| `getAnims` | `function` | self: { "GlobalCore", "SceneBase" } = "self" | anims: { "GlobalCore", "Animation[]" } | Pure |
-| `removeAnim` | `function` | self: { "GlobalCore", "SceneBase" } = "self"; anim: { "GlobalCore", "Animation" } | — | ExecSplit { [1] = "default", default = nil } |
-| `clearAnims` | `function` | self: { "GlobalCore", "SceneBase" } = "self" | — | ExecSplit { [1] = "default", default = nil } |
-| `addCommonTip` | `function` | self: { "GlobalCore", "SceneBase" } = "self"; text: string | — | ExecSplit { [1] = "default", default = nil } |
-| `onEnter` | `function` | self: { "GlobalCore", "SceneBase" } = "self" | — | — |
-| `onQuit` | `function` | self: { "GlobalCore", "SceneBase" } = "self" | — | — |
-| `onCreate` | `function` | self: { "GlobalCore", "SceneBase" } = "self" | — | — |
-| `onInput` | `function` | self: { "GlobalCore", "SceneBase" } = "self" | — | — |
-| `onTick` | `function` | self: { "GlobalCore", "SceneBase" } = "self"; deltaTime: float | — | — |
-| `onLateTick` | `function` | self: { "GlobalCore", "SceneBase" } = "self"; deltaTime: float | — | — |
-| `onFixedTick` | `function` | self: { "GlobalCore", "SceneBase" } = "self"; fixedDelta: float | — | — |
-| `onDestroy` | `function` | self: { "GlobalCore", "SceneBase" } = "self" | — | — |
-
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `getUIManager` | — | `GlobalCore.UIManager` | Pure. |
+| `addTimer` | `interval: float = nil`, `task: function = nil`, `params: any[] = {}`, `blocking: bool = false` | `Engine.AsyncOperation` | Latent. Branch: `TimeUp` (`true`). |
+| `isInputBlocked` | — | `blocked: bool` | Pure. |
+| `addAnim` | `anim: GlobalCore.Animation` | — | Exec (`default`). |
+| `getAnims` | — | `anims: GlobalCore.Animation[]` | Pure. |
+| `removeAnim` | `anim: GlobalCore.Animation` | — | Exec (`default`). |
+| `clearAnims` | — | — | Exec (`default`). |
+| `addCommonTip` | `text: string` | — | Exec (`default`). |
+| `onEnter` | — | — | — |
+| `onQuit` | — | — | — |
+| `onCreate` | — | — | — |
+| `onInput` | — | — | — |
+| `onTick` | `deltaTime: float` | — | — |
+| `onLateTick` | `deltaTime: float` | — | — |
+| `onFixedTick` | `fixedDelta: float` | — | — |
+| `onDestroy` | — | — | — |
 
 All runtime services below are static types under `GlobalCore`. The [game configuration](<../../../Default Gameplay/Runtime Data Configuration and Saves.md#configuration>) uses the same keys and defaults on every platform; each service owns its values and apply/save behaviour.
 
@@ -44,14 +47,14 @@ All runtime services below are static types under `GlobalCore`. The [game config
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `init` | `function` | data: ludork::standard::ConfigParser; dataFilePath: string | — | — |
-| `getLanguage` | `function` | — | return: string | — |
-| `setLanguage` | `function` | value: string | — | — |
-| `saveLanguage` | `function` | value: string | — | — |
-| `isDebugMode` | `function` | — | return: bool | Pure |
-| `exit` | `function` | — | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `init` | `data: ludork::standard::ConfigParser`, `dataFilePath: string` | — | Static. |
+| `getLanguage` | — | `string` | Static. |
+| `setLanguage` | `value: string` | — | Static. |
+| `saveLanguage` | `value: string` | — | Static. |
+| `isDebugMode` | — | `bool` | Static. Pure. |
+| `exit` | — | — | Static. |
 
 ## Display
 
@@ -59,19 +62,22 @@ All runtime services below are static types under `GlobalCore`. The [game config
 
 ### Display scale semantics
 
-`getConfiguredScale()` returns the configured display preference, including `0`. `getScale()` returns the positive effective scale that rendering and input currently use after Maximum Render Scale is applied. The default configured preference is Fullscreen (`0`). `setScale` applies the value and saves it. `applyScale` only applies the value, and `saveScale` only saves it. Non-finite or negative values normalise to `1`. On desktop, `0` selects borderless fullscreen without changing the display mode. Positive values set a fixed standalone window size controlled through Scale; users cannot resize the window by dragging its borders. Rendering preserves aspect ratio with centred black bars when needed. On macOS, the configured window scale is measured in Cocoa client points. The effective render scale returned by `getScale()` and `Engine.GetScale()` is calculated from the actual drawable pixel size, including the Retina backing scale, and then limited by Maximum Render Scale. A backing-scale change rebuilds the render targets and refreshes text without resizing the logical window.
-
-`isDisplayScaleConfigurable()` is true for standalone desktop windows, including HarmonyOS 2in1, and false for embedded, ordinary mobile and WebGL displays. On WebGL, page CSS and the browser device-pixel ratio (DPR) determine the canvas size. The configured Scale, including `0` for Fullscreen, does not resize the canvas or request fullscreen; Maximum Render Scale continues to cap the internal render resolution. On HarmonyOS phones and tablets, the result is true only for a tablet with free-window mode enabled. The ArkTS host listens for `freeWindowModeChange` and updates the native state. The runtime reapplies its current configured Scale when free-window mode is enabled and when the app returns to the foreground with that mode enabled. A positive value then requests a drawable client area of `round(gameSize * scale)` pixels; the host adds the window decorations to obtain the Stage's outer size. A value of `0` requests a maximised or fullscreen window. The host disables user drag resizing, so window size and fullscreen are controlled through Scale. Rendering uses the resulting surface and preserves aspect ratio with centred black bars if system size limits prevent the requested client size. HarmonyOS 2in1 follows the desktop scale protocol (default `0`).
-
-`getMaximumWindowedScale(gameSize)` returns the largest scale that fits the available window dimensions. Desktop, including HarmonyOS 2in1, uses the decorated work area of the current window, or the primary display when no window exists. A configurable Mobile host supplies its own maximum and refreshes it when HarmonyOS free-window mode is enabled or the app returns to the foreground with that mode enabled. The result is `nil` for embedded and non-configurable mobile hosts, for zero logical dimensions and for unknown available sizes.
+- **Configured vs effective scale:** `getConfiguredScale()` returns the configured preference (including `0` for Fullscreen, the default). `getScale()` returns the positive effective scale used by rendering and input after Maximum Render Scale is applied. Non-finite or negative values normalise to `1`.
+- **Apply and save methods:** `setScale` applies and saves the value; `applyScale` only applies it; `saveScale` only saves it.
+- **Desktop windows:** On desktop, `0` selects borderless fullscreen without changing display mode, while positive values set a fixed standalone window size (border drag resizing is disabled) with aspect-ratio-preserving centred black bars when needed.
+- **macOS backing scale:** Configured window scale is measured in Cocoa client points, whereas the effective render scale returned by `getScale()` and `Engine.GetScale()` derives from actual drawable pixels (including Retina backing scale) capped by Maximum Render Scale. Backing-scale changes rebuild render targets and refresh text without resizing the logical window.
+- **Configurability (`isDisplayScaleConfigurable()`):** Returns `true` for standalone desktop windows (including HarmonyOS 2-in-1) and HarmonyOS tablets in free-window mode, and `false` for embedded hosts, ordinary mobile devices and WebGL.
+- **WebGL:** Page CSS and browser device-pixel ratio (DPR) control the canvas size; configured scale (including `0`) never resizes the canvas or requests fullscreen, while Maximum Render Scale caps internal render resolution.
+- **HarmonyOS 2-in-1 and free-window tablets:** HarmonyOS 2-in-1 follows the desktop protocol (default `0`). On HarmonyOS phones and tablets, the ArkTS host listens to `freeWindowModeChange` and reapplies configured scale when free-window mode turns on or returns to the foreground: positive values request a `round(gameSize * scale)` pixel client area (adding decorations for outer Stage size), `0` requests maximised or fullscreen, drag resizing stays disabled, and rendering letterboxes with centred black bars if system limits apply.
+- **Maximum windowed scale (`getMaximumWindowedScale(gameSize)`):** Returns the largest scale fitting the available window dimensions — the current window's decorated work area (or primary display when no window exists) on desktop and HarmonyOS 2-in-1, or a host-supplied maximum on configurable mobile hosts (refreshed when HarmonyOS free-window mode is enabled or resumed). Returns `nil` for embedded hosts, non-configurable mobile hosts, zero logical dimensions or unknown available sizes.
 
 ### Anti-aliasing semantics
 
-Anti-aliasing defaults to `8`, and an invalid value uses the SFML default. `setAntiAliasingLevel` saves the value without recreating the current context, so the level applies at the next display initialisation. SFML may negotiate another supported level.
+Anti-aliasing defaults to `8`; an invalid value falls back to the SFML default. `setAntiAliasingLevel` saves the value without recreating the current context, taking effect at the next display initialisation. SFML may negotiate another supported level.
 
 ### Frame rate semantics
 
-`getFrameRate()` returns the configured target, which defaults to `60`. A value of `0` means Unlimited and disables active frame-rate limiting. Vertical Sync remains independent and can still limit presentation. `setFrameRate` applies the value and saves it. `saveFrameRate` only saves. Fixed updates use a `1/60`-second step with Unlimited, or `1/framerate` for a positive target.
+`getFrameRate()` returns the configured target (default `60`). `0` means Unlimited and disables active frame-rate limiting, though Vertical Sync remains independent and can still cap presentation. `setFrameRate` applies and saves; `saveFrameRate` only saves. Fixed updates use a `1/60`-second step when Unlimited, or `1/framerate` for a positive target.
 
 ### iOS graphics context
 
@@ -79,132 +85,138 @@ iOS startup selects Metal; see [MRB rendering](<../../../../Native C++ Developme
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `getScale` | `function` | — | return: float | — |
-| `getConfiguredScale` | `function` | — | return: float | — |
-| `getMaximumWindowedScale` | `function` | gameSize: sf.Vector2u | return: float \| nil | Pure |
-| `setScale` | `function` | value: float | — | — |
-| `applyScale` | `function` | value: float | — | — |
-| `saveScale` | `function` | value: float | — | — |
-| `isDisplayScaleConfigurable` | `function` | — | return: bool | Pure |
-| `getFrameRate` | `function` | — | return: int | — |
-| `setFrameRate` | `function` | value: int | — | — |
-| `saveFrameRate` | `function` | value: int | — | — |
-| `getAntiAliasingLevel` | `function` | — | return: int | — |
-| `setAntiAliasingLevel` | `function` | value: int | — | — |
-| `saveAntiAliasingLevel` | `function` | value: int | — | — |
-| `getVerticalSync` | `function` | — | return: bool | — |
-| `setVerticalSync` | `function` | value: bool | — | — |
-| `saveVerticalSync` | `function` | value: bool | — | — |
-| `getGameSize` | `function` | — | return: sf.Vector2u | Pure |
-| `setInputMethodDisabled` | `function` | disabled: bool | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `getScale` | — | `float` | Static. |
+| `getConfiguredScale` | — | `float` | Static. |
+| `getMaximumWindowedScale` | `gameSize: sf.Vector2u` | `float \| nil` | Static. Pure. |
+| `setScale` | `value: float` | — | Static. |
+| `applyScale` | `value: float` | — | Static. |
+| `saveScale` | `value: float` | — | Static. |
+| `isDisplayScaleConfigurable` | — | `bool` | Static. Pure. |
+| `getFrameRate` | — | `int` | Static. |
+| `setFrameRate` | `value: int` | — | Static. |
+| `saveFrameRate` | `value: int` | — | Static. |
+| `getAntiAliasingLevel` | — | `int` | Static. |
+| `setAntiAliasingLevel` | `value: int` | — | Static. |
+| `saveAntiAliasingLevel` | `value: int` | — | Static. |
+| `getVerticalSync` | — | `bool` | Static. |
+| `setVerticalSync` | `value: bool` | — | Static. |
+| `saveVerticalSync` | `value: bool` | — | Static. |
+| `getGameSize` | — | `sf.Vector2u` | Static. Pure. |
+| `setInputMethodDisabled` | `disabled: bool` | — | Static. |
 
 ## Graphics
 
-`GlobalCore.Graphics` owns the canvas, views, drawing and ordered shader chain, and coordinates frame composition and submission.
+`GlobalCore.Graphics` owns the render canvas, views, drawing, ordered full-screen shader chain and frame submission.
 
-Graphics canvas textures use premultiplied alpha. Custom full-screen shaders must return premultiplied or opaque colours.
+> **Important:** Graphics canvas textures use premultiplied alpha. Custom full-screen shaders must output premultiplied or opaque colours.
 
 ### Maximum render scale semantics
 
-`getMaximumRenderScale()` returns the cap on the effective physical-pixel render scale. A value of `0` means unlimited, the default is `2`, and an invalid value also becomes `2`. `setMaximumRenderScale` applies the value and saves it; the change takes effect between frames without resizing the window. `saveMaximumRenderScale` only saves. For a `640×480` game at configured scale `1.5` on a Retina 2× display, the window is `960×720` Cocoa points: an unlimited cap renders at `1920×1440` (effective scale `3`), while a cap of `2` renders at `1280×960` in the same window.
+`getMaximumRenderScale()` returns the cap on the effective physical-pixel render scale: `0` is unlimited, the default is `2`, and invalid values fall back to `2`. `setMaximumRenderScale` applies between frames without resizing the window and saves; `saveMaximumRenderScale` only saves.
+
+For example, for a `640×480` game at configured scale `1.5` on a Retina 2× display, the window is `960×720` Cocoa points: an unlimited cap renders at `1920×1440` (effective scale `3`), whereas a cap of `2` renders at `1280×960` in the same window.
 
 ### Lighting render scale semantics
 
-`getLightingRenderScale()` returns `0.5`, `0.75` or `1`. The default is `1`, also used for invalid values. `setLightingRenderScale` applies the value and saves it, rebuilding direct-light targets and invalidating the static cache. `saveLightingRenderScale` only saves. The surface mask, transmission and occupancy remain at full resolution.
+`getLightingRenderScale()` returns `0.5`, `0.75` or `1` (default `1`, also used for invalid values). `setLightingRenderScale` applies and saves, rebuilding direct-light targets and invalidating the static cache; `saveLightingRenderScale` only saves. The surface mask, transmission and occupancy stay at full resolution.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `getMaximumRenderScale` | `function` | — | return: float | — |
-| `setMaximumRenderScale` | `function` | value: float | — | — |
-| `saveMaximumRenderScale` | `function` | value: float | — | — |
-| `getLightingRenderScale` | `function` | — | return: float | — |
-| `setLightingRenderScale` | `function` | value: float | — | — |
-| `saveLightingRenderScale` | `function` | value: float | — | — |
-| `setWindowMapView` | `function` | rect: sf.IntRect | — | — |
-| `setWindowDefaultView` | `function` | — | — | — |
-| `getCanvas` | `function` | — | return: sf.RenderTexture | Pure |
-| `draw` | `function` | drawable: sf.Drawable; shader: sf.Shader = nil | — | — |
-| `addGraphicsShader` | `function` | shader: sf.Shader; uniforms: any = nil | — | — |
-| `removeGraphicsShader` | `function` | shader: sf.Shader | — | — |
-| `removeAllGraphicsShaders` | `function` | — | — | — |
-| `removeGraphicsShaderAt` | `function` | index: int | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `getMaximumRenderScale` | — | `float` | Static. |
+| `setMaximumRenderScale` | `value: float` | — | Static. |
+| `saveMaximumRenderScale` | `value: float` | — | Static. |
+| `getLightingRenderScale` | — | `float` | Static. |
+| `setLightingRenderScale` | `value: float` | — | Static. |
+| `saveLightingRenderScale` | `value: float` | — | Static. |
+| `setWindowMapView` | `rect: sf.IntRect` | — | Static. |
+| `setWindowDefaultView` | — | — | Static. |
+| `getCanvas` | — | `sf.RenderTexture` | Static. Pure. |
+| `draw` | `drawable: sf.Drawable`, `shader: sf.Shader = nil` | — | Static. |
+| `addGraphicsShader` | `shader: sf.Shader`, `uniforms: any = nil` | — | Static. |
+| `removeGraphicsShader` | `shader: sf.Shader` | — | Static. |
+| `removeAllGraphicsShaders` | — | — | Static. |
+| `removeGraphicsShaderAt` | `index: int` | — | Static. |
 
 ## ScreenEffects
 
-`GlobalCore.ScreenEffects` owns flash, shake and screen tone, including their active/completion queries.
+`GlobalCore.ScreenEffects` owns screen flash, screen shake and screen tone effects along with their active and completion queries.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `flashScreen` | `function` | color: sf.Color = nil; duration: float = 0.5 | — | — |
-| `stopFlash` | `function` | — | — | — |
-| `isFlashing` | `function` | — | return: bool | Pure |
-| `changeScreenTone` | `function` | red: float = 0; green: float = 0; blue: float = 0; gray: float = 0; duration: float = 0 | — | — |
-| `clearScreenTone` | `function` | duration: float = 0 | — | — |
-| `stopScreenTone` | `function` | — | — | — |
-| `isScreenToneActive` | `function` | — | return: bool | Pure |
-| `startShake` | `function` | power: float = 4; speed: float = 10; duration: float = 0.5 | — | — |
-| `stopShake` | `function` | — | — | — |
-| `isShaking` | `function` | — | return: bool | Pure |
-| `isScreenToneTransitionComplete` | `function` | — | return: bool | Pure |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `flashScreen` | `color: sf.Color = nil`, `duration: float = 0.5` | — | Static. |
+| `stopFlash` | — | — | Static. |
+| `isFlashing` | — | `bool` | Static. Pure. |
+| `changeScreenTone` | `red: float = 0`, `green: float = 0`, `blue: float = 0`, `gray: float = 0`, `duration: float = 0` | — | Static. |
+| `clearScreenTone` | `duration: float = 0` | — | Static. |
+| `stopScreenTone` | — | — | Static. |
+| `isScreenToneActive` | — | `bool` | Static. Pure. |
+| `startShake` | `power: float = 4`, `speed: float = 10`, `duration: float = 0.5` | — | Static. |
+| `stopShake` | — | — | Static. |
+| `isShaking` | — | `bool` | Static. Pure. |
+| `isScreenToneTransitionComplete` | — | `bool` | Static. Pure. |
 
 ## Transition
 
-`GlobalCore.Transition` owns transition requests and frozen backgrounds. `requestTransition` accepts an empty optional value or a complete `/Game/Assets/Transitions/...` logical path without adding a prefix. Freeze requests complete when the outgoing frame has been captured; transition completion is confirmed after the final frame has been submitted.
+`GlobalCore.Transition` owns transition requests and frozen backgrounds. `requestTransition` accepts an empty optional value or a complete `/Game/Assets/Transitions/...` logical path without adding a prefix.
 
-`setTransition`, `freezeTransitionBackground` and `requestTransition` return `Engine.AsyncOperation` with a successful result of `true`. For Blueprint `Frozen` / `Finished` branches, use the [Transition nodes](<../../../Node Functions/Transition.md>).
-
-A new request of the same kind cancels the previous unfinished operation. `cancelTransitionBackgroundFreeze()` cancels the freeze operation and clears the frozen state. `cancelPendingTransition()` cancels only a not-yet-applied request, leaving an already-running transition intact. Runtime reset or shutdown cancels remaining operations.
+- **Completion timing:** `setTransition`, `freezeTransitionBackground` and `requestTransition` return an `Engine.AsyncOperation` completing with `true`. Freeze requests complete once the outgoing frame is captured; transitions complete after the final frame is submitted. For Blueprint `Frozen` / `Finished` branches, use the [Transition nodes](<../../../Node Functions/Transition.md>).
+- **Cancellation:** Starting a new request of the same kind cancels any previous unfinished operation. `cancelTransitionBackgroundFreeze()` cancels the freeze operation and clears the frozen state, whereas `cancelPendingTransition()` cancels only an unapplied request without stopping a running transition. Runtime reset or shutdown cancels remaining operations.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `setTransition` | `function` | transitionResource: sf.Texture = nil; transitionTime: float = 1 | return: { "Engine", "AsyncOperation" } | — |
-| `freezeTransitionBackground` | `function` | — | return: { "Engine", "AsyncOperation" } | — |
-| `isTransitionBackgroundFrozen` | `function` | — | return: bool | Pure |
-| `isTransitionBackgroundFreezePending` | `function` | — | return: bool | Pure |
-| `cancelTransitionBackgroundFreeze` | `function` | — | — | — |
-| `requestTransition` | `function` | transitionName: string = nil; transitionTime: float = 1 | return: { "Engine", "AsyncOperation" } | — |
-| `cancelPendingTransition` | `function` | — | — | — |
-| `isTransitionPending` | `function` | — | return: bool | Pure |
-| `isInTransition` | `function` | — | return: bool | Pure |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `setTransition` | `transitionResource: sf.Texture = nil`, `transitionTime: float = 1` | `Engine.AsyncOperation` | Static. |
+| `freezeTransitionBackground` | — | `Engine.AsyncOperation` | Static. |
+| `isTransitionBackgroundFrozen` | — | `bool` | Static. Pure. |
+| `isTransitionBackgroundFreezePending` | — | `bool` | Static. Pure. |
+| `cancelTransitionBackgroundFreeze` | — | — | Static. |
+| `requestTransition` | `transitionName: string = nil`, `transitionTime: float = 1` | `Engine.AsyncOperation` | Static. |
+| `cancelPendingTransition` | — | — | Static. |
+| `isTransitionPending` | — | `bool` | Static. Pure. |
+| `isInTransition` | — | `bool` | Static. Pure. |
 
 ## SceneManager
 
-`GlobalCore.SceneManager` owns the current scene, scene stack and queued switches. It defers destruction of outgoing scenes. Request application exit through `System.exit()`.
+`GlobalCore.SceneManager` owns the current scene, scene stack and queued scene transitions, deferring destruction of outgoing scenes. Request application exit through `System.exit()`.
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `getScene` | `function` | — | return: SceneRuntime | Pure |
-| `requireScene` | `function` | — | return: SceneRuntime | Pure |
-| `getSceneList` | `function` | — | return: SceneRuntime[] | Pure |
-| `setScene` | `function` | scene: SceneRuntime | — | — |
-| `pushScene` | `function` | scene: SceneRuntime | — | — |
-| `popScene` | `function` | — | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `getScene` | — | `SceneRuntime` | Static. Pure. |
+| `requireScene` | — | `SceneRuntime` | Static. Pure. |
+| `getSceneList` | — | `SceneRuntime[]` | Static. Pure. |
+| `setScene` | `scene: SceneRuntime` | — | Static. |
+| `pushScene` | `scene: SceneRuntime` | — | Static. |
+| `popScene` | — | — | Static. |
 
 ## RuntimeDiagnostics
 
-`RuntimeDiagnostics.isPerformanceProfilerEnabled()` queries whether profiling is enabled. `recordWorldStreamingPerformance(queueDepth, reading, prepared, active, dormant, cacheBytes, publishMilliseconds, visibleTileChunks, activeActors)` records a streaming sample. Both methods are available to Lua and excluded from Blueprint metadata.
+Exposes Lua-only profiling queries and sample recorders (`metadata = false`, no Blueprint nodes):
 
-Native performance output also includes `textureUpload` and a `textureStreaming` object in each `mainFrames` entry. `textureUpload` measures that frame's texture upload stage, including graphics-context activation, in milliseconds. The object separates background preparation, upload work and queued decoded pixels:
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `isPerformanceProfilerEnabled` | — | `bool` | Static. Lua only (`metadata = false`). |
+| `recordWorldStreamingPerformance` | `queueDepth: int`, `reading: int`, `prepared: int`, `active: int`, `dormant: int`, `cacheBytes: int`, `publishMilliseconds: float`, `visibleTileChunks: int`, `activeActors: int` | — | Static. Lua only (`metadata = false`). |
 
-| Fields | Meaning |
+Native performance output also records `textureUpload` (frame upload duration in milliseconds, including graphics-context activation) and a `textureStreaming` object in each `mainFrames` entry:
+
+| Field | Description |
 |---|---|
-| `cacheHits`, `mergedRequests` | Requests served from ready textures, and requests joined to existing work, accumulated in the current runtime session. |
-| `decodedCount`, `uploadedCount`, `failedCount` | Successful CPU decodes, successful GPU uploads and decode/upload failures accumulated in the current session. Subscribers that share work do not multiply these counts. Work already started can still contribute after cancellation. |
-| `cancelledCount` | Pending subscriptions cancelled in the current session. Releasing a handle after GPU upload does not increase this count. |
-| `decodeMilliseconds`, `uploadMilliseconds`, `uploadedBytes` | Cumulative reading/decoding time, GPU upload time and uploaded byte estimate. Times are in milliseconds. |
-| `pendingRequests`, `decodingRequests`, `readyRequests` | Current queued, decoding and decoded-waiting-for-upload work counts. |
-| `readyBytes`, `peakReadyBytes` | Current and peak decoded-pixel backlog in bytes. These exclude decoder scratch memory and GPU allocations, so they are not total memory use. |
+| `cacheHits`, `mergedRequests` | Session totals for requests served from ready textures and requests joined to in-flight work. |
+| `decodedCount`, `uploadedCount`, `failedCount` | Session totals for CPU decodes, GPU uploads and decode/upload failures. Shared work is counted once per load rather than per subscriber; started work can still increment these after cancellation. |
+| `cancelledCount` | Pending subscriptions cancelled during the session. Releasing a handle after GPU upload does not increment this count. |
+| `decodeMilliseconds`, `uploadMilliseconds`, `uploadedBytes` | Cumulative reading/decoding time (ms), GPU upload time (ms) and estimated uploaded bytes. |
+| `pendingRequests`, `decodingRequests`, `readyRequests` | Current counts of queued, decoding and decoded-awaiting-upload work items. |
+| `readyBytes`, `peakReadyBytes` | Current and peak decoded-pixel backlog in bytes. Excludes decoder scratch memory and GPU allocations, so this is not total memory usage. |
 
-The [TextureManager scheduling limits](<Resource Managers.md#textureloadrequest>) explain how the decoded backlog and per-frame upload budgets affect resource readiness.
+For how the decoded backlog and per-frame upload budgets govern resource readiness, see [TextureManager scheduling limits](<Resource Managers.md#textureloadrequest>).
 
-Weather and panorama use `WeatherController` and `PanoramaController`. Each `GameMap` owns its own `FogController`; use `gameMap:getFogSettings()` and `gameMap:setFogSettings(settings)` for that map. The shared map compositor renders its fog before foreground weather and particles; see [Map and Fog](<Map and Fog.md>). Audio switches and volumes belong to [AudioManager](<Resource Managers.md#audiomanager>).
+For related services: weather and panorama live in `WeatherController` and `PanoramaController`, per-map fog lives on each `GameMap` (`getFogSettings()` / `setFogSettings(settings)` — see [Map and Fog](<Map and Fog.md>)), and audio switches and volumes belong to [AudioManager](<Resource Managers.md#audiomanager>).

@@ -1,53 +1,60 @@
 # New Game, Title and Scene Flow
 
-The default entry creates `Source.Scenes.SceneInit` and then hands control to the native System loop. SceneInit prepares shared data and advances to the title flow. Loading progress appears in the initialisation screen. The title scene offers Start Game, Continue and Config on [WebGL](<../../Editor User Guide/Run Debug and Package.md#webgl>), and adds Exit Game in native builds. The command window fits the visible rows. Save/Load and Config are created on first use and reused until the title scene is destroyed.
+This page describes how Default Gameplay moves from startup (`SceneInit`) through the title screen into ordinary maps and composite worlds.
 
-Scene changes use `GlobalCore.SceneManager`; freezing and transition requests use `GlobalCore.Transition`. Screen flash, shake and tone use `GlobalCore.ScreenEffects`.
+The default entry creates `Source.Scenes.SceneInit` and hands control to the native System loop. `SceneInit` prepares shared data and caches with a loading bar, then transitions to the title screen. The title command window fits its visible options: **Start Game**, **Continue** and **Config** on [WebGL](<../../Editor User Guide/Run Debug and Package.md#webgl>), plus **Exit Game** on native platforms. Its Save/Load and Config windows construct on first use and are reused until the title scene is destroyed.
+
+Scene transitions use `GlobalCore.SceneManager`, screen freezes and transition masks use `GlobalCore.Transition`, and flash, shake and tone effects use `GlobalCore.ScreenEffects`.
 
 ## Configure New Game
 
-A new-game action creates or resets the game instance, selects the initial map and player data, and changes to the map scene. `Data/Configs/System.json` stores the player Blueprint under `startPlayerBlueprint` as a path relative to `Data/Blueprints`, and stores the initial region under `startRegion`. These values initialise new games only. Continue restores the player class and the current region saved in the selected slot.
+Starting a new game creates or resets the game instance, loads the initial map and player data, and enters the map scene.
 
-Map-window creation and reuse follow [Windows, Menus, Input and Controls](<Windows Menus Input and Controls.md>).
+- **Player and region**: `Data/Configs/System.json` specifies `startPlayerBlueprint` (relative to `Data/Blueprints`) and `startRegion`. Both apply only to new games; **Continue** restores the player class and current region from the save slot.
+- **Initial map and position**: `startMap` may target an ordinary map, a composite-world manifest (such as `World_01/_world.json`) or a placed world child (such as `World_01/Map_03.json`). `startPos` uses world coordinates for a manifest target and child-local coordinates for a child target. The editor displays all three forms in one map tree and stores the selected path.
 
-`startMap` may identify an ordinary map, a composite-world manifest such as `World_01/_world.json`, or a placed world child such as `World_01/Map_03.json`. `startPos` is a world coordinate for a manifest target and a child-local coordinate for a child target. The editor presents all three forms through one map tree and stores the selected string path.
+See [Windows, Menus, Input and Controls](<Windows Menus Input and Controls.md>) for map-window creation and reuse.
 
 ## Enter maps and composite worlds
 
-`GlobalFunctions.Scene.GotoMap` follows the same path and coordinate rules. Entering another child of the current world keeps its `WorldGameMap` facade. Unplaced children are invalid destinations.
+`GlobalFunctions.Scene.GotoMap` follows the same target path and coordinate rules as `startMap`. Moving to another placed child inside the active world reuses its `WorldGameMap` facade; unplaced children are invalid destinations.
 
-For a world, `Scene:getGameMap()` and `Actor:getMap()` expose one world-coordinate GameMap facade. Child placements provide passability, Dir4, materials and terrain. Uncovered cells are passable holes. Missing or inconsistent child data is an error.
+### World facade and entry validation
 
-The facade's `mapName` comes from the required `worldName` in `_world.json`, so UI such as the player HUD identifies the complete world rather than an individual streamed child. Child map JSON retains its own `mapName` for standalone use, but the HUD does not display that name while the child belongs to a loaded world.
+- **Unified world view**: `Scene:getGameMap()` and `Actor:getMap()` expose a single world-coordinate `GameMap` facade. Child placements supply passability, Dir4 edges, materials and terrain; uncovered cells act as passable holes. Missing or inconsistent child data raises an error.
+- **World display name**: The facade reads `mapName` from the required `worldName` field in `_world.json`, so UI such as the player HUD names the whole world rather than a streamed child. Child maps keep their own `mapName` for standalone loading.
+- **Revalidation**: On entry, the runtime revalidates the flat world directory, exact `_world.json` filename, required `worldName`, direct JSON child files, placements and layer order. Unrelated non-JSON regular files are ignored, and invalid data fails loading.
 
-On entry, the runtime revalidates the flat world directory, the exact `_world.json` filename, the required world name, direct JSON child files, placements and layer order. Unrelated non-JSON regular files are ignored, and invalid data fails.
+### Streaming, simulation and transitions
 
-Children progress through `Unloaded`, `Reading`, `Prepared`, `Active` and `Dormant`. Streaming prioritises the Camera neighbourhood and cancels obsolete reads. Tileset and autotile preparation uses the [region builder's asynchronous resource requests](<../Global and Core Modules/Global APIs/GameMap.md#map-data-and-region-builders>). Only Active Actors simulate. Until every visible placement and Tile chunk is ready, the Camera retains its last complete frame, and colliding movement cannot enter the unprepared area.
+- **Child lifecycle**: Streamed children progress through `Unloaded`, `Reading`, `Prepared`, `Active` and `Dormant`. Streaming prioritises the Camera neighbourhood, cancels obsolete reads, and prepares tilesets and autotiles through the [region builder's asynchronous resource requests](<../Global and Core Modules/Global APIs/GameMap.md#map-data-and-region-builders>).
+- **Simulation and readiness**: Only `Active` Actors simulate (including `Active` Actors outside the Camera view, which simulate without rendering). Until all visible placements and tile chunks are ready, the Camera holds its last complete frame and colliding movement cannot enter the unprepared region.
+- **Entry transitions**: With transitions enabled, world entry freezes the outgoing frame until the target viewport and its required Actors, lights and tile chunks are ready; required-data errors propagate before releasing the freeze. Setting `blockTransition = true` skips the transition mask while keeping the readiness barrier. Surrounding streaming runs asynchronously.
+- **Floor transfer data**: `RegionDict` defines floor-transfer order only; it does not describe composite-world layout or streaming.
 
-Active Actors outside the Camera view continue to simulate without rendering.
+### Map assembly and persistent state
 
-With transitions enabled, world entry freezes the outgoing frame until the target viewport and the required Actors, lights and Tile chunks are ready. Required-data failures propagate before release. `blockTransition = true` skips the mask but keeps this readiness barrier. The surrounding preparation remains asynchronous.
+`Source.SceneComponents.MapBuilder` owns project map assembly and supplies the world region factory, while shared map data types and the `Global.WorldGameMap.RegionBuildState` interface belong to `Global` (see [Map data and region builders](<../Global and Core Modules/Global APIs/GameMap.md#map-data-and-region-builders>)).
 
-`RegionDict` remains floor-transfer data and does not define world composition or streaming.
-
-`Source.SceneComponents.MapBuilder` owns project map assembly and supplies the world region factory. Shared map data types and the `Global.WorldGameMap.RegionBuildState` interface belong to Global; project construction state remains in Source. See [Map data and region builders](<../Global and Core Modules/Global APIs/GameMap.md#map-data-and-region-builders>) when implementing a custom builder.
-
-Ordinary map loading and adjacent-floor passability previews use `MapBuilder:applyPersistentState(gameMap, inst, mapFile)`. It restores terrain changes, added Actors, recorded positions and destroyed-Actor removals in that order, without running Actor `onCreate`. The live Scene starts surviving Actors after binding its map and player. Scene and component ownership are described in [SceneMap](<../Source Classes/SceneMap.md#scene>).
+Ordinary map loading and adjacent-floor passability previews call `MapBuilder:applyPersistentState(gameMap, inst, mapFile)`. It restores terrain edits, added Actors, recorded positions and destroyed-Actor removals in that order without invoking Actor `onCreate`; the live Scene starts surviving Actors after binding its map and player. See [SceneMap](<../Source Classes/SceneMap.md#scene>) for Scene and component ownership.
 
 ## Configure Continue
 
-When the title command window is first created, it checks the directory returned by `Engine.getSavePath()`. Any direct entry, including an unrelated file or a subdirectory, selects Continue (`index = 1`); a missing or empty directory selects Start Game (`index = 0`). This check does not parse saves or filter their format. Locale refreshes and returning from Config or Save/Load preserve the current selection. Creating a new title window checks the directory again.
+When the title command window is first constructed, it checks `Engine.getSavePath()`:
 
-Continue uses `GetSavePath(slot)` to read the plain or encrypted save selected by the native build. It restores game state and opens the appropriate scene. A missing, malformed or unsupported save must follow the explicit not-found or error path instead of silently constructing partial state.
+- If the directory contains any direct entry (even an unrelated file or subdirectory), **Continue** (`index = 1`) is preselected.
+- If the directory is missing or empty, **Start Game** (`index = 0`) is preselected.
+
+This check does not parse save files or filter by format. Locale refreshes and returning from Config or Save/Load preserve the active selection; constructing a new title window checks the directory again.
+
+**Continue** reads the plain or encrypted save selected by the build via `GetSavePath(slot)`, restores game state and opens the saved scene. Missing, malformed or unsupported saves follow the explicit not-found or error path rather than building partial state.
 
 ## Preserve scene transitions
 
-Use the System and scene APIs documented in the API reference. The C++ runtime schedules scene changes, so active updates are not destroyed midway through a frame. Windows and temporary resources owned by the outgoing scene are released through its normal lifecycle.
+Change scenes through the documented System and Scene APIs. The C++ runtime schedules scene switches between updates so active ticks are never torn down mid-frame, and outgoing windows and temporary resources release cleanly through the scene lifecycle.
 
 ## Customise the title
 
-Edit the Lua scene and window composition, and the corresponding data. Keep all text identifiers compatible with [Game Localisation Workflow](<../../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md>).
+Edit the title Lua scene, window composition and JSON assets to match your project, keeping all text keys aligned with [Game Localisation Workflow](<../../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md>).
 
-## Limitations
-
-The Game project does not define a universal save upgrade policy or title-screen design. A released game must define the versions it supports and provide its own presentation and recovery messages.
+> **Note:** Default Gameplay does not impose a universal save-upgrade policy or title layout. Define supported save versions, presentation and error recovery messages for your release.

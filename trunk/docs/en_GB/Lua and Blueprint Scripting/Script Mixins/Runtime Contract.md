@@ -1,27 +1,27 @@
 # Script Mixin Runtime Contract
 
-The runtime loads the selected module as `Mixins.<path-with-dots>` and requires it to return a table with no metatable. This contract governs generated Blueprint-class members, instance defaults, reserved names and parent-method dispatch.
+At runtime, Ludork loads a Script Mixin as `Mixins.<path-with-dots>` and requires it to return a plain Lua table with no metatable. This contract defines generated class members, instance defaults, reserved names, parent calls and hot reload.
 
 ## Table rules
 
-- Every key must be a string.
-- A function becomes a method on the generated Blueprint class.
-- A non-function value is deep-copied into class and instance defaults.
-- An inherited member cannot change from field to function, or from function to field.
-- A saved Blueprint attribute cannot replace a mixin method.
+- Every table key must be a string.
+- Function entries become methods on the generated Blueprint class.
+- Non-function values are deep-copied into class and instance defaults.
+- An inherited member cannot change kind between field and function.
+- Saved Blueprint attributes cannot replace a mixin method.
 
-The following names are reserved:
+The following member names are reserved:
 
 ```text
 __*  init  new  scriptMixin  scriptPath
 _GENERATED_CLASS  _graph  _hasImplementationOwner
 ```
 
-Because `init` is reserved, a Direct Script Mixin does not declare a constructor. Initialise private instance state in the lifecycle callback supplied by the owning type, such as `onCreate`. Release subscriptions or resources in the corresponding teardown callback.
+> **Note:** Because `init` is reserved, a Script Mixin cannot declare a constructor. Initialise private instance state in the owning type's lifecycle callback (such as `onCreate`) and release subscriptions or resources in the matching teardown callback.
 
 ## Parent method calls
 
-Use `super()` inside a mixin method to continue the Blueprint and native inheritance chain:
+Call `super()` inside a mixin method to continue the Blueprint and native inheritance chain:
 
 ```lua
 local Door = {}
@@ -38,10 +38,10 @@ end
 return Door
 ```
 
-The parent class must provide the native properties and methods the mixin uses. Accessing a missing member raises an error.
+The parent class must supply every native property and method the mixin accesses; referencing a missing member raises an error.
 
 ## Hot reload
 
-[Lua hot reload](<../Lua Runtime and Modules.md#lua-hot-reload>) applies to used Script Mixins: `$r` updates compatible methods without rerunning lifecycle callbacks or replacing defaults and instance state. Structural changes require a restart.
+[Lua hot reload](<../Lua Runtime and Modules.md#lua-hot-reload>) applies to active Script Mixins: `$r` updates compatible methods without rerunning lifecycle callbacks or overwriting defaults and live instance state. Structural changes require a restart.
 
 Lua compilation and `.ldpak` packaging preserve mixin module paths and fresh-load behaviour. See [Run, Debug and Package](<../../Editor User Guide/Run Debug and Package.md>) for packaging options.

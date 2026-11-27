@@ -1,52 +1,63 @@
 # GlobalCore: Animation and Light
 
+This page documents `GlobalCore` frame-animation playback with synchronised sound cues (`Animation`, `AnimationPlayingSound`) and dynamic map lighting (`Light`). Instance method tables omit the implicit `self` receiver exposed as the first Blueprint target pin; static methods take no receiver.
+
 ## AnimationPlayingSound
+
+Tracks one sound instance currently playing for an `Animation` and the frame at which it should stop.
 
 ### Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
 | `sound` | `sf.Sound` | — | — |
 | `endFrame` | `int` | `-1` | — |
 
 ## Animation
 
-Direct metadata bases: `{ "Engine", "AnimSprite" }`
+**Inherits:** `Engine.AnimSprite`
+
+Extends `Engine.AnimSprite` with frame-synchronised sound cue playback.
 
 ### Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
-| `soundEntries` | `{ "Engine", "AnimationSoundEntry[]" }` | — | — |
+| `soundEntries` | `Engine.AnimationSoundEntry[]` | — | — |
 | `soundIndex` | `int` | `0` | — |
-| `playingSounds` | `{ "GlobalCore", "AnimationPlayingSound[]" }` | — | — |
+| `playingSounds` | `GlobalCore.AnimationPlayingSound[]` | — | — |
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `setData` | `function` | self: { "GlobalCore", "Animation" } = "self"; animationData: { "Engine", "AnimationData" } | — | — |
-| `update` | `function` | self: { "GlobalCore", "Animation" } = "self"; deltaTime: float | — | — |
-| `playSoundsUpToFrame` | `function` | self: { "GlobalCore", "Animation" } = "self"; frameIndex: int | — | — |
-| `stopSoundsAtFrame` | `function` | self: { "GlobalCore", "Animation" } = "self"; frameIndex: int | — | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `setData` | `animationData: Engine.AnimationData` | — | — |
+| `update` | `deltaTime: float` | — | — |
+| `playSoundsUpToFrame` | `frameIndex: int` | — | — |
+| `stopSoundsAtFrame` | `frameIndex: int` | — | — |
 
 ## Light
 
-`GlobalCore.Light.MAX_SHADER_LIGHTS` is a static, read-only `int` giving the compiled light limit shared by ordinary-map rendering and Lua world rendering. Its current value is `64`. Every visible light is a candidate: map lights and Actor lights draw on the same budget, and the renderer keeps the ones whose centres lie nearest the view centre, so a light is discarded only when more lights than the limit are visible at once. Equal distances are broken by position, so the selection never depends on Actor iteration order. The source and rebuild rules are in [Build and Module Layout](<../../../../Native C++ Development/Build and Module Layout.md#shared-format-and-rendering-constants>).
+Represents a point light used in ordinary-map and Lua world rendering.
+
+- **Shared budget:** `GlobalCore.Light.MAX_SHADER_LIGHTS` is a static, read-only `int` (`64`) giving the compiled light limit shared by ordinary-map rendering and Lua world rendering. Map lights and Actor lights share this budget.
+- **Deterministic culling:** Every visible light is a candidate. When more than `MAX_SHADER_LIGHTS` lights are visible at once, the renderer keeps those whose centres lie nearest the view centre, breaking ties by position so selection never depends on Actor iteration order.
+
+For constant definitions and rebuild rules, see [Build and Module Layout](<../../../../Native C++ Development/Build and Module Layout.md#shared-format-and-rendering-constants>).
 
 ### Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
-| `MAX_SHADER_LIGHTS` | `int` | `64` | Static; ReadOnly |
-| `position` | `sf.Vector2f` | `{ [1] = 0, [2] = 0 }` | — |
-| `colour` | `sf.Color` | `{ [1] = 255, [2] = 255, [3] = 255, [4] = 255 }` | — |
+| `MAX_SHADER_LIGHTS` | `int` | `64` | Static, read-only. |
+| `position` | `sf.Vector2f` | `[0, 0]` | — |
+| `colour` | `sf.Color` | `[255, 255, 255, 255]` | — |
 | `radius` | `float` | `256` | — |
 | `intensity` | `float` | `1` | — |
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `asDict` | `function` | self: { "GlobalCore", "Light" } = "self" | return: any | — |
-| `fromDict` | `function` | data: any | return: { "GlobalCore", "Light" } | — |
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `asDict` | — | `any` | — |
+| `fromDict` | `data: any` | `GlobalCore.Light` | Static. |

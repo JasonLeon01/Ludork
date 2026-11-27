@@ -1,16 +1,16 @@
 # Manifest and Minimal Plug-in
 
-Start with a generated C# 13 template, or write a complete source plug-in that adds one Help menu command and can be imported by Ludork 1.0.0.
+Generate a C# 13 plug-in template directly from the editor, or author a minimal source plug-in from scratch that adds one Help menu command for Ludork 1.0.0 and newer.
 
-## Prerequisites
+## Requirements
 
-- .NET 9 SDK if using an IDE project for diagnostics and local compilation.
-- Access to `Ludork.Plugin.Abstractions` from this repository or the editor development kit.
-- A plug-in ID unique in its effective scope and a CLR namespace.
+- .NET 9 SDK (optional; required only if you use an IDE `.csproj` file for diagnostics and local builds).
+- Access to `Ludork.Plugin.Abstractions` from the Ludork repository or editor development kit.
+- A plug-in ID unique within its effective scope and a matching CLR namespace.
 
 ## Generated template
 
-**Plugins → Manage Plugins → New Plugin...** creates this source directory in the selected global or current-project scope:
+Open **Plug-ins → Manage Plug-ins** and select **New Plug-in...** to create a ready-to-edit plug-in directory in the chosen global or current-project scope:
 
 ```text
 <plugin-id>/
@@ -19,7 +19,7 @@ Start with a generated C# 13 template, or write a complete source plug-in that a
 └── PluginWindow.cs   (With a Window only)
 ```
 
-The generated manifest uses version `1.0.0`, the current editor version as `minimumEditorVersion`, and `Ludork.UserPlugins.Plugin` as `entryType`. Each plug-in compiles into its own assembly, so generated templates can share this CLR type name. The entry class is:
+The generated manifest sets `version` to `1.0.0`, `minimumEditorVersion` to the current editor version and `entryType` to `Ludork.UserPlugins.Plugin`. Because each plug-in compiles into its own assembly, generated templates can share that CLR type name:
 
 ```csharp
 using Ludork.Plugin.Abstractions;
@@ -34,11 +34,11 @@ public sealed class Plugin : IEditorPlugin
 }
 ```
 
-**With a Window**, the default, also creates an independent `PluginWindow : Window` class using the host theme. **Logic Only** creates only the manifest and entry class. Neither template registers commands; the window is not opened automatically. No XAML or IDE project is generated. Add your logic and registrations, then restart to load the edited source.
+**With a Window** (default) adds an independent `PluginWindow : Window` styled with the host theme; **Logic Only** generates only `plugin.json` and `Plugin.cs`. Neither template registers commands, opens a window automatically, or generates XAML or a `.csproj` file. Add your registrations and logic, then restart Ludork to load the updated source.
 
 ## Hand-written command example
 
-The following complete example adds one Help menu command. Its optional project file supports IDE diagnostics.
+The example below creates a complete source plug-in that adds one **Help** menu command, with an optional `.csproj` for IDE analysis.
 
 ### Source directory
 
@@ -49,7 +49,7 @@ MyPlugin/
 └── MyPlugin.csproj
 ```
 
-There is one source-directory plug-in format. Sources are compiled in relative-path order with C# 13, nullable enabled, unsafe allowed and release optimisation. The host neither restores NuGet packages nor loads a prebuilt entry assembly.
+Ludork supports one source-directory plug-in format. The editor compiles `.cs` files in relative-path order using C# 13 with nullable reference types enabled, `unsafe` allowed and Release optimisation. The host never restores NuGet packages or loads a prebuilt entry assembly.
 
 ### Write `plugin.json`
 
@@ -57,7 +57,7 @@ There is one source-directory plug-in format. Sources are compiled in relative-p
 {
   "schemaVersion": 1,
   "id": "Example.MyPlugin",
-  "name": "My Plugin",
+  "name": "My Plug-in",
   "version": "1.0.0",
   "minimumEditorVersion": "1.0.0",
   "entryType": "Example.MyPlugin.Plugin"
@@ -66,14 +66,14 @@ There is one source-directory plug-in format. Sources are compiled in relative-p
 
 | Field | Contract |
 |---|---|
-| `schemaVersion` | Manifest schema; the value must equal `1` |
-| `id` | Identifier containing only letters, digits, dots, hyphens or underscores |
+| `schemaVersion` | Manifest schema version; must equal `1` |
+| `id` | Identifier containing only ASCII letters, digits, dots, hyphens or underscores |
 | `name` | Non-empty display name |
-| `version` | Version accepted by .NET `Version` parsing |
+| `version` | Version string accepted by .NET `Version` parsing |
 | `minimumEditorVersion` | Minimum editor version parsed as a .NET `Version` |
 | `entryType` | Namespace-qualified CLR type name, matched case-sensitively |
 
-JSON property names are case-sensitive.
+All JSON property names are case-sensitive.
 
 ### Add the entry type
 
@@ -111,7 +111,7 @@ public sealed class Plugin : IEditorPlugin
 }
 ```
 
-The entry type must be public, non-abstract, implement `IEditorPlugin` and have a public parameterless constructor. Plug-in IDs and command IDs must be unique within the effective global-plus-current-project set. Independent project scopes may reuse IDs.
+The entry type must be `public`, non-abstract, implement `IEditorPlugin` and expose a public parameterless constructor. Plug-in IDs and command IDs must be unique within the effective global-plus-current-project set; separate project scopes may reuse IDs.
 
 ### Add an optional IDE project
 
@@ -131,7 +131,7 @@ The entry type must be public, non-abstract, implement `IEditorPlugin` and have 
 </Project>
 ```
 
-Adjust the reference to match the source layout. Official plug-ins in this repository live under `Plugins`, so this relative path reaches `Editor/Ludork.Plugin.Abstractions`. The project is for IDE analysis only. Every source needed at runtime must remain in the imported directory and use host-provided dependencies.
+Adjust the relative path to match your checkout layout (official plug-ins under `Plugins/` reach `Editor/Ludork.Plugin.Abstractions` with `..\..`). This project file is strictly for IDE diagnostics: every runtime `.cs` source must stay inside the imported plug-in directory and rely only on host-provided references.
 
 ### Import and restart
 

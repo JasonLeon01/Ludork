@@ -1,36 +1,36 @@
 # Source.MapActors.Enemy
 
-`Enemy` declares the General Data identifier, damage-text child component, animation flags and post-battle variable changes of a battle-capable map Actor, and exposes the `onCollision` and `onDefeat` events.
+`Enemy` is a conditionally visible Battler Actor bound to an Enemy General Data entry. It declares a damage-text child component, animation flags and post-battle variable changes, and exposes the `onCollision` and `onDefeat` events.
 
-Metadata source: `Scripts/Source/MapActors/Enemy_meta.lua`
+**Metadata source:** `Scripts/Source/MapActors/Enemy_meta.lua`
 
-Direct metadata bases: `{ "Source.MapActors.ConditionalActor", "ConditionalActor" }`, `{ "Source.Battler", "Battler" }`
-
-Inherited visibility conditions: [Source.MapActors.ConditionalActor](<ConditionalActor.md>).
+**Inherits:** `Source.MapActors.ConditionalActor`, `Source.Battler` (see [Source.MapActors.ConditionalActor](<ConditionalActor.md>) for inherited visibility conditions).
 
 The Blueprint editor synthesises a read-only `attributes` preview of `Source.Configs.GeneralDataTypes.EnemyAttributeSet`. The preview is not serialised into the Blueprint JSON.
 
 ## Properties
 
-| Name | Type | Default | Metadata |
+| Field | Type | Default | Notes |
 |---|---|---|---|
-| `ID` | `{ enum = "Enums.GeneralData.Enemy", valueType = "string" }` | `"FILL_IT_BY_YOURSELF"` | — |
-| `childActorComp` | `Source.Components.ChildActorComponent` | damage-text child | component |
+| `ID` | `string` | `"FILL_IT_BY_YOURSELF"` | `Enums.GeneralData.Enemy` enum selector. |
+| `childActorComp` | `Source.Components.ChildActorComponent` | Damage-text child | Component. |
 | `collisionEnabled` | `bool` | `true` | — |
 | `animatable` | `bool` | `true` | — |
 | `animateWithoutMoving` | `bool` | `true` | — |
-| `afterBattleVarChanges` | `Dict[string, Tuple[string, any]]` | `{}` | numeric game-variable selector and fixed operator selector |
+| `afterBattleVarChanges` | `Dict[string, Tuple[string, any]]` | `{}` | Numeric game-variable selector and fixed operator selector. |
 
 The shared runtime setting `DefeatShatterEffectEnabled` is controlled by `enemyDefeatShatterEffectEnabled` in [Gameplay configuration](<../Default Gameplay/Runtime Data Configuration and Saves.md#shared-gameplay-configuration>). The `attributes` field holds the generated Enemy Attribute Set.
 
-Enemy inherits the Actor default `tickable = false`.
+`Enemy` inherits the `Engine.Actor` default `tickable = false`.
 
 ## Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `onCollision` | event | `other: Engine.Actor[]` | — | default execution output |
-| `onDefeat` | event | — | — | default execution output |
+Events omit the implicit `self` receiver (`Source.MapActors.Enemy`).
+
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `onCollision` | `other: Engine.Actor[]` | — | Event. Default execution output. |
+| `onDefeat` | — | — | Event. Default execution output. |
 
 `init(texture?, rect?, tag?)` constructs the Attribute Set, the Ability System, the Mota ability and the configured special Effects. Collision prevalidates combat and required settlement before committing counter damage. On a loss, the prepared Game Over Effect is applied after the animations.
 

@@ -1,14 +1,12 @@
 # Source.Scenes.SceneMap
 
-`SceneMap` declares the gameplay commands, dialogue windows, menu entry points and persistence records of a map Scene.
+`SceneMap` is the map Scene controller and public gameplay entry point for Default Gameplay. It manages the active map, primary Player, dialogue and menu windows, environment state and persistence records.
 
-Metadata source: `Scripts/Source/Scenes/SceneMap_meta.lua`
+**Metadata source:** `Scripts/Source/Scenes/SceneMap_meta.lua`
 
 ## Scene
 
-Direct metadata bases: `{ "Source.Gameplay.GameplayScene", "GameplayScene" }`
-
-Gameplay commands follow the [GameplayScene contract](<Gameplay.md#gameplayscene>).
+**Inherits:** `Source.Gameplay.GameplayScene` (see the [GameplayScene contract](<Gameplay.md#gameplayscene>)).
 
 `SceneMap` is the public gameplay entry point and owns the current `inst` and `player`. `getGameInstance()`, `getPlayer()` and `getGameMap()` read the current objects. The Scene coordinates lifecycle and frame order, map input blocking, Game Over requests, tutorials and locale refresh. It creates HUD and Region Title directly; optional windows follow [Windows, Menus, Input and Controls](<../Default Gameplay/Windows Menus Input and Controls.md>).
 
@@ -27,28 +25,30 @@ Ordinary map loading binds the Scene and current map identity, restores terrain 
 
 ### Functions and events
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `getGameMap` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self" | gameMap: { "Global.GameMap", "GameMap" } | Pure |
-| `openPlayerName` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self" | return: { "Engine", "AsyncOperation" } | Latent Closed |
-| `showMessage` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self"; name: string; message: string; refActor: { "Engine", "Actor" }; localeArgs: Dict[string, any] = {  } | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "FinishedDialogue", FinishedDialogue = { [1] = true } } |
-| `showSelection` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self"; name: string; options: string[]; refActor: { "Engine", "Actor" }; allowCancel: bool = true; localeArgs: Dict[string, any] = {  } | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Selected0", [2] = "Selected1", [3] = "Selected2", [4] = "Selected3", [5] = "Cancelled", Selected0 = { [1] = 0 }, Selected1 = { [1] = 1 }, Selected2 = { [1] = 2 }, Selected3 = { [1] = 3 }, Cancelled = { [1] = -1 } } |
-| `applyLoadedGame` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self"; inst: { "Source.GameInstance", "GameInstance" } | — | ExecSplit { [1] = "default", default = nil } |
-| `showEnemyBook` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self" | — | ExecSplit { [1] = "default", default = nil } |
-| `showFloorTeleporter` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self" | — | ExecSplit { [1] = "default", default = nil } |
-| `showShopRecords` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self" | — | ExecSplit { [1] = "default", default = nil } |
-| `openMenu` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self" | — | ExecSplit { [1] = "default", default = nil } |
-| `recordAddedActor` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self"; actor: { "Engine", "Actor" } | — | ExecSplit { [1] = "default", default = nil } |
-| `recordActorPosition` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self"; actor: { "Engine", "Actor" }; position: sf.Vector2i = nil | — | ExecSplit { [1] = "default", default = nil } |
-| `recordDestroyedActor` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self"; actor: { "Engine", "Actor" } | — | ExecSplit { [1] = "default", default = nil } |
+Instance methods omit the implicit `self` receiver (`Source.Scenes.SceneMap`, metadata class `Scene`), which Blueprint nodes expose as the first target pin.
+
+| Method | Parameters | Returns | Notes |
+|---|---|---|---|
+| `getGameMap` | — | `gameMap: Global.GameMap` | Pure. Returns the loaded `GameMap` or compatible `WorldGameMap`. |
+| `openPlayerName` | — | `Engine.AsyncOperation` | Latent. Branch: `Closed` (`true`). Opens the player rename window. |
+| `showMessage` | `name: string`, `message: string`, `refActor: Engine.Actor`, `localeArgs: Dict[string, any] = {}` | `Engine.AsyncOperation` | Latent. Branch: `FinishedDialogue` (`true`). |
+| `showSelection` | `name: string`, `options: string[]`, `refActor: Engine.Actor`, `allowCancel: bool = true`, `localeArgs: Dict[string, any] = {}` | `Engine.AsyncOperation` | Latent. Branches: `Selected0` (`0`), `Selected1` (`1`), `Selected2` (`2`), `Selected3` (`3`), `Cancelled` (`-1`). |
+| `applyLoadedGame` | `inst: Source.GameInstance` | — | Rebinds player, HUD and windows from `inst` and forces a map reload. Default execution output. |
+| `showEnemyBook` | — | — | Opens the monster handbook window. Default execution output. |
+| `showFloorTeleporter` | — | — | Opens the floor-teleporter window. Default execution output. |
+| `showShopRecords` | — | — | Opens the visited-shop list (Lua callers receive a boolean indicating whether it opened). Default execution output. |
+| `openMenu` | — | — | Opens the in-game menu. Default execution output. |
+| `recordAddedActor` | `actor: Engine.Actor` | — | Records an added Actor in map persistence. Default execution output. |
+| `recordActorPosition` | `actor: Engine.Actor`, `position: sf.Vector2i = nil` | — | Records the Actor's current position, or explicit `position` when supplied. Default execution output. |
+| `recordDestroyedActor` | `actor: Engine.Actor` | — | Records a destroyed Actor in map persistence. Default execution output. |
 
 ### Script operations and lifetime
 
-`showShopRecords()` opens the [visited-shop list](<../Default Gameplay/Windows Menus Input and Controls.md#visited-shops>) under the same conditions as V and returns a Lua boolean indicating whether it opened. `openShop(buyItemIDs, canSell, actor?)` accepts an optional shop Actor for recording; direct Scene calls supply that Actor explicitly.
+`showShopRecords()` opens the [visited-shop list](<../Default Gameplay/Windows Menus Input and Controls.md#visited-shops>) under the same conditions as `V` and returns a Lua boolean indicating whether it opened. `openShop(buyItemIDs, canSell, actor?)` accepts an optional shop Actor for recording; direct Scene calls supply that Actor explicitly.
 
 `showMessage`, `showSelection`, `openPlayerName`, `openShop` and `openAttrShop` return `Engine.AsyncOperation`. Results and window replacement rules match the [Scene nodes](<../Node Functions/Scene.md#lua-waiting-and-results>).
 
-`showVoiceMessage(name, message, voiceFileName, refActor, minDistance, spatial)` is also available to Lua. With `spatial = true`, it positions the voice at `refActor` and passes `minDistance` to the audio manager; with `false`, the voice is non-spatial. The reference Actor still positions the message window.
+`showVoiceMessage(name, message, voiceFileName, refActor, minDistance, spatial)` is also available to Lua. With `spatial = true`, it positions the voice at `refActor` and passes `minDistance` to the audio manager; with `false`, the voice is non-spatial. Even with `spatial = false`, `refActor` positions the message window.
 
 Lua wrappers that supply node-local formatting values can call `showMessageWithContext`, `showSelectionWithContext` or `showVoiceMessageWithContext`. Each takes its corresponding ordinary method's arguments followed by `localVars: table<string, any>`, copied when the dialogue starts, and returns the same `Engine.AsyncOperation`. The ordinary Scene methods and Scene nodes capture their active node context before delegating. The `WithContext` methods have no Blueprint nodes.
 
@@ -62,6 +62,6 @@ The map, Actors, fog and ambient-light transitions remain alive. Returning neith
 
 ### Composite-world behaviour
 
-`getGameMap` returns `GameMap` or a compatible `WorldGameMap`. `gotoMapAndPos` accepts either world coordinates for a manifest or local coordinates for a placed child, and stores the manifest as the primary player's map. `blockTransition` skips the mask, but not the target readiness checks.
+`getGameMap` returns `Global.GameMap` or a compatible `WorldGameMap`. `gotoMapAndPos` accepts either world coordinates for a manifest or local coordinates for a placed child, and stores the manifest as the primary player's map. `blockTransition` skips the mask, but not the target readiness checks.
 
-World Actor records use the manifest. Terrain uses child paths and local cells. `recordActorPosition` updates moved-root ownership. Its optional `position` input defaults to nil, which records the Actor's current position; an explicit `sf.Vector2i` records that position instead. `recordDestroyedActorTag` releases a resident match's condition subscriptions and suppresses its tree without destruction events or child I/O. `recordDestroyedActor` remains record-only.
+World Actor records use the manifest. Terrain uses child paths and local cells. `recordActorPosition` updates moved-root ownership. Its optional `position` input defaults to `nil`, which records the Actor's current position; an explicit `sf.Vector2i` records that position instead. `recordDestroyedActorTag` releases a resident match's condition subscriptions and suppresses its tree without destruction events or child I/O. `recordDestroyedActor` is record-only.

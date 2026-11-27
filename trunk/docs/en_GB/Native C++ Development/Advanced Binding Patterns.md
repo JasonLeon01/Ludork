@@ -1,10 +1,10 @@
 # Advanced Binding Patterns
 
-These patterns cover engine infrastructure that the ordinary class, property, method and free-function workflow cannot represent.
+Use these engine-infrastructure patterns when ordinary class, property, method and free-function bindings cannot represent a required contract.
 
 ## Class metadata decorators
 
-Class decorators are nested inside the owning class's annotation:
+Nest class decorators inside the owning class's `BIND_CLASS` annotation:
 
 ```cpp
 BIND_CLASS(callbacks = true,
@@ -17,9 +17,9 @@ public:
 };
 ```
 
-`invalid_vars(...)` hides fields and `rect_range_vars(...)` links rectangles to resource or range fields. Both accept ordered identifiers and are valid only inside `BIND_CLASS`. Property-specific rectangle semantics remain `meta(RectRangeVars = "texturePath")` in `BIND_PROPERTY`. `metadata = false` does not disable a callback; use `callback = false` instead. See [Binding a Class](<Binding a Class.md>).
-
-Member-level decorators and structured brace values follow [Declare properties](<Binding a Class.md#declare-properties>).
+- `invalid_vars(...)` hides fields in editor metadata, and `rect_range_vars(...)` links rectangle fields to resource or range fields. Both accept ordered identifiers and are valid only inside `BIND_CLASS`.
+- Property-level rectangle semantics use `meta(RectRangeVars = "texturePath")` inside `BIND_PROPERTY`.
+- `metadata = false` hides a method from Blueprint metadata without disabling virtual callbacks; use `callback = false` to opt out of callback dispatch. See [Binding a Class](<Binding a Class.md>) and [Declare properties](<Binding a Class.md#declare-properties>).
 
 ## Events, latent work and loops
 
@@ -32,7 +32,7 @@ BIND_METHOD(loop_node(ForEach))
 void forEach(const RuntimeValue::Array &values);
 ```
 
-Event and loop annotations generate execution metadata; the C++ or Lua implementation must carry out the protocol. For latent operations and their return/default rules, see [Declare execution behaviour](<Functions Events and Execution.md#declare-execution-behaviour>).
+Event and loop annotations generate Blueprint execution metadata; the C++ or Lua implementation must carry out the declared protocol. See [Declare execution behaviour](<Functions Events and Execution.md#declare-execution-behaviour>) for latent operations, return constraints and defaults.
 
 ## Values, reverse maps and helpers
 
@@ -50,7 +50,9 @@ BIND_LUA_REVERSE(path = "Input.KeyName", source = "sf.Keyboard.Key")
 BIND_LUA_HELPER(kind = "cast", path = "Cast")
 ```
 
-Module properties are exposed at the module root, and class properties on their own class. Bindgen does not duplicate an existing Lua value under another runtime path. Reverse declarations create a new reverse-name lookup at their declared canonical path. Helpers use generic native support. The `eval` helper evaluates only its caller's expression, and optional locals take precedence over runtime globals. A missing or empty expression returns `nil`. Non-empty evaluation is synchronous and raises an error when called from a yieldable coroutine.
+- **Module and class properties:** Module properties are exposed at the module root, and class properties on their owning class. Bindgen never duplicates an existing Lua value at a second runtime path.
+- **Reverse lookup maps:** `BIND_LUA_REVERSE` generates a reverse-name lookup table at its declared canonical path.
+- **Binding helpers:** `BIND_LUA_HELPER` attaches generic native helpers. The `eval` helper evaluates only the caller's expression, with optional locals taking precedence over runtime globals; a missing or empty expression returns `nil`, and non-empty evaluation runs synchronously and raises an error if called from a yieldable coroutine.
 
 ## Initialisation, injection and value traits
 
@@ -68,8 +70,8 @@ BIND_CLASS(dynamic_value = true)
 class RuntimeValue {};
 ```
 
-`BIND_MODULE_INIT` runs while opening the module. `BIND_INJECT` names its Lua source callback with `global`, connects it to a C++ setter, and is valid only while that Lua state remains available. With `variadic = true`, the setter must accept `std::function<std::vector<T>(Fixed..., const std::vector<T>&)>`. Zero returns and interior or trailing `nil` remain distinct without envelope tables. The two `BIND_CLASS` flags select conversion and identity traits and cannot be combined with incompatible table-value modes. Engine subsystems use typed runtime facades and fixed provider slots, not a generic string operation dispatcher.
+- **Module init:** `BIND_MODULE_INIT` runs while opening the native module.
+- **Callback injection:** `BIND_INJECT` names a Lua source callback via `global`, wires it to a C++ setter and remains valid only while that Lua state stays alive. With `variadic = true`, the setter must accept `std::function<std::vector<T>(Fixed..., const std::vector<T>&)>`; zero returns and interior or trailing `nil` values stay distinct without wrapper tables.
+- **Value and identity traits:** `opaque_identity = true` and `dynamic_value = true` select conversion and identity traits and cannot combine with incompatible table-value modes. Engine subsystems rely on typed runtime facades and fixed provider slots rather than a generic string operation dispatcher.
 
-## Limitations
-
-Bindgen must remain declaration-driven. Do not introduce generator branches keyed to a gameplay module, class or member name, and do not use an infrastructure marker to bypass an unsupported conversion.
+> **Important:** Bindgen must remain declaration-driven. Do not introduce generator branches keyed to a gameplay module, class or member name, and do not use an infrastructure marker to bypass an unsupported conversion.

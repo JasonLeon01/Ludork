@@ -1,28 +1,24 @@
 # Video Subtitles
 
-Create a subtitle document in the project's File Explorer under `Data/Subtitles`, or double-click an existing subtitle JSON file to open its editor. Subdirectories are supported. Subtitle documents follow the shared [save and Undo rules](<Start Page Workspace and Shortcuts.md#editing-and-saving>).
+Author timed single-language and multilingual subtitle tracks under `Data/Subtitles` and attach them to in-game video playback. Create a subtitle document in File Explorer under `Data/Subtitles` (subdirectories are supported), or double-click an existing JSON file to open the Subtitle Editor. Subtitle files follow the shared [save and Undo rules](<Start Page Workspace and Shortcuts.md#editing-and-saving>).
 
 ## Editing sections
 
-The upper-left area previews the picture and subtitles, the upper-right area edits the selected section, and the timeline spans the bottom. Select a section by its array position; sections have no separate name or identifier.
+The Subtitle Editor pairs video/subtitle preview (top left), section properties (top right) and a scrubber timeline (bottom). Sections are selected by array index and have no separate name or ID.
 
 ![Subtitle Editor with video preview, multilingual text controls and timeline](../../../images/editor/subtitle-edit.png)
 
-Add, select, delete or move sections on the timeline, and drag their edges to adjust their duration. Zoom the timeline and drag the playhead to inspect a time. The properties pane also accepts precise start and end times in seconds. Save orders sections by start time and rejects invalid times or overlapping sections.
+- **Timeline editing:** Add, select, delete, move or resize sections on the timeline, zoom and drag the playhead to inspect frames, or type exact start/end times in seconds. Save sorts sections by start time and rejects invalid times or overlaps.
+- **Multilingual mode:** Each section has a multilingual toggle (off by default). Enabling it moves existing text under `en_GB` and adds empty entries for the document's other languages; disabling it keeps the selected language after confirming disposal of the other translations.
+- **Shared languages:** All multilingual sections share one language list. Use `+` and `−` below the language list to add or remove a language across the whole document, or right-click to rename it (names must be non-empty and unique; new languages start empty).
+- **Synchronised text rows:** Every language in a section keeps the same row count (counts may vary across sections). Focus a row and use `↑`, `↓`, `+` and `−` below the text list to reorder, append or remove rows across all languages in that section while typing edits only the active language. Switching languages keeps row selection; switching sections selects the first row. Empty language or text lists are permitted (text actions disable when no language exists).
+- **Normalisation on open:** When loading existing files, the editor unifies language keys and pads missing languages or shorter arrays with empty strings to match each section's longest array in one unsaved, undoable step (Undo restores the original file; re-padding occurs on the next content edit in the same Undo step).
 
-Each section has a multilingual switch, off by default for new sections. Turning it on places the existing text under `en_GB` and adds the document's other languages with empty text. Turning it off retains the selected language, with confirmation before discarding other translations from that section.
-
-All multilingual sections share the same language keys. Use `+` and `−` below the language list to add or delete a language throughout the document, or right-click a language to rename it. Names must be non-empty and unique; new languages start with empty text.
-
-Within a section, all languages have the same number of text rows; different sections can have different counts. Click or focus a row, then use `↑`, `↓`, `+` and `−` below the text list to move it, append an empty row or delete it across that section's languages. Typing changes only the selected translation. Switching languages keeps the row selection; switching sections selects the first row. Empty text lists and language lists are allowed, with text operations disabled when no language exists.
-
-When opening existing data, the editor combines the language keys and pads missing languages or shorter arrays to each section's longest array with empty strings, preserving existing text. This is one unsaved, undoable change. Undo restores the original data; padding runs again only with the next content edit and shares that edit's undo step.
-
-Playback, reference video, preview language and window-session settings are described in [Subtitle previews](<../PreviewHost/UI Actor Particle and Subtitle Previews.md#subtitle-previews>).
+See [Subtitle previews](<../PreviewHost/UI Actor Particle and Subtitle Previews.md#subtitle-previews>) for reference video, preview language and session playback settings.
 
 ## Data format
 
-Store UTF-8 JSON beneath `Data/Subtitles` and reference it with a project-relative, case-sensitive `Data/Subtitles/...json` path. Loose files and entries in `Data.ldpak` use the same paths. Encrypted `.ldc` data is resolved through the same `.json` reference. Paths must stay beneath `Data/Subtitles`; absolute paths and directory traversal are invalid. A subtitle document has `type: "subtitle"` and a `sections` array:
+Store UTF-8 JSON under `Data/Subtitles` and reference it by case-sensitive project-relative `Data/Subtitles/...json` path (identical for loose files, `Data.ldpak` and encrypted `.ldc`; absolute paths and directory traversal are rejected). Documents specify `type: "subtitle"` and a `sections` array:
 
 ```json
 {
@@ -45,12 +41,13 @@ Store UTF-8 JSON beneath `Data/Subtitles` and reference it with a project-relati
 }
 ```
 
-Times are finite numbers in seconds with `0 ≤ startTime < endTime`. A section is active from its start time, inclusive, to its end time, exclusive. Sections may touch but cannot overlap; gaps display no subtitles. An empty `sections` array is valid.
-
-`content` is either a string array used directly or a dictionary of language keys to string arrays. The dictionary first looks up the current game language, then falls back to `en_GB` if that key is missing. If neither exists, no subtitle is displayed. An existing empty array explicitly displays nothing and does not fall back.
+- **Timing:** Finite seconds satisfying `0 ≤ startTime < endTime`; active on `[startTime, endTime)`. Adjacent sections may touch without overlapping; gaps show nothing, and an empty `sections` array is valid.
+- **Content lookup:** Either a direct string array or a language-keyed dictionary. Dictionaries check the active game language first and fall back to `en_GB` only if that key is missing (displaying nothing if neither exists; an explicit empty array shows nothing without falling back).
 
 ## Playback and layout
 
-Pass the subtitle path as the optional fourth argument of [Video.PlayVideo](<../Lua and Blueprint Scripting/Node Functions/Video.md>). Missing or empty paths keep video-only playback. A specified resource must load and validate successfully; malformed subtitle documents report an error.
+Pass the subtitle path as the optional fourth argument to [Video.PlayVideo](<../Lua and Blueprint Scripting/Node Functions/Video.md>). Omitted or empty paths play video only; non-empty paths must load and validate cleanly or report an error.
 
-Subtitles follow the video's playback clock and disappear when playback ends or is skipped. The renderer uses the game's default font and size, with white text and a black outline. Strings appear from top to bottom in array order, wrap as needed and centre each visual line horizontally. The block sits at the bottom of the logical viewport, leaving 5% on each side and 3% below it. Content taller than the available area scales down uniformly to fit. Runtime playback and native editor preview share the subtitle layout.
+Subtitles track the video clock and clear when playback finishes or is skipped. Text renders in the game's default font and size (white fill, black outline), stacking array entries top to bottom, wrapping as needed and centring each visual line horizontally.
+
+The block sits at the bottom of the logical viewport with `5%` horizontal margins and a `3%` bottom margin, scaling down uniformly if taller than the available area. Runtime playback and editor preview share identical layout.

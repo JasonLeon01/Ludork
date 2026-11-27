@@ -1,24 +1,22 @@
 # Common Particles
 
-Common Particle assets contain ordered GPU emitter tracks. Use them on an Actor through `EmitterComponent`, or in a UI through `Engine.EmitterView`.
+Author GPU-simulated particle effects as ordered emitter tracks under `Data/Particles`, then attach them to map Actors via `EmitterComponent` or to UI screens via `Engine.EmitterView`.
 
 ## Authoring
 
-Choose **Game → New Common Particle** or create a particle in the project file explorer. **Database → Common Particle Overview** (`F6`) lists the resources under `Data/Particles`. Select a resource to edit its tracks, properties and lifetime curves. Right-click the track list to add a track; right-click a track to select it and enable Duplicate Track and Remove Track. Both actions are disabled when the menu opens on empty space. Track order also determines drawing order within an emitter.
+Create a particle asset via **Game → New Common Particle** or File Explorer, and browse all assets under `Data/Particles` in **Database → Common Particle Overview** (`F6`). Track order defines draw order within the emitter. Right-click the track list to add a track, or right-click a specific track to select it and enable **Duplicate Track** and **Remove Track** (both are disabled on empty space).
 
 ![Common particle editor showing a resident-loop effect](../../../images/editor/common-particle-editor.png)
 
-*The track list is on the left, the preview and lifetime curve are in the centre, and properties are on the right.*
+*Track list on the left, preview and lifetime curve in the centre, and track properties on the right.*
 
-Textures can be PNG (`.png`) or JPEG (`.jpg`); Texture Rect selects a region of the image. For playback, track isolation and seeking, see [Particle previews](<../PreviewHost/UI Actor Particle and Subtitle Previews.md#particle-previews>).
-
-Resource edits follow the shared [save and Undo rules](<Start Page Workspace and Shortcuts.md#editing-and-saving>).
+Textures accept PNG (`.png`) and JPEG (`.jpg`), with **Texture Rect** cropping a sub-region. See [Particle previews](<../PreviewHost/UI Actor Particle and Subtitle Previews.md#particle-previews>) for playback, track isolation and scrubbing. Edits follow the shared [save and Undo rules](<Start Page Workspace and Shortcuts.md#editing-and-saving>).
 
 ## Resource identity and schema
 
-Store definitions in `Data/Particles/<key>.json`. References use the exact-case key with `/` separators and no directory prefix or extension, for example `Combat/Hit`. Textures use complete `/Game/Assets/...` logical paths. Definitions have no version field.
+Store definitions at `Data/Particles/<key>.json` and reference them by exact-case extensionless key using `/` separators (for example `Combat/Hit`). Texture paths use canonical `/Game/Assets/...` logical paths. Definitions have no version field.
 
-The following JSON format uses colour components in 0–255. For the corresponding runtime configuration types, see the [Emitter configuration API](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Time Rendering and Particles.md#emittertrack>).
+The JSON schema below uses `0–255` RGBA components. See the [Emitter configuration API](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Time Rendering and Particles.md#emittertrack>) for matching runtime types.
 
 ```json
 {
@@ -52,57 +50,53 @@ The following JSON format uses colour components in 0–255. For the correspondi
 }
 ```
 
-This example requires the named texture in the project. An empty texture is transparent. `simulationRate` is an integer from 1 to 240, default 60; `seed` is an integer from 0 to 16,777,215, default 1. `tracks` is an ordered array with unique track names. A fixed seed supports repeatable authoring on the same runtime and GPU; floating-point GPU simulation does not guarantee determinism across devices.
+This example requires `/Game/Assets/Particles/Glow.png` in the project (an empty texture renders transparent). Top-level `simulationRate` is an integer in `1–240` (default `60`); `seed` is an integer in `0–16,777,215` (default `1`); `tracks` is an ordered array with unique `name` values. Fixed seeds produce repeatable results on the same runtime and GPU, though floating-point GPU simulation is not guaranteed deterministic across devices.
 
-| Track fields | Default and meaning |
+| Track fields | Defaults and rules |
 |---|---|
-| `name`, `enabled` | `"Track"`, `true`; names identify tracks for manual emission. |
-| `mode` | `"emission"` or `"resident"`; see the lifecycle rules below. |
-| `duration`, `delay`, `loop`, `prewarm` | `2`, `0`, `true`, `false`; timing uses seconds. `duration` is positive and `delay` is non-negative. |
-| `capacity`, `count` | `1024`, `min(32, capacity)`; capacity is 1–1,000,000, and resident count is 0–capacity. |
-| `rate`, `distanceRate`, `bursts` | `30`, `0`, `[]`; particles per second, particles per logical pixel of host motion, and scheduled bursts. |
-| `shape`, `extent`, `radius`, `innerRadius` | `"point"`, `[32,32]`, `16`, `8`; shapes are `point`, `line`, `rectangle`, `disk`, `ring`. A line uses `extent.x`; rectangles use both extents. Radii are non-negative, and a ring's inner radius cannot exceed its outer radius. |
-| `direction`, `spread` | `-90`, `30` degrees; initial direction is sampled within `direction ± spread`. Positive Y points down. |
-| `lifetime`, `speed` | `[1,2]` seconds, `[20,40]` logical pixels/second; arrays contain minimum and maximum values. Lifetime is positive. |
-| `sizeMin`, `sizeMax` | `[8,8]`, `[16,16]` logical pixels; non-negative minimum/maximum size for each axis. |
-| `rotation`, `angularVelocity` | `[0,360]` degrees, `[0,0]` degrees/second. |
-| `colourMin`, `colourMax` | Both `[255,255,255,255]`; minimum/maximum RGBA components in 0–255. |
-| `gravity`, `radialAcceleration`, `tangentialAcceleration`, `damping` | `[0,0]`, `0`, `0`, `0`; accelerations use logical pixels/second², and non-negative damping applies exponential velocity decay. |
-| `texture`, `textureRect` | `""`, `[0,0,0,0]`; rectangle is integer `[x,y,width,height]`. Zero width and height select the entire image; otherwise it must be positive and inside the image. |
-| `columns`, `rows`, `frameCount`, `frameRate` | `1`, `1`, `1`, `0`; grid dimensions are 1–4096, count is 1–`columns × rows`, and frame rate is non-negative frames/second. |
-| `randomStartFrame`, `frameLoop` | `false`, `true`; frames run left-to-right, then top-to-bottom. Zero frame rate holds the initial frame. A non-looping sequence holds its last frame. |
-| `space`, `scaleMode`, `blend` | `"local"`, `"hierarchy"`, `"alpha"`; alternatives are described below. Blend also accepts `"add"`. |
-| `offset`, `rotationOffset`, `scale` | `[0,0]`, `0` degrees, `[1,1]`; the track's transform relative to its host. |
-| `curves` | Optional lifetime channels `speed`, `sizeX`, `sizeY`, `rotation`, `red`, `green`, `blue`, `alpha`. |
+| `name`, `enabled` | `"Track"`, `true`. Track names identify targets for manual emission. |
+| `mode` | `"emission"` or `"resident"` (see [Emission, space and ownership](#emission-space-and-ownership)). |
+| `duration`, `delay`, `loop`, `prewarm` | `2`, `0`, `true`, `false` (seconds; `duration > 0`, `delay ≥ 0`). |
+| `capacity`, `count` | `1024`, `min(32, capacity)`. Capacity is `1–1,000,000`; resident `count` is `0–capacity`. |
+| `rate`, `distanceRate`, `bursts` | `30`, `0`, `[]`. Particles per second, per logical pixel of host travel, and scheduled bursts. |
+| `shape`, `extent`, `radius`, `innerRadius` | `"point"`, `[32, 32]`, `16`, `8`. Shapes: `point`, `line` (`extent.x`), `rectangle` (`extent`), `disk`, `ring` (`0 ≤ innerRadius ≤ radius`). |
+| `direction`, `spread` | `-90`, `30` degrees (`direction ± spread`; positive Y points down). |
+| `lifetime`, `speed` | `[1, 2]` s (`> 0`), `[20, 40]` logical px/s (`[min, max]`). |
+| `sizeMin`, `sizeMax` | `[8, 8]`, `[16, 16]` logical px (non-negative per axis). |
+| `rotation`, `angularVelocity` | `[0, 360]` degrees, `[0, 0]` degrees/s. |
+| `colourMin`, `colourMax` | `[255, 255, 255, 255]` each (RGBA `0–255`). |
+| `gravity`, `radialAcceleration`, `tangentialAcceleration`, `damping` | `[0, 0]`, `0`, `0`, `0` (logical px/s²; non-negative `damping` applies exponential velocity decay). |
+| `texture`, `textureRect` | `""`, `[0, 0, 0, 0]` (`[x, y, width, height]`; `0` width and height select the full image, otherwise positive and in bounds). |
+| `columns`, `rows`, `frameCount`, `frameRate` | `1`, `1`, `1`, `0`. Grid `1–4096`, count `1–(columns × rows)`, non-negative frames/s. |
+| `randomStartFrame`, `frameLoop` | `false`, `true`. Frames run left-to-right, top-to-bottom; `0` frame rate holds the initial frame; non-looping holds the last frame. |
+| `space`, `scaleMode`, `blend` | `"local"`, `"hierarchy"`, `"alpha"` (blend also accepts `"add"`). |
+| `offset`, `rotationOffset`, `scale` | `[0, 0]`, `0` degrees, `[1, 1]` (track transform relative to host). |
+| `curves` | Optional lifetime channels: `speed`, `sizeX`, `sizeY`, `rotation`, `red`, `green`, `blue`, `alpha`. |
 
-Each burst is `{ "time": 0, "count": 16, "cycles": 1, "interval": 0 }`. Its first occurrence falls within `[0,duration)`, count is 0–1,000,000, cycles is 1–10,000, and interval is non-negative seconds, strictly positive for repeated bursts. Numeric inputs must be finite and minimum/maximum ranges ordered.
-
-Curves accept an inline scalar [Curve](<Animations and Curves.md>) or an extensionless key under `Data/Curves`. Their key times use normalised particle age `[0,1]`. Speed, size and RGBA channels multiply their base values and default to 1; rotation adds degrees and defaults to 0. Inline curves support `defaultValue`, `preInfinity`, `postInfinity` and `keys` containing `time`, `value`, `interpolation`, `arriveTangent` and `leaveTangent`. The runtime samples each channel into a 256-entry GPU lookup table, so rendered curves are an approximation of the source curve.
+- **Bursts:** Each entry is `{ "time": 0, "count": 16, "cycles": 1, "interval": 0 }` with `time` in `[0, duration)`, `count` in `0–1,000,000`, `cycles` in `1–10,000`, and `interval ≥ 0` seconds (strictly positive when `cycles > 1`). All numbers must be finite and `[min, max]` pairs ordered.
+- **Lifetime curves:** Accept either an inline scalar [Curve](<Animations and Curves.md>) (`defaultValue`, `preInfinity`, `postInfinity`, `keys` with `time`, `value`, `interpolation`, `arriveTangent`, `leaveTangent`) or an extensionless `Data/Curves` key, sampled over normalised age `[0, 1]`. Speed, size and RGBA curves multiply base values (default `1`); rotation adds degrees (default `0`). Each channel is baked into a `256`-entry GPU lookup table, so rendered curves approximate the source curve.
 
 ## Emission, space and ownership
 
-`emission` combines time emission, host-distance emission, bursts and `emit(trackName, count)`. `loop` repeats its duration; disabling it ends automatic emission after the duration while existing particles finish. Fixed GPU slots form a ring: births reuse the next slots and overwrite the oldest slots when capacity is exhausted. Capacity is a simulation budget, not a guarantee that every requested particle survives its full lifetime.
+### Lifecycle modes
 
-`resident` creates `count` particles after its delay. With `loop = true`, each particle repeats its own lifetime without further emission. With looping disabled, the initial set expires once. Time/distance emission, bursts and manual `emit` do not apply to resident tracks. Atlas animation is independent of this lifecycle mode.
+- **`emission`:** Combines time emission, host-distance emission, bursts and `emit(trackName, count)`. With `loop = true`, cycles repeat across `duration`; disabling `loop` stops automatic emission after `duration` while live particles finish. GPU slots operate as a ring buffer that overwrites the oldest slots once `capacity` fills — capacity is a simulation budget, not a survival guarantee.
+- **`resident`:** Spawns `count` particles after `delay`. With `loop = true`, each particle recycles through its own lifetime without further emission; with `loop = false`, the initial set expires once. Time/distance emission, bursts and manual `emit` do not apply. Atlas frame animation runs independently of track mode.
+- **`prewarm`:** Applies only to looping tracks. Before playback starts, the GPU simulates full cycles covering maximum particle lifetime with the host stationary, capped at `120` fixed steps per frame. Public playback time stays `0` while warming; restarting replays prewarm.
 
-`prewarm` applies only to looping tracks. Before normal playback, the GPU replays complete emission cycles covering the maximum particle lifetime with the host held at its current position. Work is limited to 120 fixed steps per frame. Public playback time remains zero while warming, and restarting repeats this process.
+### Coordinate space and scale
 
-In `local` space, existing particles follow the current host transform. In `world` space, particles retain their birth position and transform after the host moves. For an Actor the domain is map coordinates; for an `EmitterView` it is its containing Canvas's logical coordinates. UI particles do not use the map View. Canvas scaling is applied once when composing the UI, and moving a view to another Canvas resets its particles because the coordinate domain changes.
+- **`space`:** `local` transforms live particles with the host; `world` leaves spawned particles at their birth coordinates and transform (map coordinates for Actors; parent Canvas logical coordinates for `EmitterView`, independent of the map View). Canvas scale applies once during UI composition, and reparenting an `EmitterView` onto another Canvas resets its particles.
+- **`scaleMode`:** `hierarchy` applies host and track scale to spawn shape, motion and particle size; `local` strips host scale and keeps track scale; `shape` applies combined scale only to the spawn shape while keeping particle size and motion unscaled.
 
-`hierarchy` applies the full host and track scale to shape, motion and particle size. `local` scale mode removes host scale while retaining track scale. `shape` applies the combined scale only to the spawn shape, retaining unscaled particle size and motion.
+### Host ownership and pause rules
 
-To attach a particle resource to an Actor, follow [Emitter Component](<Actor Components/Emitter.md>). It covers resource selection, placement relative to the Actor and drawing order.
+Attach particles to Actors via [Emitter Component](<Actor Components/Emitter.md>) or to UI via [Engine.EmitterView](<UI Controls in the Palette.md#engineemitterview>) (where `ControlBase` and parent own layout/clipping and `getEmitter()` returns the playback object). See [Emitter, EmitterComponent and EmitterView APIs](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Time Rendering and Particles.md#emitter>) for playback controls and statistics.
 
-For a UI effect, add [Engine.EmitterView](<UI Controls in the Palette.md#engineemitterview>) to the asset or construct it in code. Its `ControlBase` and parent own layout and clipping; `getEmitter()` returns the playback object.
+Particles pause automatically when their Actor is invisible or dormant, or their UI control is hidden or unmounted, and resume when shown again (host movement while hidden emits no distance particles; manually paused emitters stay paused). Destroying the owner clears its particles; live particles are excluded from map persistence.
 
-Particles pause while their Actor is invisible or dormant, or their UI is hidden or unmounted. Showing the owner resumes its state; movement while hidden does not produce distance-based emission. A manually paused emitter stays paused. Destroying the owner clears its particles, which are not included in map persistence.
+## Requirements and scope
 
-See [Emitter, EmitterComponent and EmitterView APIs](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Time Rendering and Particles.md#emitter>) for playback controls and performance statistics.
+> **Important:** Common Particles require a compatible GPU (OpenGL ES 3 on mobile). Unsupported GPUs raise an error with no CPU fallback.
 
-## GPU requirements
-
-Common Particles require a compatible GPU; mobile builds need OpenGL ES 3. Missing GPU capabilities produce an error, with no CPU fallback.
-
-## Limitations
-
-Collision, trails, noise and sub-emitters are not part of this particle feature.
+Collision, trails, noise and sub-emitters are outside this particle system.

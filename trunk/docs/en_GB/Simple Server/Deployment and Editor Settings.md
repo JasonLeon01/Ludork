@@ -1,23 +1,25 @@
 # Simple Server: Deployment and Editor Settings
 
-Ludork Server is an optional Node.js service with a Lua logic layer. Projects expose explicit data snapshots, void RPCs and online events over WebSocket. Stored account data uses data-only `.ldata` category files, and the read-only management website displays typed Lua values. Gameplay decides what to fetch, refresh or write; this service does not automatically synchronise multiplayer state or replace local saves.
+Ludork Server is an optional Node.js service with a Lua logic layer providing explicit data snapshots, void RPCs and online events over WebSocket. Account data is stored in data-only `.ldata` category files and viewed through a read-only management website; gameplay code decides what to fetch, refresh or write, and the service neither synchronises multiplayer state automatically nor replaces local saves.
 
-Deploy the backend and frontend on a server or a separate test instance. A game client only needs a server URL and project key; it does not install Node.js or deploy the server. Configuring client integration requires a **C++ Source** project. A converted Standalone project can retain server settings compiled into its runtime, but hides both server configuration entries.
+Deploy the backend and management frontend on a server or separate test instance; game clients require only a server URL and project key, with no local Node.js installation. Configuring client integration requires a **C++ Source** project. A converted **Standalone** project can use server settings compiled into its runtime, while hiding both server configuration menus.
 
 ## Obtain the server package
 
-Open [Ludork Releases](https://github.com/JasonLeon01/Ludork/releases) and download `LudorkServer-<version>.tar.gz` from the release's **Assets**. Its version matches the editor packages in the same release; for example, editor version `1.0.0` uses `LudorkServer-1.0.0.tar.gz`. Temporary CI artefacts use `LudorkServer-<40-character-Server-commit-SHA>.tar.gz`.
+Open [Ludork Releases](https://github.com/JasonLeon01/Ludork/releases) and download `LudorkServer-<version>.tar.gz` from the release's **Assets**. Its version matches the editor packages in the same release (for example, editor version `1.0.0` uses `LudorkServer-1.0.0.tar.gz`). Temporary CI artefacts use `LudorkServer-<40-character-Server-commit-SHA>.tar.gz`.
 
-The server is distributed independently. Development and release editor packages contain no Server directory or archive. Download the server archive separately and extract it to a dedicated deployment location. Installing or running the editor does not start the server.
+The server is distributed independently. Development and release editor packages contain no Server directory or archive; download the archive separately and extract it to a dedicated deployment location. Installing or running the editor does not start the server.
 
-The archive contains compiled backend JavaScript, the production management website, Lua modules and declarations, deployment/start scripts and locked production dependency manifests under `LudorkServer/`. It contains no installed `node_modules`, project credentials or user data. On Linux, extract it and enter that directory:
+The archive contains compiled backend JavaScript, the production management website, Lua modules and declarations, deployment/start scripts and locked production dependency manifests under `LudorkServer/`. It contains no installed `node_modules`, project credentials or user data. On Linux, extract and enter the directory:
 
 ```sh
 tar -xzf LudorkServer-1.0.0.tar.gz
 cd LudorkServer
 ```
 
-To build from the `Server` branch yourself, install Node.js 24, run `npm ci` and `npm run build` in that checkout, then copy `dist/LudorkServer` to a separate deployment directory. The build compiles the backend and builds the management website with Vite. Source-checkout deploy/start commands refuse to run; deploy the built directory instead. A rebuild refuses to replace output containing `config/`, `data/`, `projects/` or `logs/`, so keep deployed instances outside `dist/LudorkServer`. See the [Server README](https://github.com/JasonLeon01/Ludork/blob/Server/README.md) for source development.
+To build from the `Server` branch yourself, install Node.js 24, run `npm ci` and `npm run build` in that checkout, then copy `dist/LudorkServer` to a separate deployment directory. The build compiles the backend and bundles the management website with Vite. See the [Server README](https://github.com/JasonLeon01/Ludork/blob/Server/README.md) for source development.
+
+> **Important:** Deploy and start scripts refuse to run inside a source checkout, and rebuilding refuses to overwrite output containing `config/`, `data/`, `projects/` or `logs/`. Always keep deployed instances outside `dist/LudorkServer`.
 
 ## Deploy and start
 
@@ -35,9 +37,10 @@ deploy.bat MyGame "project-key" "management-password"
 start.bat
 ```
 
-The three deployment arguments are the project name, project key and management password. Quote and escape them for the shell, especially `$`, `%`, `!`, `&` and quotation marks. Arguments can remain in shell history and process listings; do not place real credentials in checked-in scripts.
+The three arguments are the project name, project key and management password. Quote and escape them for your shell, especially `$`, `%`, `!`, `&` and quotation marks. Command arguments can persist in shell history and process listings; never place real credentials in checked-in scripts.
 
-Deployment runs `npm ci --omit=dev` to install the locked production dependencies, saves credential hashes and creates a project Lua entry. It does not compile the backend or rebuild the website. The pinned Wasmoon dependency contains its Lua 5.4.5 WebAssembly runtime; no system Lua installation or native compiler is needed. Node.js runs the compiled backend on port 6666 and serves the built management website on port 3333. Start launches both services, fails if either port is occupied and stops the other service when a child process fails. Ctrl+C stops both. Deployment does not install a system service or configure automatic startup.
+- **Dependencies and runtime:** Deployment runs `npm ci --omit=dev` to install locked production dependencies, stores credential hashes and creates a project Lua entry without compiling the backend or rebuilding the website. The pinned Wasmoon dependency includes Lua 5.4.5 in WebAssembly, so no system Lua installation or native compiler is required.
+- **Ports and lifecycle:** Node.js runs the compiled backend on port `6666` and serves the built management website on port `3333`. Start launches both services, fails if either port is occupied and stops the sibling service if one fails; press `Ctrl+C` to stop both. Deployment does not install a system service or configure automatic startup.
 
 | Purpose | Address |
 |---|---|
@@ -45,51 +48,59 @@ Deployment runs `npm ci --omit=dev` to install the locked production dependencie
 | Game client URL | `http://IP:6666/MyGame` |
 | Derived WebSocket endpoint | `ws://IP:6666/MyGame/api/v1/net` |
 
-All projects in one server instance share ports **3333** and **6666**. Run deploy again with another project name to add it; redeploying the same name changes its credentials while preserving data, Lua source and project settings. Deploy sequentially and stop the instance while reinstalling dependencies. Restart it to load configuration or Lua source changes. Projects have separate keys, passwords, data, Lua processes and management sessions.
+All projects in one server instance share ports **3333** and **6666** while keeping separate keys, passwords, data, Lua processes and management sessions. Run deploy again with another project name to add a project, or redeploy an existing name to rotate credentials while preserving its data, Lua source and project settings.
 
-IP addresses, `localhost` and its subdomains work directly. A project's [bound domain](#bind-a-project-domain) is also accepted. To access the management website by another domain, set `LUDORK_ALLOWED_HOSTS=games.example.com` before starting; multiple permitted hostnames are comma-separated, without scheme or port. Names are matched exactly. Configure DNS and network/firewall access separately.
+Deploy sequentially, stop the instance while reinstalling dependencies and restart it to load configuration or Lua source changes.
 
-Project names contain 1–64 UTF-8 bytes, excluding control characters, `/`, `\` and the exact names `.` and `..`. Encode the project as one URL path segment; Chinese names are supported. Keys contain 1–4096 visible ASCII characters without spaces. Passwords contain 1–4096 UTF-8 bytes without control characters. No default credentials are supplied.
+IP addresses, `localhost` and its subdomains work directly, alongside any [bound project domain](#bind-a-project-domain). To access the management website via another domain, set `LUDORK_ALLOWED_HOSTS=games.example.com` before starting (multiple permitted hostnames are comma-separated, exact-matched and omit scheme and port). Configure DNS and firewall rules separately.
+
+| Field | Constraints |
+|---|---|
+| Project name | 1–64 UTF-8 bytes; no control characters, `/`, `\` or the exact names `.` and `..`. Encode as one URL path segment; Chinese names are supported. |
+| Project key | 1–4096 visible ASCII characters without spaces. No default is supplied. |
+| Management password | 1–4096 UTF-8 bytes without control characters. No default is supplied. |
 
 ## Project Lua entry
 
-Deployment creates `projects/<hex-project-name>/Main.lua`, initially registering `Modules.Storage`. The directory name is the lowercase hexadecimal encoding of the project's UTF-8 bytes; deployment prints the exact path. Put project-owned Lua modules there. The server loads framework modules from `lua/` and project modules from this private directory. Project source is never sent to game clients or served by the management website.
+Deployment creates `projects/<hex-project-name>/Main.lua`, initially registering `Modules.Storage`. The directory name is the lowercase hexadecimal encoding of the project's UTF-8 bytes (printed during deployment). Place project-owned Lua modules there: the server loads framework modules from `lua/` and project modules from this private directory, and never sends project source to game clients or serves it from the management website.
 
-Each project object in `config/projects.json` may set `luaEntry`, defaulting to `Main.lua`. It is a relative `.lua` file path within that project's directory, using `/` between directories; absolute paths, empty components, `.`/`..`, backslashes, colons and control characters are rejected. The path may contain at most 512 UTF-8 bytes. Redeployment preserves the setting and an existing entry file. Restart after changing source or the entry path.
+Each project object in `config/projects.json` may set `luaEntry` (defaulting to `Main.lua`) to a relative `.lua` path within that project's directory using `/` separators. Absolute paths, empty segments, `.` or `..`, backslashes, colons, control characters and paths over 512 UTF-8 bytes are rejected. Redeployment preserves both `luaEntry` and any existing entry file. Restart the server after changing source or `luaEntry`.
 
-Server Lua uses ordinary Lua 5.4, with no client Standard, `Engine` or `GlobalCore` modules. Public declarations are under `lua/stub`, with a server-specific `.emmyrc.json`; declaration files and `stub` directories are excluded from the runtime. See [Server Lua modules](<HTTP Protocol.md#server-lua-modules>) for module registration, context services and execution limits.
+Server Lua uses ordinary Lua 5.4 with no client Standard, `Engine` or `GlobalCore` modules. Public declarations live under `lua/stub` with a server-specific `.emmyrc.json`; declaration files and `stub` directories are excluded at runtime. See [Server Lua modules](<HTTP Protocol.md#server-lua-modules>) for module registration, context services and execution limits.
 
 ## Configure the write interval
 
-Each project has an `ipWriteIntervalSeconds` field in `config/projects.json`, under `projects["MyGame"]` for the example project. New deployments set it to **180 seconds**; omitting it also selects 180. Edit this field in the existing project object, preserving its credential hashes and other projects:
+Each project has an `ipWriteIntervalSeconds` field in `config/projects.json` (under `projects["MyGame"]` for the example project). New deployments set it to **180 seconds**, and omitting it selects 180. Edit this field inside the existing project object while preserving credential hashes and other projects:
 
 ```json
 {"ipWriteIntervalSeconds":180}
 ```
 
-This is a project-object fragment, not a replacement configuration file. Set the value to `0` to disable this interval, or a nonnegative integer up to `9007199254740991` to choose another interval. Fractional values, strings, null and negative numbers are rejected. Redeploying a project preserves its existing interval and data. **Restart the server after editing the setting**; the current process does not reload it automatically.
+This is a project-object fragment rather than a replacement file. Set `0` to disable the interval, or a non-negative integer up to `9007199254740991` to choose another duration; fractional values, strings, `null` and negative numbers are rejected. Redeploying a project preserves its interval and data. **Restart the server after editing** because the running process does not reload configuration automatically.
 
-The interval applies only to the supplied `Storage.WriteField` RPC and is shared across its writes from the same TCP client IP to the same project. Custom RPCs implement their own business rules and do not inherit it. Users sharing a NAT or reverse proxy may share one allowance. Other projects have independent allowances.
+The interval applies only to the supplied `Storage.WriteField` RPC and is shared across writes from the same TCP client IP to the same project (users behind a shared NAT or reverse proxy share one allowance). Custom RPCs implement their own business rules and do not inherit it, and other projects have independent allowances.
 
-See [write rate limits](<HTTP Protocol.md#write-rate-limits>) for admission, failures and restart behaviour, and [RPC lifecycle](<Native Client API.md#call-rpcs-and-receive-events>) for handling uncertain outcomes.
+See [write rate limits](<HTTP Protocol.md#write-rate-limits>) for admission, failure and restart behaviour, and [RPC lifecycle](<Native Client API.md#call-rpcs-and-receive-events>) for handling uncertain outcomes.
 
 ## Bind a project domain
 
-A project object in `config/projects.json` may list hostnames in `hosts`, so that a domain such as `mygame.example.com` identifies the project without the project path segment:
+A project object in `config/projects.json` may list hostnames in `hosts` so a domain such as `mygame.example.com` identifies the project without a project path segment:
 
 ```json
 {"hosts":["mygame.example.com"]}
 ```
 
-This is a project-object fragment, like the write-interval example. Each entry is an exact lowercase hostname without scheme or port, and one hostname can belong to only one project; invalid or duplicate entries stop the server from starting. Omitting the field binds no domain. Redeploying a project preserves its list. **Restart the server after editing it.**
+This is a project-object fragment like `ipWriteIntervalSeconds`. Each entry must be an exact lowercase hostname without scheme or port, and a hostname can belong to only one project; invalid or duplicate entries prevent the server from starting. Omitting `hosts` binds no domain. Redeploying preserves the list. **Restart the server after editing.**
 
-For a request whose `Host` header names a bound hostname, the backend serves `/api/v1/...`, including the WebSocket endpoint, as that project's `/<project>/api/v1/...`. The game client URL can then be `http://mygame.example.com:6666`. Paths that name a project keep working on every host, and other hosts have no project at `/api/v1`. The management website accepts bound hostnames, but still opens at `http://mygame.example.com:3333/MyGame/`. Point the domain's DNS record at the server yourself; binding does not change the ports.
+For a request whose `Host` header matches a bound hostname, the backend serves `/api/v1/...` (including the WebSocket endpoint) as that project's `/<project>/api/v1/...`, letting game clients use `http://mygame.example.com:6666`. Explicit project paths work on every host, whereas unbound hosts expose no project at `/api/v1`.
+
+The management website accepts bound hostnames at `http://mygame.example.com:3333/MyGame/`. Point the domain's DNS record at the server yourself; domain binding does not alter ports.
 
 ## Configure the development client
 
-In a C++ Source project, open **Game → Test Server Settings**. Enable Ludork Server and enter the test URL and key. The initial URL is `http://localhost:6666/<project-directory-name>`, with the directory name URL-encoded. Confirm saves; Cancel leaves the saved configuration unchanged. This window configures the client only; deploy and start the test server yourself.
+In a **C++ Source** project, open **Game → Test Server Settings**, enable Ludork Server and enter the test URL and key. The default URL is `http://localhost:6666/<project-directory-name>` with the directory name URL-encoded. Select **Confirm** to save or **Cancel** to discard changes. This dialog configures the client only; deploy and start the test server yourself.
 
-The local file is `~/Ludork/.localserver/<project-directory-name>/test.json` on Windows and macOS, including when running from a repository checkout. `~` is the current user's home directory.
+Settings are stored locally at `~/Ludork/.localserver/<project-directory-name>/test.json` on Windows and macOS, including when running from a repository checkout (`~` is the current user's home directory):
 
 ```json
 {
@@ -99,21 +110,25 @@ The local file is `~/Ludork/.localserver/<project-directory-name>/test.json` on 
 }
 ```
 
-These are local settings, including a plaintext test key. They are ignored by Git and are not written to `Main.proj` or Lua. Projects with the same directory name share this local settings location. A missing file or `enabled: false` disables the integration.
+These local settings (including the plaintext test key) are ignored by Git and never written to `Main.proj` or Lua. Projects sharing the same directory name share this file; a missing file or `"enabled": false` disables integration.
 
-**Construct** builds Debug and **Play** runs Debug. Changing the effective settings requires a new native build, so construct again or choose **Build and Play**. Debug builds read the local file through `LUDORK_SERVER_CONFIG_FILE`.
+**Construct** builds Debug and **Play** runs Debug. Changing effective settings requires a new native build, so run **Construct** again or select **Build and Play**. Debug builds read the local file through `LUDORK_SERVER_CONFIG_FILE`.
 
 ## Configure a packaged client
 
-In **File → Pack Project**, select **Enable Ludork Server**, then enter the production URL and key. Each newly opened Pack window starts disabled with empty fields. Production settings are not cached or copied from test settings. Use `http://host:6666/project`, or `http://host:6666` when `host` is [bound to the project](#bind-a-project-domain), without `/api/v1`, credentials, query parameters or a fragment. Native clients use HTTP/WS. The WebGL target also accepts HTTPS and derives WSS for that connection.
+In **File → Pack Project**, enable **Enable Ludork Server** and enter the production URL and key. Each newly opened Pack window starts disabled with empty fields; production settings are never cached or copied from test settings.
 
-An HTTPS game page requires an HTTPS/WSS server endpoint; the client rejects HTTP/WS even for localhost before sending a request. Configure TLS through a reverse proxy in front of the HTTP server. The proxy must forward the project routes and WebSocket upgrade. Browser health checks are public requests without credentials and support cross-origin access; management APIs remain private to their same-origin website. WebSocket authentication uses the first message described in [WebSocket messages](<HTTP Protocol.md#websocket-messages>), equally for native and browser clients. Keep client and server implementations matched to this protocol.
+Use `http://host:6666/project` (or `http://host:6666` when `host` is [bound to the project](#bind-a-project-domain)) without `/api/v1`, credentials, query parameters or a fragment. Native clients use HTTP/WS; the WebGL target also accepts HTTPS and derives WSS.
 
-[Standalone project conversion](<../Editor User Guide/Run Debug and Package.md#convert-source-to-a-standalone-project>) offers the same opt-in Release configuration. The resulting editable project keeps the compiled connection, which cannot be changed without another Source build.
+An HTTPS game page requires an HTTPS/WSS server endpoint; the client rejects HTTP/WS (including `localhost`) before sending a request. Terminate TLS through a reverse proxy in front of the HTTP server and forward both project routes and WebSocket upgrades.
 
-Pack always builds **Release**, including internal test packages marked dev. Release ignores `LUDORK_SERVER_CONFIG_FILE`. For command-line packaging or CI, supply `LUDORK_SERVER_ENABLED=1`, `LUDORK_SERVER_URL` and `LUDORK_SERVER_KEY` in that process's environment; omit the enablement variable or set it to `0` to disable the feature. Obtain production values from your own secret store instead of putting literals in version-controlled commands.
+Browser health checks are public requests without credentials and allow cross-origin access; management APIs are restricted to their same-origin website. Native and browser clients both authenticate via the first WebSocket message in [WebSocket messages](<HTTP Protocol.md#websocket-messages>). Keep client and server builds aligned with this protocol.
 
-For example, attach these environment values to your normal GitHub Actions game-packaging step after configuring the two repository secrets. This Windows example uses the existing packaging command; do not print the secret values:
+[Standalone project conversion](<../Editor User Guide/Run Debug and Package.md#convert-source-to-a-standalone-project>) offers the same opt-in Release configuration. The converted editable project uses that compiled connection, which cannot be changed without another **C++ Source** build.
+
+Pack always builds **Release** (including internal test packages marked dev) and ignores `LUDORK_SERVER_CONFIG_FILE`. For CLI or CI packaging, supply `LUDORK_SERVER_ENABLED=1`, `LUDORK_SERVER_URL` and `LUDORK_SERVER_KEY` in the process environment; omit `LUDORK_SERVER_ENABLED` or set it to `0` to disable integration. Fetch production values from a secret store rather than embedding literals in version-controlled commands.
+
+For example, pass these environment variables to a GitHub Actions packaging step on Windows using repository secrets (never echo secret values):
 
 ```yaml
 - name: Package game
@@ -125,14 +140,16 @@ For example, attach these environment values to your normal GitHub Actions game-
   run: tools\pack_project.bat --release Game
 ```
 
-An enabled build defines `LUDORK_SERVER_AVAILABLE` and includes the transport with its URL and key; the resulting binary contains the credentials it needs. When disabled, server interactions only print a diagnostic and return. See [Disabled server integration](<Native Client API.md#disabled-server-integration>) for return values and local operations that remain available.
+An enabled build defines `LUDORK_SERVER_AVAILABLE` and embeds the transport, URL and key in the binary. When disabled, server calls print a diagnostic and return immediately; see [Disabled server integration](<Native Client API.md#disabled-server-integration>) for return values and local operations available when disabled.
 
 ## Management and operational limits
 
-Open the website and enter both the project key and management password. It supports account filtering, category selection, typed Lua data display, refresh and logout, including exact integers and escaped byte strings. For cookie scope and session expiry, see [read-only management](<HTTP Protocol.md#http-health-and-read-only-management>).
+Open the management website and sign in with both the project key and management password. It supports account filtering, category selection, typed Lua value inspection (including exact integers and escaped byte strings), refresh and logout. See [read-only management](<HTTP Protocol.md#http-health-and-read-only-management>) for cookie scope and session expiry.
 
-Generated `config/`, private `projects/` Lua source, user `data/`, logs and installed dependencies are excluded from the distributed server package. Back up `config/`, `projects/` and `data/` yourself and restrict local access to them. The backend holds a data-directory instance lock. A stale lock whose process has exited can be recovered automatically; for an incomplete lock or reused PID, first confirm that no instance is running before removing `data/.server.lock` manually.
+Generated `config/`, private `projects/` Lua source, user `data/`, logs and installed dependencies are excluded from the distributed server package. Back up `config/`, `projects/` and `data/` yourself and restrict local access to them.
 
-Use a trusted network: **HTTP and WebSocket send credentials and data in plaintext**. The shared project key grants access to that project's registered modules; an account ID is a storage namespace, not a separately authenticated user. A key embedded in a distributed binary can be extracted. Project Lua must enforce its own account authorisation and business rules. Network access controls or a separately managed proxy are deployment responsibilities; this project supplies no TLS setup or account-authentication system.
+The backend holds a data-directory instance lock. A stale lock from an exited process recovers automatically; for an incomplete lock or reused PID, confirm no instance is running before removing `data/.server.lock` manually.
+
+> **Warning:** HTTP and WebSocket send credentials and data in plaintext, and a key embedded in a distributed binary can be extracted. The shared project key grants access to all registered modules for that project; an account ID is only a storage namespace, not an authenticated user. Enforce account authorisation and business rules in project Lua, and deploy TLS and network access controls externally through a reverse proxy or trusted network.
 
 Continue with the [Native Client API](<Native Client API.md>) and [Server Lua and Protocol](<HTTP Protocol.md>).
