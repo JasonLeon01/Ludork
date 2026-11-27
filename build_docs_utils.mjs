@@ -18,7 +18,7 @@ export function normalizeTextInputs(path) {
   const stat = lstatSync(filename)
   if (stat.isSymbolicLink()) return 0
   if (stat.isDirectory()) {
-    if (ignoredDirectories.has(basename(filename)) || /^__default__\/docs\/(?:trunk|v[^/]+)$/.test(path)) return 0
+    if (ignoredDirectories.has(basename(filename))) return 0
     return readdirSync(filename).reduce((count, name) => count + normalizeTextInputs(`${path}/${name}`), 0)
   }
   if (!stat.isFile() || (!textExtensions.has(extname(filename).toLowerCase())

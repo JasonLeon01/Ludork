@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
-import type { DocManifestEntry, DocManifestNode, DocsManifest } from '../src/Ludork/ludorkDocsManifest.ts'
+import type { DocManifestEntry, DocManifestNode, DocsManifest } from '../src/docs/docsManifest.ts'
 
 type DocsSearchDocument = {
   key: string

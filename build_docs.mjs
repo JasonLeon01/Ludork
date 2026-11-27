@@ -4,7 +4,7 @@ import { editableInputs, normalizeTextInputs, root, run } from './build_docs_uti
 import { getDocsRoute, sortDocsVersions } from './docs_versions.mjs'
 
 const frontend = resolve(root, '__default__')
-const outputs = ['index.html', 'assets', 'docs', 'about', 'notices', 'favicon.svg', '.nojekyll']
+const outputs = ['index.html', 'assets', 'docs', 'about', 'notices', 'credits', 'favicon.svg', '.nojekyll']
 
 function publishOutputs(dist) {
   const staging = mkdtempSync(resolve(root, '.docs-build-'))
@@ -74,8 +74,16 @@ try {
   else run('npm', ['run', 'build'], frontend)
 
   const dist = resolve(frontend, 'dist')
-  for (const path of ['index.html', 'assets', 'about/index.html', 'notices/index.html', 'favicon.svg', '.nojekyll',
-    ...versions.map((version) => `${getDocsRoute(version)}index.html`)]) {
+  for (const path of ['index.html', 'assets', 'about/index.html', 'notices/index.html', 'credits/index.html', 'favicon.svg', '.nojekyll',
+    ...versions.flatMap((version) => {
+      const route = getDocsRoute(version)
+      return [
+        `${route}index.html`,
+        `${route}manifest.json`,
+        `${route}search-index.en_GB.json`,
+        `${route}search-index.zh_CN.json`,
+      ]
+    })]) {
     if (!existsSync(resolve(dist, path))) throw new Error(`Missing website output: ${path}`)
   }
   publishOutputs(dist)

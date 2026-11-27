@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { LUDORK_LANGUAGE_KEYS } from '../src/Ludork/ludorkLanguages.ts'
-import type { DocManifestEntry, DocManifestNode, DocsManifest } from '../src/Ludork/ludorkDocsManifest.ts'
+import { LUDORK_LANGUAGE_KEYS } from '../src/i18n/languages.ts'
+import type { DocManifestEntry, DocManifestNode, DocsManifest } from '../src/docs/docsManifest.ts'
 
 type RootOrder = {
   home: DocManifestEntry

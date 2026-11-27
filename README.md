@@ -34,7 +34,7 @@ After review, push `gh-pages` and set GitHub Pages to **Deploy from a branch →
 
 ## Content and routes
 
-- [`versions.json`](versions.json) lists `trunk` and the available major.minor release snapshots. Release versions are shown in descending numeric order, with `trunk (development)` always last. The default is the latest release, or trunk if no release exists. Each version contains `docs/en_GB`, `docs/zh_CN`, shared About/notices Markdown and `images`; the build generates its HTML entry and language manifests.
+- [`versions.json`](versions.json) lists `trunk` and the available major.minor release snapshots. Release versions are shown in descending numeric order, with `trunk (development)` always last. The default is the latest release, or trunk if no release exists. Each version contains `docs/en_GB`, `docs/zh_CN`, shared About/notices Markdown and `images`; the build generates its HTML entry, per-version `manifest.json` and language search indexes.
 - Each language's root `order.json` defines the `home` Markdown entry, the `faq` tree root and ordered `sections`. FAQ uses `{"key":"faq","path":"FAQ"}`; its directory's `order.json` defines the scenario pages in an ordered `items` tree, using keys such as `faq/projects`. Each top-level chapter also has an `order.json` with an ordered `items` tree. Nodes have a stable `key`, a `path` relative to their parent directory, and `children` for folders in the tree.
 - Each version and language owns its own `docs/<language>/FAQ/` scenario pages. FAQ content is not shared across versions; its links point to the documentation in the same version and language.
 - Use array order for navigation; filenames need no ordering prefixes. Preserve keys when renaming or reordering, and use the same keys for matching English and Chinese content so existing `doc` links stay valid.
@@ -44,8 +44,8 @@ After review, push `gh-pages` and set GitHub Pages to **Deploy from a branch →
 | `/Ludork/docs/trunk/` | Development documentation; `lang`, `doc`, `path` and heading fragments select content. `path` is relative to the version directory. |
 | `/Ludork/docs/v1.0/` | The frozen `1.0` documentation, available after creating that snapshot. The same content parameters apply. |
 | `/Ludork/docs/trunk/?lang=en_GB&doc=faq/projects` | The selected version's Projects and Upgrades FAQ page; FAQ scenario keys select individual pages. |
-| `/Ludork/`, `/Ludork/about/`, `/Ludork/notices/` | Website entries; About and notices accept `version=trunk` or a release such as `version=1.0`, defaulting to the latest release or, if none exists, trunk. |
-| `embedded=1` | Hides the website header and the About/notices footer; language and version navigation preserve it. |
+| `/Ludork/`, `/Ludork/about/`, `/Ludork/notices/`, `/Ludork/credits/` | Website entries; About and notices accept `version=trunk` or a release such as `version=1.0`, defaulting to the latest release or, if none exists, trunk. |
+| `embedded=1` | Hides the website header and the About/notices/credits footer; language and version navigation preserve it. |
 
 The editor supplies its language when opening embedded pages. Development editors select trunk; release editors select the snapshot matching their major.minor version.
 
