@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Box, Divider, Drawer, IconButton, ListItemButton, ListItemText, TextField, Typography, useMediaQuery } from '@mui/material'
-import { ChevronLeftIcon } from '../components/Icons'
+import { ChevronLeftIcon, SearchIcon } from '../components/Icons'
 import VersionSelect from '../components/VersionSelect'
 import type { LanguageKey } from '../i18n/languages'
 import { LUDORK_SITE_MESSAGES } from '../i18n/messages'
@@ -16,6 +16,7 @@ type SidebarProps = {
   sections: readonly DocSection[]
   selected: SelectedDoc
   onSelect: (doc: SelectedDoc) => void
+  onOpenSearch: () => void
   isNarrow: boolean
   open: boolean
   onClose: () => void
@@ -31,6 +32,10 @@ type FilterState = {
 type ExpansionState = {
   expanded: Record<string, boolean>
   collapsedForSelection: Record<string, string>
+}
+
+function isApplePlatform(): boolean {
+  return typeof navigator !== 'undefined' && /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userAgent)
 }
 
 function filterItems(items: DocTreeItem[], query: string): DocTreeItem[] {
@@ -55,9 +60,20 @@ function selectedAncestors(items: DocTreeItem[], docKey: string): string[] | nul
   return null
 }
 
-export default function Sidebar({ manifest, language, sections, selected, onSelect, isNarrow, open, onClose }: SidebarProps) {
+export default function Sidebar({
+  manifest,
+  language,
+  sections,
+  selected,
+  onSelect,
+  onOpenSearch,
+  isNarrow,
+  open,
+  onClose,
+}: SidebarProps) {
   const sidebarRef = useRef<HTMLElement>(null)
   const reducedMotion = useMediaQuery(MEDIA_QUERIES.reducedMotion)
+  const shortcutLabel = useMemo(() => (isApplePlatform() ? '⌘K' : 'Ctrl K'), [])
   const messages = LUDORK_SITE_MESSAGES[language].docs
   const faqTree = useMemo(() => getDocsFaqTree(manifest, language), [manifest, language])
   const faqSelected = selected.type === 'doc' && isFaqDoc(manifest, language, selected.docKey)
@@ -169,8 +185,20 @@ export default function Sidebar({ manifest, language, sections, selected, onSele
             onToggle={handleToggleFolder} />
         </Box>
         <Divider sx={{ mx: 2 }} />
-        <Box sx={{ px: 2, py: 1.5, display: 'grid', gap: 1 }}>
+        <Box className="ludork-sidebar-controls">
           <VersionSelect language={language} selected={selected} isFaqSelection={faqSelected} />
+          <button
+            type="button"
+            className="ludork-sidebar-search-trigger"
+            onClick={() => {
+              if (isNarrow) onClose()
+              onOpenSearch()
+            }}
+          >
+            <SearchIcon size={15} />
+            <span>{messages.searchButton}</span>
+            <kbd>{shortcutLabel}</kbd>
+          </button>
           <TextField size="small" fullWidth value={rawQuery} placeholder={messages.filterTitles}
             slotProps={{ htmlInput: { 'aria-label': messages.filterTitles, type: 'search' } }}
             onChange={(event) => setFilterState({
@@ -181,7 +209,7 @@ export default function Sidebar({ manifest, language, sections, selected, onSele
             })}
             sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }} />
         </Box>
-        <Box sx={{ pb: 2 }}>
+        <Box sx={{ pt: 0.75, pb: 2 }}>
           {visibleTree.map((item) => (
             <SidebarItem key={item.type === 'folder' ? item.key : item.entry.key}
               item={item} language={language} selected={selected} onSelect={onSelect}

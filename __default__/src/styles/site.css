@@ -699,7 +699,17 @@ html[lang="zh-CN"] .ludork-hero h1 {
 }
 
 .ludork-notices .ludork-markdown {
-  width: 100%;
+  width: min(820px, 100%);
+}
+
+.ludork-notices .ludork-document-layout--window .ludork-heading-aside {
+  top: var(--notice-scroll-offset);
+  max-height: calc(var(--ludork-main-height, 100dvh) - var(--notice-scroll-offset) - 24px);
+}
+
+.ludork-embedded-controls + .ludork-notices .ludork-document-layout--window .ludork-heading-aside {
+  top: 24px;
+  max-height: calc(var(--ludork-main-height, 100dvh) - 48px);
 }
 
 .ludork-notices .ludork-markdown :is(h1, h2, h3, h4, h5, h6) {

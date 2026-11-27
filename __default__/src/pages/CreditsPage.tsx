@@ -9,6 +9,8 @@ export default function CreditsPage({ language }: { language: LanguageKey }) {
         markdown={creditsMarkdown}
         language={language}
         hash={window.location.hash}
+        showHeadingNavigation
+        scrollMode="window"
       />
     </main>
   )

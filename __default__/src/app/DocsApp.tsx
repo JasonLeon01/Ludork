@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Box, Button, CircularProgress, IconButton, useMediaQuery } from '@mui/material'
 import Header from '../components/Header'
-import { MenuIcon } from '../components/Icons'
+import { MenuIcon, SearchIcon } from '../components/Icons'
 import LanguageSelect from '../components/LanguageSelect'
 import ThemeToggle from '../components/ThemeToggle'
+import { DocBreadcrumbs, DocPagination } from '../docs/DocNavigation'
+import DocsSearchDialog from '../docs/DocsSearchDialog'
 import {
-  getDocsHomePath, getDocsSections, getLoadedDocsManifest, loadDocsManifest,
-  resolveFilenameByDocKey, resolveKnownDocPath, type SelectedDoc,
+  getAdjacentDocs, getDocBreadcrumbs, getDocsHomeKey, getDocsHomePath, getDocsSections,
+  getLoadedDocsManifest, loadDocsManifest, resolveFilenameByDocKey, resolveKnownDocPath, type SelectedDoc,
 } from '../docs/docsIndex'
 import type { VersionDocsManifest } from '../docs/docsManifest'
 import { getDocsVersion, isEmbedded } from '../docs/docsVersions'
@@ -62,13 +64,23 @@ function readLocation(manifest: VersionDocsManifest): DocLocation {
   }
 }
 
-function DocsView({ manifest }: { manifest: VersionDocsManifest }) {
+function DocsView({ manifest, version }: { manifest: VersionDocsManifest; version: string }) {
   const [location, setLocation] = useState<DocLocation>(() => readLocation(manifest))
   const { language, selected, freePath, hash } = location
   const isNarrow = useMediaQuery(MEDIA_QUERIES.narrowNavigation)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
   const sections = useMemo(() => getDocsSections(manifest, language), [manifest, language])
   const messages = LUDORK_SITE_MESSAGES[language]
+  const breadcrumbs = useMemo(
+    () => (freePath ? [] : getDocBreadcrumbs(manifest, language, selected, messages.docs.faq)),
+    [manifest, language, selected, freePath, messages.docs.faq],
+  )
+  const adjacent = useMemo(
+    () => (freePath ? { previous: null, next: null } : getAdjacentDocs(manifest, language, selected, messages.docs.title, messages.docs.faq)),
+    [manifest, language, selected, freePath, messages.docs.title, messages.docs.faq],
+  )
+  const homeKey = useMemo(() => getDocsHomeKey(manifest, language), [manifest, language])
   usePageMetadata('docs', language)
 
   useEffect(() => {
@@ -83,6 +95,18 @@ function DocsView({ manifest }: { manifest: VersionDocsManifest }) {
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [manifest])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setMobileOpen(false)
+        setSearchOpen((previous) => !previous)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   const handleSelect = useCallback((doc: SelectedDoc) => {
     setLocation({ language, selected: doc, freePath: null, hash: '' })
@@ -140,6 +164,15 @@ function DocsView({ manifest }: { manifest: VersionDocsManifest }) {
           {isNarrow && <IconButton onClick={toggleNavigation} aria-label={messages.docs.expandSidebar}
             aria-expanded={mobileOpen} aria-controls="document-navigation"><MenuIcon /></IconButton>}
           <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
+            <button
+              type="button"
+              className="ludork-theme-toggle"
+              onClick={() => setSearchOpen(true)}
+              aria-label={messages.docs.searchButton}
+              title={messages.docs.searchButton}
+            >
+              <SearchIcon size={18} />
+            </button>
             <ThemeToggle language={language} />
             <LanguageSelect language={language} onChange={handleLanguageChange} />
           </Box>
@@ -150,18 +183,28 @@ function DocsView({ manifest }: { manifest: VersionDocsManifest }) {
       )}
       <Box sx={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }}>
         <Sidebar manifest={manifest} language={language} sections={sections} selected={selected} onSelect={handleSelect}
-          isNarrow={isNarrow} open={mobileOpen} onClose={() => setMobileOpen(false)} />
+          onOpenSearch={() => setSearchOpen(true)} isNarrow={isNarrow} open={mobileOpen} onClose={() => setMobileOpen(false)} />
         <Box component="main" id="main-content" tabIndex={-1} className="ludork-docs-main"
           sx={{ flex: 1, minWidth: 0, height: '100%', overflow: 'auto' }}>
           <MarkdownContent
             language={language}
             path={contentPath}
             hash={hash}
+            header={<DocBreadcrumbs language={language} trail={breadcrumbs} onSelect={handleSelect} />}
+            footer={<DocPagination language={language} adjacent={adjacent} onSelect={handleSelect} />}
             resolveDocumentHref={resolveDocumentHref}
             onNavigate={handleNavigate}
           />
         </Box>
       </Box>
+      <DocsSearchDialog
+        open={searchOpen}
+        version={version}
+        language={language}
+        homeKey={homeKey}
+        onClose={() => setSearchOpen(false)}
+        onSelect={handleSelect}
+      />
     </Box>
   )
 }
@@ -190,7 +233,7 @@ export default function DocsApp() {
   }, [version, manifest, attempt])
 
   if (manifest) {
-    return <DocsView manifest={manifest} />
+    return <DocsView manifest={manifest} version={version} />
   }
 
   const messages = LUDORK_SITE_MESSAGES[initialLanguage].docs

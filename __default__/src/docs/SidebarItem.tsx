@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, type CSSProperties } from 'react'
 import { Box, ListItemButton, ListItemText } from '@mui/material'
 import { ChevronLeftIcon } from '../components/Icons'
 import type { LanguageKey } from '../i18n/languages'
@@ -29,12 +29,22 @@ export default function SidebarItem({
         <ListItemButton component="button" type="button" aria-expanded={open} aria-controls={childrenId}
           onClick={() => onToggle(item.key, !open)}
           sx={{ pl: 1.5 + depth * 1.5, width: 'calc(100% - 24px)', textAlign: 'left', gap: 1 }}>
-          <Box component="span" sx={{ display: 'inline-flex', flexShrink: 0, transform: open ? 'rotate(-90deg)' : 'rotate(180deg)' }}>
+          <Box
+            component="span"
+            className="ludork-sidebar-chevron"
+            data-open={open}
+            sx={{ display: 'inline-flex', flexShrink: 0 }}
+          >
             <ChevronLeftIcon size={16} />
           </Box>
           <ListItemText primary={item.displayName} slotProps={{ primary: { sx: { ...labelStyle, fontWeight: depth === 0 ? 500 : 400 } } }} />
         </ListItemButton>
-        <Box id={childrenId} hidden={!open}>
+        <Box
+          id={childrenId}
+          hidden={!open}
+          className="ludork-sidebar-children"
+          style={{ '--ludork-guide-offset': `${24 + depth * 12}px` } as CSSProperties}
+        >
           {item.children.map((child) => (
             <SidebarItem key={child.type === 'folder' ? child.key : child.entry.key}
               item={child} language={language} selected={selected} onSelect={onSelect}

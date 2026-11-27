@@ -1,4 +1,4 @@
-import{t as e,xt as t}from"./mountPage-CXUxUwp_.js";import{t as n}from"./SiteShell-U1fYkCa0.js";import{t as r}from"./MarkdownContent-CHTUXl7f.js";var i=`# Icon credits / 图标来源
+import{Dt as e,t}from"./mountPage-C6qln5fc.js";import{t as n}from"./SiteShell-CL3AozQj.js";import{t as r}from"./MarkdownContent-DgS4THvO.js";var i=`# Icon credits / 图标来源
 
 # Dependency icons / 依赖图标
 
@@ -326,4 +326,4 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
-`,a=t();function o({language:e}){return(0,a.jsx)(`main`,{id:`main-content`,tabIndex:-1,className:`ludork-notices ludork-container`,children:(0,a.jsx)(r,{markdown:i,language:e,hash:window.location.hash})})}e((0,a.jsx)(n,{page:`credits`,renderPage:e=>(0,a.jsx)(o,{language:e})}));
+`,a=e();function o({language:e}){return(0,a.jsx)(`main`,{id:`main-content`,tabIndex:-1,className:`ludork-notices ludork-container`,children:(0,a.jsx)(r,{markdown:i,language:e,hash:window.location.hash,showHeadingNavigation:!0,scrollMode:`window`})})}t((0,a.jsx)(n,{page:`credits`,renderPage:e=>(0,a.jsx)(o,{language:e})}));

@@ -13,6 +13,8 @@ export default function NoticesPage({ language }: { language: LanguageKey }) {
         path={`docs/${NOTICE_FILES[language]}`}
         language={language}
         hash={window.location.hash}
+        showHeadingNavigation
+        scrollMode="window"
       />
     </main>
   )

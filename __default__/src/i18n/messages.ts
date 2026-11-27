@@ -47,6 +47,25 @@ export type SiteMessages = {
     onThisPage: string
     expandHeadings: string
     collapseHeadings: string
+    searchButton: string
+    searchPlaceholder: string
+    searchLoading: string
+    searchError: string
+    searchEmpty: string
+    searchNoResults: string
+    searchResultsCount: string
+    searchNavigateHint: string
+    searchOpenHint: string
+    searchCloseHint: string
+    copyCode: string
+    copied: string
+    copyHeadingLink: string
+    previousPage: string
+    nextPage: string
+    breadcrumbs: string
+    pagination: string
+    zoomImage: string
+    closePreview: string
   }
 }
 
@@ -79,7 +98,42 @@ export const LUDORK_SITE_MESSAGES = {
     credits: { title: 'Ludork Icon Credits', description: 'Sources, attribution, and licence notices for platform and dependency icons used on the Ludork website.' },
     acknowledgements: { title: 'Acknowledgements' },
     footer: { description: FOOTER_DESCRIPTION, license: 'Zlib License', notices: 'Third-party notices', feedback: 'Feedback & issues', source: 'Source on GitHub', iconCredits: 'Icon credits' },
-    docs: { title: 'Ludork Documentation', description: 'Learn to build 2D RPGs with Ludork: getting started, editor tools, Lua, Blueprints, native development, and plug-ins.', sections: 'Documentation sections', faq: 'FAQ', filterTitles: 'Filter by title', noMatchingTitles: 'No matching titles.', expandSidebar: 'Open document navigation', collapseSidebar: 'Close document navigation', selectDocument: 'Select a document from the sidebar', loading: 'Loading document', loadError: 'Unable to load this document.', retry: 'Try again', onThisPage: 'ON THIS PAGE', expandHeadings: 'Expand page headings', collapseHeadings: 'Collapse page headings' },
+    docs: {
+      title: 'Ludork Documentation',
+      description: 'Learn to build 2D RPGs with Ludork: getting started, editor tools, Lua, Blueprints, native development, and plug-ins.',
+      sections: 'Documentation sections',
+      faq: 'FAQ',
+      filterTitles: 'Filter by title',
+      noMatchingTitles: 'No matching titles.',
+      expandSidebar: 'Open document navigation',
+      collapseSidebar: 'Close document navigation',
+      selectDocument: 'Select a document from the sidebar',
+      loading: 'Loading document',
+      loadError: 'Unable to load this document.',
+      retry: 'Try again',
+      onThisPage: 'ON THIS PAGE',
+      expandHeadings: 'Expand page headings',
+      collapseHeadings: 'Collapse page headings',
+      searchButton: 'Search docs',
+      searchPlaceholder: 'Search documentation…',
+      searchLoading: 'Loading search index…',
+      searchError: 'Unable to load the search index.',
+      searchEmpty: 'Type keywords to search across all pages and FAQs in this version.',
+      searchNoResults: 'No matching documents found.',
+      searchResultsCount: '{count} results',
+      searchNavigateHint: 'Navigate',
+      searchOpenHint: 'Open',
+      searchCloseHint: 'Close',
+      copyCode: 'Copy code',
+      copied: 'Copied',
+      copyHeadingLink: 'Copy link to section',
+      previousPage: 'Previous',
+      nextPage: 'Next',
+      breadcrumbs: 'Breadcrumb',
+      pagination: 'Document pagination',
+      zoomImage: 'Zoom image',
+      closePreview: 'Close image preview',
+    },
   },
   zh_CN: {
     navigation: { home: '首页', docs: '文档', about: '关于', repository: 'GitHub 仓库', label: '主导航' },
@@ -109,6 +163,41 @@ export const LUDORK_SITE_MESSAGES = {
     credits: { title: 'Ludork 图标来源', description: 'Ludork 官网所使用的平台图标与依赖项目图标的来源、署名与许可说明。' },
     acknowledgements: { title: '致谢' },
     footer: { description: FOOTER_DESCRIPTION, license: 'Zlib 许可证', notices: '第三方声明', feedback: '问题与建议', source: 'GitHub 源码', iconCredits: '图标来源' },
-    docs: { title: 'Ludork 文档', description: '从快速入门、编辑器、Lua、蓝图、原生开发到插件，用 Ludork 制作 2D RPG。', sections: '文档章节', faq: 'FAQ', filterTitles: '按标题筛选', noMatchingTitles: '没有匹配的标题。', expandSidebar: '打开文档目录', collapseSidebar: '关闭文档目录', selectDocument: '请在左侧选择一篇文档', loading: '正在加载文档', loadError: '这篇文档暂时无法加载。', retry: '再试一次', onThisPage: '本页目录', expandHeadings: '展开本页小标题', collapseHeadings: '收起本页小标题' },
+    docs: {
+      title: 'Ludork 文档',
+      description: '从快速入门、编辑器、Lua、蓝图、原生开发到插件，用 Ludork 制作 2D RPG。',
+      sections: '文档章节',
+      faq: 'FAQ',
+      filterTitles: '按标题筛选',
+      noMatchingTitles: '没有匹配的标题。',
+      expandSidebar: '打开文档目录',
+      collapseSidebar: '关闭文档目录',
+      selectDocument: '请在左侧选择一篇文档',
+      loading: '正在加载文档',
+      loadError: '这篇文档暂时无法加载。',
+      retry: '再试一次',
+      onThisPage: '本页目录',
+      expandHeadings: '展开本页小标题',
+      collapseHeadings: '收起本页小标题',
+      searchButton: '搜索文档',
+      searchPlaceholder: '搜索文档标题与正文…',
+      searchLoading: '正在加载搜索索引…',
+      searchError: '搜索索引暂时无法加载。',
+      searchEmpty: '输入关键词，搜索当前版本的全部文档与 FAQ。',
+      searchNoResults: '没有找到匹配的文档。',
+      searchResultsCount: '共 {count} 条结果',
+      searchNavigateHint: '选择',
+      searchOpenHint: '打开',
+      searchCloseHint: '关闭',
+      copyCode: '复制代码',
+      copied: '已复制',
+      copyHeadingLink: '复制本节链接',
+      previousPage: '上一篇',
+      nextPage: '下一篇',
+      breadcrumbs: '面包屑导航',
+      pagination: '文档翻页导航',
+      zoomImage: '放大查看图片',
+      closePreview: '关闭图片预览',
+    },
   },
 } as const satisfies Record<LanguageKey, SiteMessages>

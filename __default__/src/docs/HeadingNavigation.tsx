@@ -4,6 +4,7 @@ import { ChevronLeftIcon } from '../components/Icons'
 import type { LanguageKey } from '../i18n/languages'
 import { LUDORK_SITE_MESSAGES } from '../i18n/messages'
 import { MEDIA_QUERIES } from '../styles/breakpoints'
+import { isEmbedded } from './docsVersions'
 
 type Heading = { id: string; title: string; level: number }
 
@@ -31,16 +32,23 @@ function saveOpenPreference(key: string, open: boolean): void {
 type HeadingNavigationProps = {
   contentRef: RefObject<HTMLDivElement | null>
   language: LanguageKey
+  scrollMode?: 'main' | 'window'
   getHref: (hash: string) => string
   onNavigate: (event: MouseEvent<HTMLAnchorElement>, hash: string) => void
 }
 
-export default function HeadingNavigation({ contentRef, language, getHref, onNavigate }: HeadingNavigationProps) {
+export default function HeadingNavigation({
+  contentRef,
+  language,
+  scrollMode = 'main',
+  getHref,
+  onNavigate,
+}: HeadingNavigationProps) {
   const isMobilePortrait = useMediaQuery(MEDIA_QUERIES.mobilePortrait)
   const [mobileOpen, setMobileOpen] = useState(() => readOpenPreference(MOBILE_OPEN_KEY, false))
   const [headings, setHeadings] = useState<Heading[]>([])
   const [activeId, setActiveId] = useState('')
-  const [mainHeight, setMainHeight] = useState(0)
+  const [viewportHeight, setViewportHeight] = useState(0)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const listId = useId()
   const expanded = !isMobilePortrait || mobileOpen
@@ -49,7 +57,7 @@ export default function HeadingNavigation({ contentRef, language, getHref, onNav
   useEffect(() => {
     const content = contentRef.current
     const main = content?.closest('main')
-    if (!content || !main) return
+    if (!content || (!main && scrollMode === 'main')) return
 
     const elements = Array.from(content.querySelectorAll<HTMLHeadingElement>('h2[id], h3[id], h4[id], h5[id], h6[id]'))
     const entries = elements.map((heading) => ({
@@ -60,17 +68,27 @@ export default function HeadingNavigation({ contentRef, language, getHref, onNav
     let frame = 0
     const updateActive = () => {
       frame = 0
-      const top = main.getBoundingClientRect().top + 36
+      const top = scrollMode === 'window'
+        ? (isEmbedded() ? 36 : 104)
+        : main!.getBoundingClientRect().top + 36
       let active = elements[0]?.id ?? ''
       for (const heading of elements) {
         if (heading.getBoundingClientRect().top > top) break
         active = heading.id
       }
-      if (main.scrollHeight > main.clientHeight && main.scrollTop + main.clientHeight >= main.scrollHeight - 2) {
-        active = elements.at(-1)?.id ?? active
+      if (scrollMode === 'window') {
+        const docEl = document.documentElement
+        if (docEl.scrollHeight > window.innerHeight && window.scrollY + window.innerHeight >= docEl.scrollHeight - 2) {
+          active = elements.at(-1)?.id ?? active
+        }
+        setViewportHeight(window.innerHeight)
+      } else if (main) {
+        if (main.scrollHeight > main.clientHeight && main.scrollTop + main.clientHeight >= main.scrollHeight - 2) {
+          active = elements.at(-1)?.id ?? active
+        }
+        setViewportHeight(main.clientHeight)
       }
       setActiveId(active)
-      setMainHeight(main.clientHeight)
     }
     const scheduleUpdate = () => {
       if (!frame) frame = requestAnimationFrame(updateActive)
@@ -81,14 +99,24 @@ export default function HeadingNavigation({ contentRef, language, getHref, onNav
     })
     const observer = new ResizeObserver(scheduleUpdate)
     observer.observe(content)
-    observer.observe(main)
-    main.addEventListener('scroll', scheduleUpdate, { passive: true })
+    if (scrollMode === 'window') {
+      window.addEventListener('scroll', scheduleUpdate, { passive: true })
+      window.addEventListener('resize', scheduleUpdate, { passive: true })
+    } else if (main) {
+      observer.observe(main)
+      main.addEventListener('scroll', scheduleUpdate, { passive: true })
+    }
     return () => {
       cancelAnimationFrame(frame)
       observer.disconnect()
-      main.removeEventListener('scroll', scheduleUpdate)
+      if (scrollMode === 'window') {
+        window.removeEventListener('scroll', scheduleUpdate)
+        window.removeEventListener('resize', scheduleUpdate)
+      } else if (main) {
+        main.removeEventListener('scroll', scheduleUpdate)
+      }
     }
-  }, [contentRef])
+  }, [contentRef, scrollMode])
 
   if (!headings.length) return null
 
@@ -105,7 +133,7 @@ export default function HeadingNavigation({ contentRef, language, getHref, onNav
   return (
     <aside
       className="ludork-heading-aside"
-      style={mainHeight ? { '--ludork-main-height': `${mainHeight}px` } as CSSProperties : undefined}
+      style={viewportHeight ? { '--ludork-main-height': `${viewportHeight}px` } as CSSProperties : undefined}
     >
       <nav
         className="ludork-heading-navigation"

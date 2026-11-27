@@ -106,3 +106,54 @@ export function MonitorIcon({ size }: IconProps) {
     </IconFrame>
   )
 }
+
+export function SearchIcon({ size }: IconProps) {
+  return (
+    <IconFrame size={size} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.85}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-3.8-3.8" />
+    </IconFrame>
+  )
+}
+
+export function CopyIcon({ size }: IconProps) {
+  return (
+    <IconFrame size={size} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </IconFrame>
+  )
+}
+
+export function CheckIcon({ size }: IconProps) {
+  return (
+    <IconFrame size={size} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path d="M20 6L9 17l-5-5" />
+    </IconFrame>
+  )
+}
+
+export function LinkIcon({ size }: IconProps) {
+  return (
+    <IconFrame size={size} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.85}>
+      <path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L11.4 4.5" />
+      <path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 1 0 7.07 7.07l1.42-1.41" />
+    </IconFrame>
+  )
+}
+
+export function CloseIcon({ size }: IconProps) {
+  return (
+    <IconFrame size={size} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path d="M18 6L6 18M6 6l12 12" />
+    </IconFrame>
+  )
+}
+
+export function ChevronRightIcon({ size }: IconProps) {
+  return (
+    <IconFrame size={size} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path d="M9 18l6-6-6-6" />
+    </IconFrame>
+  )
+}

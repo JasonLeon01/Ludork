@@ -30,6 +30,17 @@ export type KnownDocPath = {
   docKey: string | null
 }
 
+export type DocNavLink = {
+  selected: SelectedDoc
+  title: string
+  sectionTitle?: string
+}
+
+export type AdjacentDocs = {
+  previous: DocNavLink | null
+  next: DocNavLink | null
+}
+
 const loadedManifests = new Map<string, VersionDocsManifest>()
 const pendingManifests = new Map<string, Promise<VersionDocsManifest>>()
 
@@ -137,4 +148,80 @@ export function getDocsSections(manifests: VersionDocsManifest, language: Langua
 export function resolveFilenameByDocKey(manifests: VersionDocsManifest, language: LanguageKey, docKey: string): string | null {
   const manifest = getLanguageManifest(manifests, language)
   return flattenManifest([manifest.faq, ...manifest.sections]).find((node) => node.key === docKey)?.path ?? null
+}
+
+export function getDocsHomeKey(manifests: VersionDocsManifest, language: LanguageKey): string {
+  return getLanguageManifest(manifests, language).home.key
+}
+
+function findBreadcrumbTrail(nodes: DocManifestNode[], docKey: string): string[] | null {
+  for (const node of nodes) {
+    const label = entryDisplayName(node.path.split('/').at(-1)!)
+    if (node.children === undefined) {
+      if (node.key === docKey) return [label]
+    } else {
+      const childTrail = findBreadcrumbTrail(node.children, docKey)
+      if (childTrail) return [label, ...childTrail]
+    }
+  }
+  return null
+}
+
+export function getDocBreadcrumbs(
+  manifests: VersionDocsManifest,
+  language: LanguageKey,
+  selected: SelectedDoc,
+  faqLabel: string,
+): string[] {
+  if (selected.type !== 'doc') return []
+  const manifest = getLanguageManifest(manifests, language)
+  const faqTrail = findBreadcrumbTrail(manifest.faq.children, selected.docKey)
+  if (faqTrail) return [faqLabel, ...faqTrail]
+  return findBreadcrumbTrail(manifest.sections, selected.docKey) ?? []
+}
+
+function collectSectionNavLinks(
+  nodes: DocManifestNode[],
+  language: LanguageKey,
+  sectionTitle: string,
+): DocNavLink[] {
+  return nodes.flatMap((node) => {
+    if (node.children !== undefined) {
+      return collectSectionNavLinks(node.children, language, sectionTitle)
+    }
+    return [{
+      selected: { type: 'doc', lang: language, docKey: node.key },
+      title: entryDisplayName(node.path.split('/').at(-1)!),
+      sectionTitle,
+    }]
+  })
+}
+
+export function getAdjacentDocs(
+  manifests: VersionDocsManifest,
+  language: LanguageKey,
+  selected: SelectedDoc,
+  homeTitle: string,
+  faqLabel: string,
+): AdjacentDocs {
+  const manifest = getLanguageManifest(manifests, language)
+  const ordered: DocNavLink[] = [
+    { selected: { type: 'home' }, title: homeTitle },
+    ...collectSectionNavLinks(manifest.faq.children, language, faqLabel),
+    ...manifest.sections.flatMap((section) =>
+      collectSectionNavLinks(section.children, language, section.path),
+    ),
+  ]
+
+  const currentIndex = ordered.findIndex((item) =>
+    selected.type === 'home'
+      ? item.selected.type === 'home'
+      : item.selected.type === 'doc' && item.selected.docKey === selected.docKey,
+  )
+  if (currentIndex === -1) return { previous: null, next: null }
+
+  return {
+    previous: currentIndex > 0 ? ordered[currentIndex - 1] : null,
+    next: currentIndex < ordered.length - 1 ? ordered[currentIndex + 1] : null,
+  }
 }

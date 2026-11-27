@@ -49,7 +49,7 @@ After review, push `gh-pages` and set GitHub Pages to **Deploy from a branch →
 
 The editor supplies its language when opening embedded pages. Development editors select trunk; release editors select the snapshot matching their major.minor version.
 
-The documentation sidebar provides a Documentation link and an expandable FAQ node with scenario pages. Below the version selector, the title filter narrows the current language's chapter tree within the selected version; it does not search FAQ or document contents. The former chapter tabs are the chapter tree's first-level nodes.
+The documentation sidebar provides a Documentation link and an expandable FAQ node with scenario pages. Below the version selector, full-text search (`Ctrl+K` / `⌘K`) queries the selected version and language's generated search index across the home page, FAQ pages and chapters, while the title filter narrows the chapter tree directly. The former chapter tabs are the chapter tree's first-level nodes.
 
 ## Documentation search index
 

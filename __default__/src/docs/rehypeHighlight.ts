@@ -82,6 +82,14 @@ class HastEmitter implements Emitter {
   }
 
   startScope(name: string): void {
+    this.openNode(String(name))
+  }
+
+  endScope(): void {
+    this.closeNode()
+  }
+
+  openNode(name: string): void {
     const className = name.split('.').map((part, index) => (index ? `${part}${'_'.repeat(index)}` : `${CLASS_PREFIX}${part}`))
     const child: HastElement = {
       type: 'element',
@@ -93,7 +101,7 @@ class HastEmitter implements Emitter {
     this.stack.push(child)
   }
 
-  endScope(): void {
+  closeNode(): void {
     if (this.stack.length > 1) {
       this.stack.pop()
     }
@@ -154,6 +162,7 @@ function visitCodeBlocks(node: HastParent, parent: HastParent | null): void {
     const result = highlighter.highlight(extractText(node), { language, ignoreIllegals: true }) as HighlightResult & {
       _emitter?: HastEmitter
     }
+    if (result.errorRaised) return
     const children = result._emitter?.root.children
     if (children && children.length > 0) {
       node.children = children
