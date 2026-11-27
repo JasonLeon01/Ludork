@@ -89,11 +89,11 @@ end
 return Profile
 ```
 
-Register it with `Net.RegisterModule("Profile", require("Profile"))`. Module, RPC and event names are case-sensitive and contain 1–128 ASCII letters, digits, dots, underscores or hyphens. Duplicate module registration fails project initialization. Only functions explicitly placed in `Rpc` are remotely callable.
+Register it with `Net.RegisterModule("Profile", require("Profile"))`. Module, RPC and event names are case-sensitive and contain 1–128 ASCII letters, digits, dots, underscores or hyphens. Duplicate module registration fails project initialisation. Only functions explicitly placed in `Rpc` are remotely callable.
 
 `Snapshot(context, params)` receives the client's pure Lua parameter value and must return an ordinary table. Snapshot storage access is read-only. Every fetch executes this function again. The server does not retain proxy objects or automatically replicate changes.
 
-`Rpc.FunctionName(context, ...)` receives positional arguments, including nil gaps and trailing nil values. RPCs are void: returned values are discarded. Host storage operations suspend the current Lua coroutine until Node finishes the operation, so the Lua code can use normal sequential calls. Do not retain a context or use its services after its handler finishes. Calls are serialized within each project.
+`Rpc.FunctionName(context, ...)` receives positional arguments, including nil gaps and trailing nil values. RPCs are void: returned values are discarded. Host storage operations suspend the current Lua coroutine until Node finishes the operation, so the Lua code can use normal sequential calls. Do not retain a context or use its services after its handler finishes. Calls are serialised within each project.
 
 The host supplies these context members:
 
@@ -147,9 +147,9 @@ The supplied `Storage` module's snapshot parameters are:
 
 Its `WriteField(account, category, field, value)` RPC replaces the old token/PUT flow. On success it notifies the caller with `FieldWritten(account, category, field)`. There is no write-token API. A nil value deletes the field but does not delete the category file or account directory.
 
-The project setting `ipWriteIntervalSeconds` applies only to this supplied `Storage.WriteField` RPC. It defaults to 180; zero disables it. The value must be a nonnegative safe integer. The first admitted attempt starts the interval before storage; storage failure still consumes it. Rejection returns `RateLimited` with positive `retryAfterSeconds` and does not extend the interval. Limits are isolated by project, normalize IPv4-mapped IPv6, use a monotonic clock and reset on service restart. Clients behind a common NAT or reverse proxy share its peer-IP interval. Custom RPCs are responsible for their own business rules and do not inherit this interval.
+The project setting `ipWriteIntervalSeconds` applies only to this supplied `Storage.WriteField` RPC. It defaults to 180; zero disables it. The value must be a nonnegative safe integer. The first admitted attempt starts the interval before storage; storage failure still consumes it. Rejection returns `RateLimited` with positive `retryAfterSeconds` and does not extend the interval. Limits are isolated by project, normalise IPv4-mapped IPv6, use a monotonic clock and reset on service restart. Clients behind a common NAT or reverse proxy share its peer-IP interval. Custom RPCs are responsible for their own business rules and do not inherit this interval.
 
-Writes create account/category storage as needed. Same-file updates are serialized and use atomic temporary-file replacement. Different files can update concurrently. Each category is limited to 1 MiB including encoding. There are no cross-file transactions, automatic backups or rollback of earlier writes when a later Lua statement fails. A timeout or disconnect can occur after a write committed; do not automatically retry an RPC with an unknown outcome. Fetch a new snapshot and let business logic decide the next action.
+Writes create account/category storage as needed. Same-file updates are serialised and use atomic temporary-file replacement. Different files can update concurrently. Each category is limited to 1 MiB including encoding. There are no cross-file transactions, automatic backups or rollback of earlier writes when a later Lua statement fails. A timeout or disconnect can occur after a write committed; do not automatically retry an RPC with an unknown outcome. Fetch a new snapshot and let business logic decide the next action.
 
 ## Network protocol
 
@@ -206,4 +206,4 @@ Back up private project logic, configuration and data through your operational p
 
 Built archives exclude private logic, credentials, user data and installed dependencies. Their runtime package and lockfile install only the required production dependencies.
 
-Copyright and license texts for Wasmoon, its embedded Lua runtime, ws and the bundled React components are included in [Third-party notices](third-party/README.md).
+Copyright and licence texts for Wasmoon, its embedded Lua runtime, ws and the bundled React components are included in [Third-party notices](third-party/README.md).

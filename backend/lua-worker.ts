@@ -45,7 +45,7 @@ async function run(code: string, filename?: string): Promise<unknown> {
   }
 }
 
-async function initialize(projectDirectory: string, entry: string, name: string): Promise<void> {
+async function initialise(projectDirectory: string, entry: string, name: string): Promise<void> {
   projectName = name;
   const factory = new LuaFactory();
   await mount(factory, fileURLToPath(new URL('../lua/', import.meta.url)), '/app');
@@ -119,7 +119,7 @@ async function invoke(id: number, invocation: Invocation): Promise<void> {
 }
 
 process.on('message', (message: { type: string; directory?: string; entry: string; project: string; id: number; hostId: number; invocation: Invocation; ok: boolean; data?: WireValue } & Failure) => {
-  if (message.type === 'init') void initialize(message.directory!, message.entry, message.project).catch(error => { process.send?.({ type: 'fatal', ...failure(error) }); process.exitCode = 1; process.disconnect?.(); });
+  if (message.type === 'init') void initialise(message.directory!, message.entry, message.project).catch(error => { process.send?.({ type: 'fatal', ...failure(error) }); process.exitCode = 1; process.disconnect?.(); });
   else if (message.type === 'invoke') void invoke(message.id, message.invocation).catch(error => { process.send?.({ type: 'fatal', ...failure(error) }); process.disconnect?.(); });
   else if (message.type === 'host_result') {
     pending.get(message.hostId)?.(message);

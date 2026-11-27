@@ -3,7 +3,7 @@ import { ApiError } from './errors.ts';
 
 const nanosecondsPerSecond = 1_000_000_000n;
 
-function normalizedAddress(address: string): string {
+function normalisedAddress(address: string): string {
   const lower = address.toLowerCase();
   if (!lower.startsWith('::ffff:')) return lower;
   const suffix = lower.slice(7);
@@ -33,7 +33,7 @@ export class WriteRateLimiter {
   admit(project: string, address: string | undefined, intervalSeconds: number): void {
     if (intervalSeconds === 0) return;
     if (!address) throw new ApiError(500, 'ServerFailure', 'The client address could not be determined.');
-    const ip = normalizedAddress(address);
+    const ip = normalisedAddress(address);
     const now = process.hrtime.bigint();
     const addresses = this.deadlines.get(project);
     const remaining = (addresses?.get(ip) ?? now) - now;

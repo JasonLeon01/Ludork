@@ -9,7 +9,7 @@
 
 local Net = {}
 
---- Register a unique module during project initialization.
+--- Register a unique module during project initialisation.
 --- Module and RPC names contain 1 to 128 ASCII letters, digits, dots, underscores or hyphens.
 --- Snapshot returns a fresh ordinary Lua table; its handler cannot write storage or send events.
 --- RPC handlers receive positional arguments with nil positions preserved; their return values are discarded.
