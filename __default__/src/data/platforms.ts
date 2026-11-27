@@ -8,6 +8,7 @@ export type LudorkPlatform = {
   name: string
   icon: string
   wide?: boolean
+  wordmark?: boolean
   website?: string
 }
 
@@ -19,7 +20,7 @@ export const LUDORK_EDITOR_PLATFORMS: readonly LudorkPlatform[] = [WINDOWS, MACO
 export const LUDORK_GAME_PLATFORMS: readonly LudorkPlatform[] = [
   WINDOWS,
   MACOS,
-  { name: 'iOS', icon: iosIcon },
-  { name: 'OpenHarmony', icon: openharmonyIcon, wide: true, website: 'https://www.openharmony.cn/' },
+  { name: 'iOS', icon: iosIcon, wordmark: true },
+  { name: 'OpenHarmony', icon: openharmonyIcon, wide: true, wordmark: true, website: 'https://www.openharmony.cn/' },
   { name: 'Android', icon: androidIcon },
 ]

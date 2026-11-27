@@ -431,8 +431,8 @@
   }
 
   .ludork-heading-navigation {
-    --heading-background: #eef7ff;
-    --heading-border: #bad9f7;
+    --heading-background: var(--ludork-floating);
+    --heading-border: var(--ludork-line);
     --heading-width: min(288px, calc(100vw - 32px));
     position: fixed;
     right: env(safe-area-inset-right, 0px);
@@ -443,9 +443,9 @@
     grid-template-rows: minmax(0, 1fr);
     width: 28px;
     max-height: min(440px, 60dvh);
-    border-radius: 5px 0 0 5px;
-    box-shadow: 0 4px 20px rgb(0 70 130 / 10%);
-    color: #17558f;
+    border-radius: 10px 0 0 10px;
+    box-shadow: var(--ludork-shadow);
+    color: var(--ludork-muted);
     transition: width 180ms var(--ludork-ease);
   }
 
@@ -466,50 +466,37 @@
     padding: 0;
     border: 1px solid var(--heading-border);
     border-right: 0;
-    border-radius: 5px 0 0 5px;
+    border-radius: 10px 0 0 10px;
     background: var(--heading-background);
-    color: inherit;
+    backdrop-filter: saturate(160%) blur(16px);
+    -webkit-backdrop-filter: saturate(160%) blur(16px);
+    color: var(--ludork-ink);
     font: inherit;
     cursor: pointer;
   }
 
   .ludork-heading-toggle:hover {
-    background: color-mix(in srgb, var(--heading-background), var(--ludork-blue) 8%);
+    background: var(--ludork-surface);
   }
 
   .ludork-heading-list {
     padding: 6px;
-    scrollbar-color: #8db8e0 transparent;
+    scrollbar-color: var(--ludork-scrollbar) transparent;
     border: 1px solid var(--heading-border);
     border-right: 0;
     background: var(--heading-background);
+    backdrop-filter: saturate(160%) blur(16px);
+    -webkit-backdrop-filter: saturate(160%) blur(16px);
   }
 
   .ludork-heading-list a:hover {
-    background: rgb(0 113 227 / 8%);
-    color: inherit;
+    background: var(--ludork-hover);
+    color: var(--ludork-ink);
   }
 
   .ludork-heading-list a[aria-current] {
-    background: #d5eaff;
-    color: #064d91;
-  }
-}
-
-@media (max-width: 899.95px) and (orientation: portrait) and (prefers-color-scheme: dark) {
-  .ludork-heading-navigation {
-    --heading-border: #315778;
-    --heading-background: #192e42;
-    color: #abd7ff;
-  }
-
-  .ludork-heading-list {
-    scrollbar-color: #527da4 transparent;
-  }
-
-  .ludork-heading-list a[aria-current] {
-    background: #284d70;
-    color: #d3eaff;
+    background: var(--ludork-selected);
+    color: var(--ludork-blue);
   }
 }
 

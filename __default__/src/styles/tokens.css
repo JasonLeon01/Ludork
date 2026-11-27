@@ -2,12 +2,16 @@
 :root[data-theme="light"] {
   color-scheme: light;
   --ludork-blue: #0071e3;
+  --ludork-blue-hover: #0077ed;
+  --ludork-on-accent: #ffffff;
+  --ludork-blue-glow: rgba(0, 113, 227, 0.2);
   --ludork-ink: #1d1d1f;
   --ludork-muted: #6e6e73;
   --ludork-line: rgba(0, 0, 0, 0.08);
   --ludork-canvas: #f5f5f7;
   --ludork-surface: #ffffff;
   --ludork-header: rgba(255, 255, 255, 0.8);
+  --ludork-floating: rgba(255, 255, 255, 0.9);
   --ludork-hover: rgba(0, 0, 0, 0.04);
   --ludork-selected: rgba(0, 113, 227, 0.08);
   --ludork-code: #f5f5f7;
@@ -15,6 +19,7 @@
   --ludork-scrollbar: #c7c7cc;
   --ludork-icon-well: #ffffff;
   --ludork-focus: rgba(0, 113, 227, 0.6);
+  --ludork-card-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
   --ludork-shadow: 0 8px 32px rgba(29, 29, 31, 0.055), 0 1px 3px rgba(29, 29, 31, 0.03);
   --ludork-glow: rgba(163, 206, 231, 0.25);
   --ludork-ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -38,18 +43,23 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
     --ludork-blue: #2997ff;
+    --ludork-blue-hover: #47a6ff;
+    --ludork-on-accent: #051324;
+    --ludork-blue-glow: rgba(41, 151, 255, 0.28);
     --ludork-ink: #f5f5f7;
     --ludork-muted: #a1a1a6;
     --ludork-line: rgba(255, 255, 255, 0.12);
     --ludork-canvas: #000000;
     --ludork-surface: #1d1d1f;
     --ludork-header: rgba(22, 22, 23, 0.82);
+    --ludork-floating: rgba(29, 29, 31, 0.92);
     --ludork-hover: rgba(255, 255, 255, 0.06);
     --ludork-selected: rgba(41, 151, 255, 0.14);
     --ludork-code: #161618;
     --ludork-quote: rgba(41, 151, 255, 0.08);
     --ludork-scrollbar: #636366;
     --ludork-focus: rgba(41, 151, 255, 0.75);
+    --ludork-card-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
     --ludork-shadow: 0 8px 32px rgba(0, 0, 0, 0.24), 0 1px 3px rgba(0, 0, 0, 0.16);
     --ludork-glow: rgba(42, 95, 130, 0.2);
     --ludork-hljs-fg: #c9d1d9;
@@ -72,18 +82,23 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
   --ludork-blue: #2997ff;
+  --ludork-blue-hover: #47a6ff;
+  --ludork-on-accent: #051324;
+  --ludork-blue-glow: rgba(41, 151, 255, 0.28);
   --ludork-ink: #f5f5f7;
   --ludork-muted: #a1a1a6;
   --ludork-line: rgba(255, 255, 255, 0.12);
   --ludork-canvas: #000000;
   --ludork-surface: #1d1d1f;
   --ludork-header: rgba(22, 22, 23, 0.82);
+  --ludork-floating: rgba(29, 29, 31, 0.92);
   --ludork-hover: rgba(255, 255, 255, 0.06);
   --ludork-selected: rgba(41, 151, 255, 0.14);
   --ludork-code: #161618;
   --ludork-quote: rgba(41, 151, 255, 0.08);
   --ludork-scrollbar: #636366;
   --ludork-focus: rgba(41, 151, 255, 0.75);
+  --ludork-card-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
   --ludork-shadow: 0 8px 32px rgba(0, 0, 0, 0.24), 0 1px 3px rgba(0, 0, 0, 0.16);
   --ludork-glow: rgba(42, 95, 130, 0.2);
   --ludork-hljs-fg: #c9d1d9;

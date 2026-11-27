@@ -141,6 +141,27 @@
   background: var(--ludork-hover);
 }
 
+.ludork-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid var(--ludork-line);
+  border-radius: 980px;
+  color: var(--ludork-ink);
+  background: var(--ludork-surface);
+  cursor: pointer;
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+
+.ludork-theme-toggle:hover {
+  background: var(--ludork-hover);
+  border-color: var(--ludork-scrollbar);
+}
+
 .ludork-language {
   min-width: 152px;
   flex-shrink: 0;
@@ -178,6 +199,7 @@
 .ludork-site a:focus-visible,
 .ludork-header a:focus-visible,
 .ludork-header button:focus-visible,
+.ludork-theme-toggle:focus-visible,
 .ludork-docs-shell a:focus-visible {
   outline: 3px solid var(--ludork-focus);
   outline-offset: 3px;
@@ -349,7 +371,7 @@
 
 .ludork-hero-hit-area:focus-visible {
   outline: none;
-  background: rgba(41, 151, 255, .14);
+  background: var(--ludork-selected);
 }
 
 .ludork-hero-comparison[data-active="game"] {
@@ -416,7 +438,7 @@ html[lang="zh-CN"] .ludork-hero h1 {
 }
 
 .ludork-download.MuiButton-root:hover {
-  box-shadow: 0 5px 18px rgba(0, 113, 227, .2);
+  box-shadow: 0 5px 18px var(--ludork-blue-glow);
   transform: translateY(-1px);
 }
 
@@ -462,7 +484,7 @@ html[lang="zh-CN"] .ludork-hero h1 {
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  gap: 16px 20px;
+  gap: 12px;
   list-style: none;
   padding: 0;
   margin: 28px 0 0;
@@ -472,16 +494,76 @@ html[lang="zh-CN"] .ludork-hero h1 {
   flex: none;
 }
 
-.ludork-platform-icons a {
-  display: block;
-  line-height: 0;
-  border-radius: 6px;
+.ludork-platform-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 7px 14px 7px 8px;
+  border: 1px solid var(--ludork-line);
+  border-radius: 14px;
+  background: var(--ludork-surface);
+  color: var(--ludork-ink);
+  font-size: .875rem;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  box-shadow: var(--ludork-card-shadow);
+  box-sizing: border-box;
 }
 
-.ludork-platform-icons img {
+.ludork-platform-chip:has(.ludork-platform-chip-icon--wordmark) {
+  padding: 7px 8px;
+}
+
+.ludork-platform-chip--link {
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms var(--ludork-ease);
+}
+
+.ludork-platform-chip--link:hover {
+  border-color: var(--ludork-scrollbar);
+  box-shadow: var(--ludork-shadow);
+  transform: translateY(-2px);
+}
+
+.ludork-platform-chip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 5px;
+  border-radius: 9px;
+  background: var(--ludork-icon-well);
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.ludork-platform-chip-icon--wordmark {
+  width: auto;
+  padding-inline: 10px;
+}
+
+.ludork-platform-chip-icon--wide {
+  padding-inline: 12px;
+}
+
+.ludork-platform-chip-icon img {
   display: block;
-  max-width: 100%;
+  width: 20px;
+  height: 20px;
   object-fit: contain;
+}
+
+.ludork-platform-chip-icon--wordmark img {
+  width: auto;
+  height: 20px;
+  max-width: 112px;
+}
+
+.ludork-platform-chip-label {
+  white-space: nowrap;
 }
 
 .ludork-logo-scroll {
@@ -547,7 +629,7 @@ html[lang="zh-CN"] .ludork-hero h1 {
   border: 1px solid var(--ludork-line);
   border-radius: clamp(16px, calc(24 * var(--logo-unit)), 24px);
   background: var(--ludork-surface);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, .02);
+  box-shadow: var(--ludork-card-shadow);
   transition: box-shadow 200ms ease, border-color 200ms ease, transform 200ms var(--ludork-ease);
 }
 
@@ -888,6 +970,8 @@ html[lang="zh-CN"] .ludork-hero h1 {
   }
 
   .ludork-logo-card,
+  .ludork-platform-chip--link,
+  .ludork-theme-toggle,
   .ludork-navigation a,
   .ludork-language .MuiOutlinedInput-notchedOutline,
   .ludork-footer-links a {
@@ -895,6 +979,7 @@ html[lang="zh-CN"] .ludork-hero h1 {
   }
 
   .ludork-logo-card:hover,
+  .ludork-platform-chip--link:hover,
   .ludork-download.MuiButton-root:hover,
   .ludork-download.MuiButton-root:active {
     transform: none;
@@ -911,6 +996,8 @@ html[lang="zh-CN"] .ludork-hero h1 {
 
 .ludork-embedded-controls {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 8px;
   padding: 8px 16px;
 }

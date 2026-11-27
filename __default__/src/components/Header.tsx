@@ -3,6 +3,7 @@ import type { LanguageKey } from '../i18n/languages'
 import { LUDORK_SITE_MESSAGES } from '../i18n/messages'
 import { ChevronLeftIcon, GitHubIcon, MenuIcon } from './Icons'
 import LanguageSelect from './LanguageSelect'
+import ThemeToggle from './ThemeToggle'
 
 type HeaderProps = {
   page: SitePage
@@ -64,6 +65,7 @@ export default function Header({
             >
               {messages.navigation.about}
             </a>
+            <ThemeToggle language={language} />
             {onLanguageChange && <LanguageSelect language={language} onChange={onLanguageChange} />}
           </div>
           <a href={LUDORK_LINKS.repository} aria-label={messages.navigation.repository}>

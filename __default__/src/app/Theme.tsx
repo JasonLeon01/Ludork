@@ -1,12 +1,46 @@
-import { useMemo, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { createTheme, CssBaseline, ThemeProvider, useMediaQuery } from '@mui/material'
 import { MEDIA_QUERIES, THEME_EASE, THEME_FONT_FAMILY, THEME_PALETTE } from '../styles/breakpoints'
+import {
+  applyThemePreference, readThemePreference, saveThemePreference, ThemeContext, THEME_STORAGE_KEY,
+  type ResolvedTheme, type ThemePreference,
+} from './themePreference'
 import '../styles/tokens.css'
 import '../styles/base.css'
 
 export default function Theme({ children }: { children: ReactNode }) {
-  const isDark = useMediaQuery(MEDIA_QUERIES.darkColorScheme, { noSsr: true })
+  const prefersDark = useMediaQuery(MEDIA_QUERIES.darkColorScheme, { noSsr: true })
   const reducedMotion = useMediaQuery(MEDIA_QUERIES.reducedMotion, { noSsr: true })
+  const [preference, setPreferenceState] = useState<ThemePreference>(() => readThemePreference())
+
+  const systemTheme: ResolvedTheme = prefersDark ? 'dark' : 'light'
+  const resolvedTheme: ResolvedTheme = preference === 'system' ? systemTheme : preference
+  const isDark = resolvedTheme === 'dark'
+
+  useEffect(() => {
+    applyThemePreference(preference)
+  }, [preference])
+
+  useEffect(() => {
+    const syncPreference = (event: StorageEvent) => {
+      if (event.key !== null && event.key !== THEME_STORAGE_KEY) return
+      setPreferenceState(readThemePreference())
+    }
+    window.addEventListener('storage', syncPreference)
+    return () => window.removeEventListener('storage', syncPreference)
+  }, [])
+
+  const setPreference = useCallback((next: ThemePreference) => {
+    saveThemePreference(next)
+    applyThemePreference(next)
+    setPreferenceState(next)
+  }, [])
+
+  const contextValue = useMemo(
+    () => ({ preference, resolvedTheme, systemTheme, setPreference }),
+    [preference, resolvedTheme, systemTheme, setPreference],
+  )
+
   const theme = useMemo(() => {
     const colors = isDark ? THEME_PALETTE.dark : THEME_PALETTE.light
     return createTheme({
@@ -63,9 +97,9 @@ export default function Theme({ children }: { children: ReactNode }) {
               borderRadius: 980,
               transition: reducedMotion ? 'none' : 'background-color 180ms ease, box-shadow 180ms ease, transform 180ms ease',
               '&.MuiButton-contained.MuiButton-colorPrimary': {
-                color: '#fff',
-                backgroundColor: '#0071e3',
-                '&:hover': { backgroundColor: '#0077ed' },
+                color: 'var(--ludork-on-accent)',
+                backgroundColor: 'var(--ludork-blue)',
+                '&:hover': { backgroundColor: 'var(--ludork-blue-hover)' },
               },
             },
           },
@@ -109,9 +143,11 @@ export default function Theme({ children }: { children: ReactNode }) {
   }, [isDark, reducedMotion])
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline enableColorScheme />
-      {children}
-    </ThemeProvider>
+    <ThemeContext.Provider value={contextValue}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline enableColorScheme />
+        {children}
+      </ThemeProvider>
+    </ThemeContext.Provider>
   )
 }

@@ -13,6 +13,7 @@ export type SiteMessages = {
   version: string
   developmentVersion: string
   language: string
+  theme: { system: string; light: string; dark: string; switchLabel: string }
   skipToContent: string
   download: string
   home: {
@@ -55,6 +56,12 @@ export const LUDORK_SITE_MESSAGES = {
     version: 'Version',
     developmentVersion: 'trunk (development)',
     language: 'Language',
+    theme: {
+      system: 'System',
+      light: 'Light',
+      dark: 'Dark',
+      switchLabel: 'Theme: {current} (switch to {next})',
+    },
     skipToContent: 'Skip to content',
     download: 'Download Ludork',
     home: {
@@ -79,6 +86,12 @@ export const LUDORK_SITE_MESSAGES = {
     version: '版本',
     developmentVersion: 'trunk（开发中）',
     language: '语言',
+    theme: {
+      system: '跟随系统',
+      light: '浅色',
+      dark: '深色',
+      switchLabel: '主题：{current}（切换为{next}）',
+    },
     skipToContent: '跳到主要内容',
     download: '下载 Ludork',
     home: {

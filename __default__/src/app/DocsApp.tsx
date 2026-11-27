@@ -3,6 +3,7 @@ import { Box, Button, CircularProgress, IconButton, useMediaQuery } from '@mui/m
 import Header from '../components/Header'
 import { MenuIcon } from '../components/Icons'
 import LanguageSelect from '../components/LanguageSelect'
+import ThemeToggle from '../components/ThemeToggle'
 import {
   getDocsHomePath, getDocsSections, getLoadedDocsManifest, loadDocsManifest,
   resolveFilenameByDocKey, resolveKnownDocPath, type SelectedDoc,
@@ -138,7 +139,10 @@ function DocsView({ manifest }: { manifest: VersionDocsManifest }) {
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, px: 2, py: 0.75, flexShrink: 0, borderBottom: '1px solid var(--ludork-line)' }}>
           {isNarrow && <IconButton onClick={toggleNavigation} aria-label={messages.docs.expandSidebar}
             aria-expanded={mobileOpen} aria-controls="document-navigation"><MenuIcon /></IconButton>}
-          <Box sx={{ ml: 'auto' }}><LanguageSelect language={language} onChange={handleLanguageChange} /></Box>
+          <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
+            <ThemeToggle language={language} />
+            <LanguageSelect language={language} onChange={handleLanguageChange} />
+          </Box>
         </Box>
       ) : (
         <Header page="docs" language={language} onLanguageChange={handleLanguageChange}

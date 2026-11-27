@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import Footer from '../components/Footer'
 import Header from '../components/Header'
 import LanguageSelect from '../components/LanguageSelect'
+import ThemeToggle from '../components/ThemeToggle'
 import { getSitePageHref, type SitePage } from '../data/site'
 import { isEmbedded } from '../docs/docsVersions'
 import { resolveInitialLudorkLanguage } from '../docs/urlState'
@@ -37,6 +38,7 @@ export default function SiteShell({ page, renderPage }: SiteShellProps) {
     <div className="ludork-site">
       {isEmbedded() ? (
         <div className="ludork-embedded-controls">
+          <ThemeToggle language={language} />
           <LanguageSelect language={language} onChange={handleLanguageChange} />
         </div>
       ) : (

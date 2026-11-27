@@ -23,7 +23,7 @@ function toVersionedDocsHtml(compiledDocsHtml: string): string {
     .replace('data-site-root="../"', 'data-site-root="../../"')
     .replace(/(href|src)="\.\.\//g, '$1="../../')
   return depthAdjusted.replace(
-    '</head>',
+    '  </head>',
     '    <link rel="preload" as="fetch" href="./manifest.json" crossorigin>\n  </head>',
   )
 }
