@@ -23,7 +23,7 @@ namespace {
 
 lua_glue::Table requireClass(lua_State* state, int index) {
     if (!isHotReloadClass(state, index)) {
-        throw std::invalid_argument("Hot reload requires a finalized class");
+        throw std::invalid_argument("Hot reload requires a finalised class");
     }
     return lua_glue::Read<lua_glue::Table>(state, index);
 }
@@ -44,7 +44,7 @@ void validateHierarchy(const lua_glue::Table& previous,
         candidate.raw_get<lua_glue::Object>(field);
     if (!oldValue.is<lua_glue::Table>() || !newValue.is<lua_glue::Table>()) {
         throw std::invalid_argument(
-            "Hot reload requires finalized class metadata");
+            "Hot reload requires finalised class metadata");
     }
     const lua_glue::Table oldTypes = oldValue.as<lua_glue::Table>();
     const lua_glue::Table newTypes = newValue.as<lua_glue::Table>();

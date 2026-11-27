@@ -13,7 +13,7 @@ function Snapshot.FindActor(id, view) end
 ---@return table<string, Internal.LiveDebug.Actor[]>
 function Snapshot.Actors(view) end
 
---- Serialize the current runtime tile layers using the editor map schema.
+--- Serialise the current runtime tile layers using the editor map schema.
 ---@param view   Internal.LiveDebug.View
 ---@param actors table<string, Internal.LiveDebug.Actor[]>
 ---@return Internal.LiveDebug.Map

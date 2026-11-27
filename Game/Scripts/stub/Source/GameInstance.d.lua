@@ -119,13 +119,13 @@ function GameInstance:getVisitedMapPaths() end
 ---@param skipDefaultPlayer boolean | nil
 function GameInstance:init(skipDefaultPlayer) end
 
----@brief Serialize the game instance to a dictionary.
+---@brief Serialise the game instance to a dictionary.
 ---
 --- - @return A dictionary containing ordered player keys, keyed players, variables, map, destroyed actors, and screenshot.
 ---@return Source.GameInstance.SaveData
 function GameInstance:asDict() end
 
----@brief Deserialize a game instance from a dictionary.
+---@brief Deserialise a game instance from a dictionary.
 ---
 --- - @param data The serialised game instance data.
 --- - @return A restored GameInstance.

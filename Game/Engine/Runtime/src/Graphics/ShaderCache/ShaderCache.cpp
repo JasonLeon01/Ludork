@@ -136,7 +136,7 @@ std::shared_ptr<sf::Shader> ShaderCache::load(const std::string& programKey) {
     if (found == state.programs.end()) {
         throw std::runtime_error(
             "Shader program is not prepared; finish prepareShaderCache during "
-            "initialization before loading it: " +
+            "initialisation before loading it: " +
             programKey);
     }
     return found->second.shader;

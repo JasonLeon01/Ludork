@@ -31,7 +31,7 @@ function MapClickAutoPath.new(...) end
 --- This component listens for mouse clicks, finds a path to the
 --- clicked tile, and moves the player actor along that path.
 
----@brief Initialize the MapClickAutoPath component.
+---@brief Initialise the MapClickAutoPath component.
 --- - gameMap: The game map this component operates on.
 --- - routeState: The path route state to use for path preview.
 --- - dangerState: The current movement-special danger grid.

@@ -55,7 +55,7 @@ macOS:
 ./tools/run_editor.sh
 ```
 
-Initialization prepares dependencies and the editor preview host. Build the Game project separately with `tools\build_cpp.bat Game Debug` or `./tools/build_cpp.sh Game Debug`.
+Initialisation prepares dependencies and the editor preview host. Build the Game project separately with `tools\build_cpp.bat Game Debug` or `./tools/build_cpp.sh Game Debug`.
 
 See the [tool reference](https://github.com/JasonLeon01/Ludork/blob/main/tools/README.md) for build commands, CI packages and documentation maintenance.
 

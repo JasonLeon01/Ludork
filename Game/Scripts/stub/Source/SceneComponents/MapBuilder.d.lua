@@ -168,7 +168,7 @@ function SceneMapBuilder:prepareInitialMap(mapPath) end
 ---@param camera            GlobalCore.Camera | nil
 ---@param emitCreateEvents? boolean
 ---@param previewOnly       boolean | nil
----@param tilemap           Engine.Tilemap | nil          Prebuilt terrain snapshot; omitted to generate from serialized map data.
+---@param tilemap           Engine.Tilemap | nil          Prebuilt terrain snapshot; omitted to generate from serialised map data.
 ---@param preparedActors?   table<string, Engine.Actor[]> Detached Actors prepared for this map data.
 ---@return GameMap
 function SceneMapBuilder:generateGameMap(data, camera, emitCreateEvents, previewOnly, tilemap, preparedActors) end

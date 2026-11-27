@@ -306,7 +306,7 @@ int HotReloadImpl::loadModule(const std::string& name) {
         return cached->second;
     }
     if (loading_.contains(name)) {
-        fail(name, "cyclic module initialization");
+        fail(name, "cyclic module initialisation");
     }
     const auto source = snapshot_.modules.find(name);
     const int originalPackage = getField(globals_, "package");

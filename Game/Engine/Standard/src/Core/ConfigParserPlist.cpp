@@ -210,7 +210,7 @@ std::string ConfigParser::serializePlist(
     auto error = adoptCoreFoundation(rawError);
     if (!data) {
         throw std::runtime_error(
-            "Failed to serialize XML plist file: " + pathToUtf8(path) + ": " +
+            "Failed to serialise XML plist file: " + pathToUtf8(path) + ": " +
             propertyListError(error.get()));
     }
     const std::string serialized(

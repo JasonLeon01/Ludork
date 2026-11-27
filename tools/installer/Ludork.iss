@@ -59,7 +59,7 @@ UsePreviousAppDir=yes
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "officialplugins"; Description: "Install Official Plugins (replace all existing plug-ins and their data)"; GroupDescription: "User data:"
+Name: "officialplugins"; Description: "Install Official Plug-ins (replace all existing plug-ins and their data)"; GroupDescription: "User data:"
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"
 
 [Files]

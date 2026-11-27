@@ -118,7 +118,7 @@ RuntimeScope::RuntimeScope() {
     }
     if (moduleState(execution_.state()) !=
         ludork::runtime::RuntimeScope::RuntimeModuleState::attached) {
-        throw std::runtime_error("Runtime is not initialized");
+        throw std::runtime_error("Runtime is not initialised");
     }
 }
 

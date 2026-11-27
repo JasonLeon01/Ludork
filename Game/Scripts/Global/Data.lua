@@ -41,7 +41,7 @@ local dataBlueprints
 
 ---@param options Global.Data.RuntimeOptions
 function Data.InitializeRuntime(options)
-    assert(classDict == nil, "Data runtime is already initialized")
+    assert(classDict == nil, "Data runtime is already initialised")
     assert(Class.isInstance(options.configResolver, "function"), "Data configResolver must be a function")
     assert(Class.isInstance(options.nodeModuleCandidates, "function"), "Data nodeModuleCandidates must be a function")
     assert(
@@ -167,11 +167,11 @@ function Data.GetGeneralData(name)
 end
 
 function Data.GetClass(classPath)
-    return assert(classDict, "Data runtime is not initialized"):get(classPath)
+    return assert(classDict, "Data runtime is not initialised"):get(classPath)
 end
 
 function Data.GetClassData(classPath)
-    return assert(classDict, "Data runtime is not initialized"):getData(classPath)
+    return assert(classDict, "Data runtime is not initialised"):getData(classPath)
 end
 
 function Data.ResolveClassPath(className)

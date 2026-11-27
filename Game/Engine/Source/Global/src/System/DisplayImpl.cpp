@@ -122,7 +122,7 @@ void DisplayImpl::prepareInitialization(const std::string& title,
         throw std::invalid_argument("Game size must be non-zero");
     }
     if (window_ != nullptr) {
-        throw std::logic_error("Display has already been initialized");
+        throw std::logic_error("Display has already been initialised");
     }
     windowTitle_ = sf::String::fromUtf8(title.begin(), title.end());
     windowIconPath_ = iconPath;

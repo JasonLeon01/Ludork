@@ -42,9 +42,9 @@ struct Light {
           float intensity = 1.0f);
 
     ////////////////////////////////////////////////////////////
-    /// \brief Serialize the light to a dictionary-compatible map
+    /// \brief Serialise the light to a dictionary-compatible map
     ///
-    /// - \return Map containing position, color, radius, and intensity
+    /// - \return Map containing position, colour, radius and intensity
     ///
     ////////////////////////////////////////////////////////////
     BIND_METHOD()

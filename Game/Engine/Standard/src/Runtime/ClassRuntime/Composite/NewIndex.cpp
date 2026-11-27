@@ -105,7 +105,7 @@ void compositeNewIndexSlow(lua_State* state, const lua_glue::Object& target,
 
 // C fast path: NativeMember and Getter cache hits use the Lua stack directly.
 // Degrades to compositeNewIndexSlow for monitors, cache misses, or
-// initializing state (where dirty tracking is needed).
+// initialising state (where dirty tracking is needed).
 int compositeNewIndex(lua_State* state) {
     return ludork::standard::protectedLuaCallback(state, [&]() -> int {
         if (lua_type(state, 1) == LUA_TUSERDATA &&

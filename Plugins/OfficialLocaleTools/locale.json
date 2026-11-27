@@ -13,7 +13,7 @@
     "zh_CN": {
         "MENU_OPEN_LOCALE_TABLE": "打开 Locale 文件",
         "LOCALE_TOOLS_TITLE": "本地化工具",
-        "PROJECT_NOT_OPEN": "当前没有打开的工程。",
+        "PROJECT_NOT_OPEN": "当前没有打开的项目。",
         "LOCALE_WORKBOOK_NOT_FOUND": "未找到本地化工作簿：\n{0}",
         "OPEN_LOCALE_WORKBOOK_FAILED": "无法使用系统默认应用打开本地化工作簿：\n{0}",
         "LOCALE_EXPORT_SKIPPED": "[官方本地化工具] 未找到 Locale.xlsx，已跳过导表：{0}",

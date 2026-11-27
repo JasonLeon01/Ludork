@@ -349,7 +349,7 @@ void validateParameterValue(const std::string& type, const RuntimeData& value,
                 ludork::runtime::value_reader::requireFloat(item, source);
             if (channel < 0 || channel > 1) {
                 throw std::invalid_argument(
-                    source + " color channels must be in [0, 1]");
+                    source + " colour channels must be in [0, 1]");
             }
         }
     }

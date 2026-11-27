@@ -131,7 +131,7 @@ RuntimeData parsePropertyDefault(const UiControlPropertyDescriptor& property,
     if (property.type == "sf.Color" &&
         value.getIf<RuntimeData::Array>()->size() != 4) {
         throw std::invalid_argument(source +
-                                    " must contain four color channels");
+                                    " must contain four colour channels");
     }
     if (property.type == "sf.Text.LineAlignment") {
         const std::string& text = *value.getIf<std::string>();

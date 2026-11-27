@@ -25,7 +25,7 @@
   },
   "COMPILER_PROJECT_CHANGED": {
     "en_GB": "The project compiler changed while this window was open. Reopen the compiler selection and try again.",
-    "zh_CN": "窗口打开期间工程编译器已发生变化，请重新打开编译器选择窗口后重试。"
+    "zh_CN": "窗口打开期间项目编译器已发生变化，请重新打开编译器选择窗口后重试。"
   },
   "COMPILER_LABEL": {
     "en_GB": "Compiler:",
@@ -45,7 +45,7 @@
   },
   "COMPILER_SELECT_AVAILABLE": {
     "en_GB": "The project compiler is unavailable. Select an available compiler.",
-    "zh_CN": "工程指定的编译器不可用，请选择可用的编译器。"
+    "zh_CN": "项目指定的编译器不可用，请选择可用的编译器。"
   },
   "COMPILER_DOWNLOAD": {
     "en_GB": "Get MinGW",
@@ -77,19 +77,19 @@
   },
   "COMPILER_SWITCH_MESSAGE": {
     "en_GB": "Change the project compiler from {0} to {1}?\n\nThis stops this project’s game and previews, clears Debug and Release native build caches and binaries, and requires a rebuild. The new compiler is saved only after cleanup succeeds.",
-    "zh_CN": "将工程编译器从 {0} 切换为 {1}？\n\n这将停止本工程的游戏和预览，清除 Debug 和 Release 原生编译缓存及二进制产物，随后需要重新构建。只有清理成功后才会保存新编译器。"
+    "zh_CN": "将项目编译器从 {0} 切换为 {1}？\n\n这将停止本项目的游戏和预览，清除 Debug 和 Release 原生编译缓存及二进制产物，随后需要重新构建。只有清理成功后才会保存新编译器。"
   },
   "COMPILER_SWITCH_FAILED": {
     "en_GB": "Could not change the project compiler. The previous compiler setting is retained; generated files already removed must be rebuilt.",
-    "zh_CN": "无法更改工程编译器。原编译器配置保持不变；已清除的生成文件需要重新构建。"
+    "zh_CN": "无法更改项目编译器。原编译器配置保持不变；已清除的生成文件需要重新构建。"
   },
   "COMPILER_SWITCH_BUSY": {
     "en_GB": "Wait for the current project operation to finish before changing compilers.",
-    "zh_CN": "请等待当前工程操作完成后再更改编译器。"
+    "zh_CN": "请等待当前项目操作完成后再更改编译器。"
   },
   "ASSET_PATHS_SAVE_REQUIRED": {
     "en_GB": "Save asset path changes before copying, deleting, importing or writing files in the affected paths.",
-    "zh_CN": "请先保存素材路径变更，再复制、删除、导入或写入相关路径中的文件。"
+    "zh_CN": "请先保存资产路径变更，再复制、删除、导入或写入相关路径中的文件。"
   },
   "TUTORIAL_MODIFIER_KEY": {
     "en_GB": "{0}",
@@ -168,7 +168,7 @@
     "en_GB": "External file changes"
   },
   "EXTERNAL_SCANNING": {
-    "zh_CN": "正在扫描工程文件",
+    "zh_CN": "正在扫描项目文件",
     "en_GB": "Scanning project files"
   },
   "EXTERNAL_RECHECKING": {
@@ -176,7 +176,7 @@
     "en_GB": "Checking disk versions"
   },
   "EXTERNAL_CHANGES_DESCRIPTION": {
-    "zh_CN": "数据文件：使用磁盘数据会丢弃其未保存内容及历史；保留内存数据会在保存时覆盖磁盘。素材：使用磁盘数据会取消关联移动并更新引用；保留内存数据会保留路径和历史，并采用当前磁盘内容。",
+    "zh_CN": "数据文件：使用磁盘数据会丢弃其未保存内容及历史；保留内存数据会在保存时覆盖磁盘。资产：使用磁盘数据会取消关联移动并更新引用；保留内存数据会保留路径和历史，并采用当前磁盘内容。",
     "en_GB": "For data files, Use disk discards unsaved edits and history; Keep memory overwrites disk on Save. For assets, Use disk cancels related pending moves and updates references; Keep memory retains paths and history using the current disk contents."
   },
   "EXTERNAL_KEEP_MEMORY": {
@@ -256,7 +256,7 @@
     "en_GB": "Unable to save test server settings. Check write access to the local directory."
   },
   "LUDORK_SERVER_SOURCE_REQUIRED": {
-    "zh_CN": "Ludork 服务器需要 C++ Source 工程。",
+    "zh_CN": "Ludork 服务器需要 C++ Source 项目。",
     "en_GB": "Ludork Server requires a C++ Source project."
   },
   "LUDORK_SERVER_CLEANUP_FAILED": {
@@ -273,7 +273,7 @@
   },
   "EDIT_OPERATION_GENERATING": {
     "zh_CN": "正在生成和序列化…",
-    "en_GB": "Generating and serializing…"
+    "en_GB": "Generating and serialising…"
   },
   "EDIT_OPERATION_WRITING": {
     "zh_CN": "正在写入文件…",
@@ -424,11 +424,11 @@
     "en_GB": "Video Files"
   },
   "SUBTITLE_NOT_FFMPEG": {
-    "zh_CN": "当前不是 FFmpeg 工程",
+    "zh_CN": "当前不是 FFmpeg 项目",
     "en_GB": "The current project is not an FFmpeg project."
   },
   "SUBTITLE_VIDEO_PATH_ERROR": {
-    "zh_CN": "请选择当前工程 Assets/Videos 下的视频。",
+    "zh_CN": "请选择当前项目 Assets/Videos 下的视频。",
     "en_GB": "Select a video under this project's Assets/Videos directory."
   },
   "SUBTITLE_FIX_ERRORS": {
@@ -436,11 +436,11 @@
     "en_GB": "Correct the subtitle errors to resume preview."
   },
   "SUBTITLE_CLOSE_INVALID": {
-    "zh_CN": "关闭将丢弃尚未生效的无效输入，其他修改保留在工程中。是否关闭？",
+    "zh_CN": "关闭将丢弃尚未生效的无效输入，其他修改保留在项目中。是否关闭？",
     "en_GB": "Closing discards invalid input drafts; other edits remain in the project. Close?"
   },
   "SUBTITLE_CLOSE_MODIFIED": {
-    "zh_CN": "字幕尚未保存。关闭窗口后修改仍保留在工程中，可通过全局保存写入文件。是否关闭？",
+    "zh_CN": "字幕尚未保存。关闭窗口后修改仍保留在项目中，可通过全局保存写入文件。是否关闭？",
     "en_GB": "The subtitle has unsaved changes. They remain in the project after closing and can be saved with Save All. Close?"
   },
   "SUBTITLE_MISSING_LANGUAGE": {
@@ -649,7 +649,7 @@
   },
   "PARTICLE_CURVE_HINT": {
     "zh_CN": "双击添加；Delete 删除；t 为归一化寿命",
-    "en_GB": "Double-click to add; Delete to remove; t is normalized lifetime"
+    "en_GB": "Double-click to add; Delete to remove; t is normalised lifetime"
   },
   "PARTICLE_CURVE_REFERENCE": {
     "zh_CN": "引用通用曲线；内嵌后可独立编辑",
@@ -1145,23 +1145,23 @@
   },
   "PLUGINS": {
     "zh_CN": "插件",
-    "en_GB": "Plugins"
+    "en_GB": "Plug-ins"
   },
   "IMPORT_PLUGIN": {
     "zh_CN": "引入插件...",
-    "en_GB": "Import Plugin..."
+    "en_GB": "Import Plug-in..."
   },
   "CREATE_PLUGIN": {
     "zh_CN": "新建插件...",
-    "en_GB": "New Plugin..."
+    "en_GB": "New Plug-in..."
   },
   "PLUGIN_NAME": {
     "zh_CN": "插件名称",
-    "en_GB": "Plugin Name"
+    "en_GB": "Plug-in Name"
   },
   "PLUGIN_TEMPLATE": {
     "zh_CN": "插件类型",
-    "en_GB": "Plugin Type"
+    "en_GB": "Plug-in Type"
   },
   "PLUGIN_TEMPLATE_WINDOW": {
     "zh_CN": "带界面",
@@ -1177,19 +1177,19 @@
   },
   "PLUGIN_SCOPE_GLOBAL": {
     "zh_CN": "全局插件",
-    "en_GB": "Global Plugins"
+    "en_GB": "Global Plug-ins"
   },
   "PLUGIN_SCOPE_PROJECT": {
     "zh_CN": "当前项目插件",
-    "en_GB": "Current Project Plugins"
+    "en_GB": "Current Project Plug-ins"
   },
   "PLUGIN_CREATE_REQUIRED": {
     "zh_CN": "请填写插件名称和唯一 ID。",
-    "en_GB": "Enter a plugin name and unique ID."
+    "en_GB": "Enter a plug-in name and unique ID."
   },
   "PLUGIN_CREATE_SUCCESS": {
     "zh_CN": "插件已创建",
-    "en_GB": "Plugin Created"
+    "en_GB": "Plug-in Created"
   },
   "PLUGIN_OPEN_DIRECTORY_FAILED": {
     "zh_CN": "无法自动打开源码目录，请手动打开：",
@@ -1197,39 +1197,39 @@
   },
   "MANAGE_PLUGINS": {
     "zh_CN": "插件管理...",
-    "en_GB": "Manage Plugins..."
+    "en_GB": "Manage Plug-ins..."
   },
   "PLUGIN_MANAGER_TITLE": {
     "zh_CN": "插件管理",
-    "en_GB": "Plugin Manager"
+    "en_GB": "Plug-in Manager"
   },
   "PLUGIN_EMPTY": {
     "zh_CN": "尚无已注册的插件。",
-    "en_GB": "No plugins are registered."
+    "en_GB": "No plug-ins are registered."
   },
   "PLUGIN_FULL_TRUST_TITLE": {
     "zh_CN": "确认引入插件",
-    "en_GB": "Confirm Plugin Import"
+    "en_GB": "Confirm Plug-in Import"
   },
   "PLUGIN_FULL_TRUST_WARNING": {
     "zh_CN": "插件“{name}”（{id}）将以编辑器进程的完整权限运行。\n\n来源：{path}\n\n仅引入你信任的插件目录。是否继续？",
-    "en_GB": "Plugin \"{name}\" ({id}) will run with the editor process's full permissions.\n\nSource: {path}\n\nOnly import plugin directories that you trust. Continue?"
+    "en_GB": "Plug-in \"{name}\" ({id}) will run with the editor process's full permissions.\n\nSource: {path}\n\nOnly import plug-in directories that you trust. Continue?"
   },
   "PLUGIN_IMPORT_FAILED": {
     "zh_CN": "引入插件失败",
-    "en_GB": "Plugin Import Failed"
+    "en_GB": "Plug-in Import Failed"
   },
   "PLUGIN_IMPORT_SUCCESS": {
     "zh_CN": "插件已引入",
-    "en_GB": "Plugin Imported"
+    "en_GB": "Plug-in Imported"
   },
   "PLUGIN_RESTART_REQUIRED": {
     "zh_CN": "请手动重启编辑器以使插件更改生效。",
-    "en_GB": "Restart the editor manually for the plugin change to take effect."
+    "en_GB": "Restart the editor manually for the plug-in change to take effect."
   },
   "PLUGIN_ID": {
     "zh_CN": "插件 ID",
-    "en_GB": "Plugin ID"
+    "en_GB": "Plug-in ID"
   },
   "PLUGIN_VERSION": {
     "zh_CN": "版本",
@@ -1249,11 +1249,11 @@
   },
   "PLUGIN_UNINSTALL_TITLE": {
     "zh_CN": "卸载插件",
-    "en_GB": "Uninstall Plugin"
+    "en_GB": "Uninstall Plug-in"
   },
   "PLUGIN_UNINSTALL_PROMPT": {
     "zh_CN": "要卸载插件“{name}”吗？\n\n安装位置：{path}\n\n你可以仅取消注册，也可以在下次启动时删除插件文件。插件数据和历史不会被删除。",
-    "en_GB": "Uninstall plugin \"{name}\"?\n\nInstall location: {path}\n\nYou can only unregister it, or delete its files on the next startup. Plugin data and history are retained."
+    "en_GB": "Uninstall plug-in \"{name}\"?\n\nInstall location: {path}\n\nYou can only unregister it, or delete its files on the next startup. Plug-in data and history are retained."
   },
   "PLUGIN_UNREGISTER_ONLY": {
     "zh_CN": "仅取消注册",
@@ -1261,15 +1261,15 @@
   },
   "PLUGIN_UNREGISTER_DELETE": {
     "zh_CN": "取消注册并删除插件文件",
-    "en_GB": "Unregister and Delete Plugin Files"
+    "en_GB": "Unregister and Delete Plug-in Files"
   },
   "PLUGIN_OPERATION_FAILED": {
     "zh_CN": "插件操作失败",
-    "en_GB": "Plugin Operation Failed"
+    "en_GB": "Plug-in Operation Failed"
   },
   "PLUGIN_UNINSTALL_SUCCESS": {
     "zh_CN": "插件已卸载",
-    "en_GB": "Plugin Uninstalled"
+    "en_GB": "Plug-in Uninstalled"
   },
   "PLUGIN_STATUS_LOADED": {
     "zh_CN": "已加载",
@@ -1285,7 +1285,7 @@
   },
   "PLUGIN_STATUS_INITIALIZATION_FAILED": {
     "zh_CN": "初始化失败",
-    "en_GB": "Initialization Failed"
+    "en_GB": "Initialisation Failed"
   },
   "PLUGIN_STATUS_PENDING_RESTART": {
     "zh_CN": "等待重启加载",
@@ -1305,7 +1305,7 @@
   },
   "PLUGIN_STARTUP_FAILURES_TITLE": {
     "zh_CN": "部分插件未能加载",
-    "en_GB": "Some Plugins Failed to Load"
+    "en_GB": "Some Plug-ins Failed to Load"
   },
   "START_TITLE": {
     "zh_CN": "开始创作",
@@ -1332,11 +1332,11 @@
     "en_GB": "New Project"
   },
   "NEW_PROJECT_SUBTITLE": {
-    "zh_CN": "选择模板和工程保存位置。",
+    "zh_CN": "选择模板和项目保存位置。",
     "en_GB": "Choose a template and project location."
   },
   "NEW_PROJECT_CHOOSE_TEMPLATE": {
-    "zh_CN": "工程模板",
+    "zh_CN": "项目模板",
     "en_GB": "Project Templates"
   },
   "NEW_PROJECT_STANDALONE": {
@@ -1388,15 +1388,15 @@
     "en_GB": "Requirements"
   },
   "NEW_PROJECT_SETTINGS": {
-    "zh_CN": "工程设置",
+    "zh_CN": "项目设置",
     "en_GB": "Project Settings"
   },
   "NEW_PROJECT_LOCATION": {
-    "zh_CN": "工程位置",
+    "zh_CN": "项目位置",
     "en_GB": "Project Location"
   },
   "NEW_PROJECT_NAME": {
-    "zh_CN": "工程名称",
+    "zh_CN": "项目名称",
     "en_GB": "Project Name"
   },
   "NEW_PROJECT_APP_NAME": {
@@ -1436,7 +1436,7 @@
     "en_GB": "Create"
   },
   "NEW_PROJECT_CREATING": {
-    "zh_CN": "正在创建工程...",
+    "zh_CN": "正在创建项目...",
     "en_GB": "Creating project..."
   },
   "NEW_PROJECT_DOWNLOADING": {
@@ -1460,7 +1460,7 @@
     "en_GB": "{0} · {1:0.0} MiB"
   },
   "NEW_PROJECT_FAILED": {
-    "zh_CN": "创建工程失败。",
+    "zh_CN": "创建项目失败。",
     "en_GB": "Failed to create the project."
   },
   "NEW_PROJECT_TEMPLATE_UNAVAILABLE": {
@@ -1472,23 +1472,23 @@
     "en_GB": "The download is incomplete. Please try again."
   },
   "NEW_PROJECT_TEMPLATE_INVALID": {
-    "zh_CN": "模板压缩包损坏或与所选工程类型及版本不符。",
+    "zh_CN": "模板压缩包损坏或与所选项目类型及版本不符。",
     "en_GB": "The template archive is damaged or does not match the selected project type and version."
   },
   "PROJECT_VERSION_INVALID": {
-    "zh_CN": "工程版本标识缺失或无效。当前编辑器支持：{0}。",
+    "zh_CN": "项目版本标识缺失或无效。当前编辑器支持：{0}。",
     "en_GB": "The project version is missing or invalid. This editor supports: {0}."
   },
   "PROJECT_VERSION_UNSUPPORTED": {
-    "zh_CN": "当前编辑器不支持工程版本 {0}。支持的版本：{1}。",
+    "zh_CN": "当前编辑器不支持项目版本 {0}。支持的版本：{1}。",
     "en_GB": "This editor does not support project version {0}. Supported versions: {1}."
   },
   "NEW_PROJECT_NAME_INVALID": {
-    "zh_CN": "工程名称包含无效字符。",
+    "zh_CN": "项目名称包含无效字符。",
     "en_GB": "The project name contains invalid characters."
   },
   "PROJECT_TEMPLATE_MISSING": {
-    "zh_CN": "未找到所选工程模板，请先生成或安装模板。",
+    "zh_CN": "未找到所选项目模板，请先生成或安装模板。",
     "en_GB": "The selected project template is missing. Generate or install the templates first."
   },
   "NEW_PROJECT_STANDALONE_DESCRIPTION": {
@@ -1556,12 +1556,12 @@
     "en_GB": "Full Xcode, including Apple Clang and the macOS SDK"
   },
   "RUN_PROJECT_INVALID": {
-    "zh_CN": "工程路径无效或缺少必要文件。",
+    "zh_CN": "项目路径无效或缺少必要文件。",
     "en_GB": "The project path is invalid or required files are missing."
   },
   "RUN_PLUGIN_PREPARATION_FAILED": {
     "zh_CN": "运行前插件准备失败。",
-    "en_GB": "A plugin failed while preparing to run the project."
+    "en_GB": "A plug-in failed while preparing to run the project."
   },
   "RUN_BUILD_TOOL_MISSING": {
     "zh_CN": "未找到所需的构建或生成工具。",
@@ -1628,7 +1628,7 @@
     "en_GB": "Project export failed."
   },
   "RUN_BUILD_REQUIRED": {
-    "zh_CN": "需要先编译 C++ Debug 工程。",
+    "zh_CN": "需要先编译 C++ Debug 项目。",
     "en_GB": "Compile the C++ Debug project before playing."
   },
   "RUN_REBUILD_TITLE": {
@@ -1672,7 +1672,7 @@
     "en_GB": "Windows (Win32)"
   },
   "PACK_KIND_STANDALONE": {
-    "zh_CN": "Standalone 工程",
+    "zh_CN": "Standalone 项目",
     "en_GB": "Standalone project"
   },
   "PACK_PLATFORM_WEBGL": {
@@ -1688,7 +1688,7 @@
     "en_GB": "The WebGL toolchain is unavailable. See the log for Emscripten, CMake and build tool requirements."
   },
   "PACK_WEB_PROJECT_UNSUPPORTED": {
-    "zh_CN": "WebGL 打包需要已导出的 C++ Source 工程及支持 Web 的依赖，请查看日志。",
+    "zh_CN": "WebGL 打包需要已导出的 C++ Source 项目及支持 Web 的依赖，请查看日志。",
     "en_GB": "WebGL packaging requires an exported C++ Source project and Web-capable dependencies. See the log for details."
   },
   "LUDORK_SERVER_WEB_URL_INVALID": {
@@ -1720,27 +1720,27 @@
     "en_GB": "Android APK Signing"
   },
   "PACK_ANDROID_SIGNING_DESCRIPTION": {
-    "zh_CN": "选择 Keystore 并填写签名信息；选择已保存的文件会自动填入对应信息。",
+    "zh_CN": "选择密钥库并填写签名信息；选择已保存的文件会自动填入对应信息。",
     "en_GB": "Select a keystore and enter signing details. Selecting a saved keystore fills its details automatically."
   },
   "PACK_ANDROID_KEYSTORE": {
-    "zh_CN": "Keystore 文件",
+    "zh_CN": "密钥库文件",
     "en_GB": "Keystore File"
   },
   "PACK_ANDROID_KEY_ALIAS": {
-    "zh_CN": "Key alias",
+    "zh_CN": "密钥别名",
     "en_GB": "Key Alias"
   },
   "PACK_ANDROID_KEYSTORE_PASSWORD": {
-    "zh_CN": "Keystore 密码",
+    "zh_CN": "密钥库密码",
     "en_GB": "Keystore Password"
   },
   "PACK_ANDROID_KEY_PASSWORD_SAME": {
-    "zh_CN": "Key 密码与 Keystore 密码相同",
+    "zh_CN": "密钥密码与 密钥库密码相同",
     "en_GB": "Key password is the same as the keystore password"
   },
   "PACK_ANDROID_KEY_PASSWORD": {
-    "zh_CN": "Key 密码",
+    "zh_CN": "密钥密码",
     "en_GB": "Key Password"
   },
   "PACK_ANDROID_SAVE_SIGNING": {
@@ -1756,7 +1756,7 @@
     "en_GB": "Could not save the signing information: {0}"
   },
   "PACK_ANDROID_SELECT_KEYSTORE": {
-    "zh_CN": "选择 Keystore 文件",
+    "zh_CN": "选择 密钥库文件",
     "en_GB": "Select Keystore File"
   },
   "PACK_ANDROID_KEYSTORE_FILES": {
@@ -1768,23 +1768,23 @@
     "en_GB": "All Files"
   },
   "PACK_ANDROID_KEYSTORE_INVALID": {
-    "zh_CN": "请选择存在、可读且使用绝对路径的 Keystore 文件。",
+    "zh_CN": "请选择存在、可读且使用绝对路径的 密钥库文件。",
     "en_GB": "Select an existing, readable keystore file with an absolute path."
   },
   "PACK_ANDROID_KEY_ALIAS_REQUIRED": {
-    "zh_CN": "请输入 Key alias。",
+    "zh_CN": "请输入 密钥别名。",
     "en_GB": "Enter the key alias."
   },
   "PACK_ANDROID_KEY_ALIAS_INVALID": {
-    "zh_CN": "Key alias 不能包含换行符。",
+    "zh_CN": "密钥别名 不能包含换行符。",
     "en_GB": "The key alias cannot contain line breaks."
   },
   "PACK_ANDROID_KEYSTORE_PASSWORD_REQUIRED": {
-    "zh_CN": "请输入 Keystore 密码。",
+    "zh_CN": "请输入 密钥库密码。",
     "en_GB": "Enter the keystore password."
   },
   "PACK_ANDROID_KEY_PASSWORD_REQUIRED": {
-    "zh_CN": "请输入 Key 密码。",
+    "zh_CN": "请输入 密钥密码。",
     "en_GB": "Enter the key password."
   },
   "PACK_ANDROID_PASSWORD_LINE_BREAK": {
@@ -1808,11 +1808,11 @@
     "en_GB": "Signing Certificate"
   },
   "PACK_SIGNING_CERTIFICATE_PASSWORD": {
-    "zh_CN": "证书口令",
+    "zh_CN": "证书密码",
     "en_GB": "Certificate Password"
   },
   "PACK_SIGNING_CERTIFICATE_PASSWORD_REQUIRED": {
-    "zh_CN": "请输入证书口令。",
+    "zh_CN": "请输入证书密码。",
     "en_GB": "Enter the certificate password."
   },
   "PACK_SIGNING_CERTIFICATE_INVALID": {
@@ -1820,7 +1820,7 @@
     "en_GB": "Select an existing, readable certificate file with an absolute path."
   },
   "PACK_SIGNING_PASSWORD_LINE_BREAK": {
-    "zh_CN": "签名口令不能包含换行符。",
+    "zh_CN": "签名密码不能包含换行符。",
     "en_GB": "Signing passwords cannot contain line breaks."
   },
   "PACK_SIGNING_SELECT_CERTIFICATE": {
@@ -1896,7 +1896,7 @@
     "en_GB": "Team ID"
   },
   "PACK_MACOS_NOTARY_PASSWORD": {
-    "zh_CN": "专用口令",
+    "zh_CN": "专用密码",
     "en_GB": "App-Specific Password"
   },
   "PACK_MACOS_NOTARY_KEY": {
@@ -1940,7 +1940,7 @@
     "en_GB": "The team ID must be 10 uppercase letters or digits."
   },
   "PACK_MACOS_NOTARY_PASSWORD_REQUIRED": {
-    "zh_CN": "请输入专用口令。",
+    "zh_CN": "请输入专用密码。",
     "en_GB": "Enter the app-specific password."
   },
   "PACK_IOS_SIGN_APP": {
@@ -1988,27 +1988,27 @@
     "en_GB": "HarmonyOS HAP Signing"
   },
   "PACK_HARMONY_SIGNING_DESCRIPTION": {
-    "zh_CN": "选择工程目录外的密钥库、证书和 Profile；已保存的签名信息会随密钥库自动填入。",
+    "zh_CN": "选择项目目录外的密钥库、证书和 Profile；已保存的签名信息会随密钥库自动填入。",
     "en_GB": "Select a keystore, certificate and profile outside the project. Saved signing details are filled for the selected keystore."
   },
   "PACK_HARMONY_KEYSTORE": {
-    "zh_CN": "Keystore 文件",
+    "zh_CN": "密钥库文件",
     "en_GB": "Keystore File"
   },
   "PACK_HARMONY_KEY_ALIAS": {
-    "zh_CN": "Key alias",
+    "zh_CN": "密钥别名",
     "en_GB": "Key Alias"
   },
   "PACK_HARMONY_KEYSTORE_PASSWORD": {
-    "zh_CN": "Keystore 密码",
+    "zh_CN": "密钥库密码",
     "en_GB": "Keystore Password"
   },
   "PACK_HARMONY_KEY_PASSWORD_SAME": {
-    "zh_CN": "Key 密码与 Keystore 密码相同",
+    "zh_CN": "密钥密码与 密钥库密码相同",
     "en_GB": "Key password is the same as the keystore password"
   },
   "PACK_HARMONY_KEY_PASSWORD": {
-    "zh_CN": "Key 密码",
+    "zh_CN": "密钥密码",
     "en_GB": "Key Password"
   },
   "PACK_HARMONY_SAVE_SIGNING": {
@@ -2024,7 +2024,7 @@
     "en_GB": "Could not save signing information. Check this device’s credential store or clear the save option and retry."
   },
   "PACK_HARMONY_SELECT_KEYSTORE": {
-    "zh_CN": "选择 Keystore 文件",
+    "zh_CN": "选择 密钥库文件",
     "en_GB": "Select Keystore File"
   },
   "PACK_HARMONY_KEYSTORE_FILES": {
@@ -2036,23 +2036,23 @@
     "en_GB": "All Files"
   },
   "PACK_HARMONY_KEYSTORE_INVALID": {
-    "zh_CN": "请选择存在、可读且使用绝对路径的 Keystore 文件。",
+    "zh_CN": "请选择存在、可读且使用绝对路径的 密钥库文件。",
     "en_GB": "Select an existing, readable keystore file with an absolute path."
   },
   "PACK_HARMONY_KEY_ALIAS_REQUIRED": {
-    "zh_CN": "请输入 Key alias。",
+    "zh_CN": "请输入 密钥别名。",
     "en_GB": "Enter the key alias."
   },
   "PACK_HARMONY_KEY_ALIAS_INVALID": {
-    "zh_CN": "Key alias 不能包含换行符。",
+    "zh_CN": "密钥别名 不能包含换行符。",
     "en_GB": "The key alias cannot contain line breaks."
   },
   "PACK_HARMONY_KEYSTORE_PASSWORD_REQUIRED": {
-    "zh_CN": "请输入 Keystore 密码。",
+    "zh_CN": "请输入 密钥库密码。",
     "en_GB": "Enter the keystore password."
   },
   "PACK_HARMONY_KEY_PASSWORD_REQUIRED": {
-    "zh_CN": "请输入 Key 密码。",
+    "zh_CN": "请输入 密钥密码。",
     "en_GB": "Enter the key password."
   },
   "PACK_HARMONY_PASSWORD_LINE_BREAK": {
@@ -2096,7 +2096,7 @@
     "en_GB": "Select an existing, readable signing profile with an absolute path."
   },
   "PACK_HARMONY_MATERIALS_OUTSIDE_PROJECT": {
-    "zh_CN": "签名材料必须保存在工程目录之外，符号链接也不能指向工程内部。",
+    "zh_CN": "签名材料必须保存在项目目录之外，符号链接也不能指向项目内部。",
     "en_GB": "Signing materials must be outside the project directory, including symbolic-link targets."
   },
   "PACK_EXPORT_TO_HARMONY_DEVICE": {
@@ -2181,7 +2181,7 @@
   },
   "PACK_PLUGIN_PREPARATION_FAILED": {
     "zh_CN": "打包前插件准备失败",
-    "en_GB": "A plugin failed while preparing to package the project"
+    "en_GB": "A plug-in failed while preparing to package the project"
   },
   "PACK_CANCELLED": {
     "zh_CN": "打包已取消",
@@ -2208,7 +2208,7 @@
     "en_GB": "No unique Apple Development signing team is available. Configure a developer account in Xcode"
   },
   "PACK_IOS_PROJECT_UNSUPPORTED": {
-    "zh_CN": "iOS 打包需要 C++ 源码工程",
+    "zh_CN": "iOS 打包需要 C++ Source 项目",
     "en_GB": "iOS packaging requires a C++ Source project"
   },
   "PACK_HARMONY_TOOLCHAIN_UNAVAILABLE": {
@@ -2220,11 +2220,11 @@
     "en_GB": "HarmonyOS device export failed. Check the packaging log for the device status or installation and launch errors."
   },
   "PACK_HARMONY_SIGNING_UNAVAILABLE": {
-    "zh_CN": "HarmonyOS HAP 签名失败。请检查工程外的密钥库、证书、Profile、Key alias 和密码，并查看上方日志了解详情",
+    "zh_CN": "HarmonyOS HAP 签名失败。请检查项目外的密钥库、证书、Profile、密钥别名 和密码，并查看上方日志了解详情",
     "en_GB": "HarmonyOS HAP signing failed. Check the external keystore, certificate, profile, key alias and passwords, and review the log above for details"
   },
   "PACK_HARMONY_PROJECT_UNSUPPORTED": {
-    "zh_CN": "HarmonyOS 打包需要 C++ 源码工程",
+    "zh_CN": "HarmonyOS 打包需要 C++ Source 项目",
     "en_GB": "HarmonyOS packaging requires a C++ Source project"
   },
   "PACK_ANDROID_TOOLCHAIN_UNAVAILABLE": {
@@ -2232,11 +2232,11 @@
     "en_GB": "The Android packaging toolchain is unavailable. Install Android Studio, SDK Platform 36, Build Tools 36.0.0, a complete NDK r27+, and system CMake 3.28+; see the package log for details"
   },
   "PACK_ANDROID_SIGNING_UNAVAILABLE": {
-    "zh_CN": "Android APK 签名失败。请检查 Keystore、Key alias 和密码，并查看上方日志了解详情",
+    "zh_CN": "Android APK 签名失败。请检查密钥库、密钥别名和密码，并查看上方日志了解详情",
     "en_GB": "Android APK signing failed. Check the keystore, key alias, and passwords, and review the log above for details"
   },
   "PACK_ANDROID_PROJECT_UNSUPPORTED": {
-    "zh_CN": "Android 打包需要 C++ 源码工程",
+    "zh_CN": "Android 打包需要 C++ Source 项目",
     "en_GB": "Android packaging requires a C++ Source project"
   },
   "PACK_EXIT_CODE": {
@@ -2492,11 +2492,11 @@
     "en_GB": "Preview"
   },
   "ASSETS": {
-    "zh_CN": "素材",
+    "zh_CN": "资产",
     "en_GB": "Assets"
   },
   "ADD_ASSET": {
-    "zh_CN": "添加素材",
+    "zh_CN": "添加资产",
     "en_GB": "Add Asset"
   },
   "ADD_AUDIO": {
@@ -2725,22 +2725,22 @@
   },
   "INITIALIZE_IDE_ENVIRONMENT": {
     "zh_CN": "初始化 IDE 环境",
-    "en_GB": "Initialize IDE Environment"
+    "en_GB": "Initialise IDE Environment"
   },
   "INITIALIZE_IDE_ENVIRONMENT_CONFIRM": {
-    "zh_CN": "尚未找到 {app} 的工程环境。是否立即执行项目初始化脚本？",
-    "en_GB": "The {app} project environment has not been created. Run the project initialization script now?"
+    "zh_CN": "尚未找到 {app} 的项目环境。是否立即执行项目初始化脚本？",
+    "en_GB": "The {app} project environment has not been created. Run the project initialisation script now?"
   },
   "INITIALIZE_IDE_ENVIRONMENT_FAILED": {
-    "zh_CN": "无法初始化 {app} 工程环境。\n{details}",
-    "en_GB": "Failed to initialize the {app} project environment.\n{details}"
+    "zh_CN": "无法初始化 {app} 项目环境。\n{details}",
+    "en_GB": "Failed to initialise the {app} project environment.\n{details}"
   },
   "OPEN_PROJECT_WITH_VSCODE": {
-    "zh_CN": "用 VS Code 打开工程",
+    "zh_CN": "用 VS Code 打开项目",
     "en_GB": "Open Project with VS Code"
   },
   "OPEN_PROJECT_WITH_CURSOR": {
-    "zh_CN": "用 Cursor 打开工程",
+    "zh_CN": "用 Cursor 打开项目",
     "en_GB": "Open Project with Cursor"
   },
   "OPEN_EXTERNAL_EDITOR_FAILED": {
@@ -2900,7 +2900,7 @@
     "en_GB": "Flip Horizontal"
   },
   "asset": {
-    "zh_CN": "素材",
+    "zh_CN": "资产",
     "en_GB": "Asset"
   },
   "MAP_LIST": {
@@ -3013,7 +3013,7 @@
   },
   "color": {
     "zh_CN": "颜色",
-    "en_GB": "Color"
+    "en_GB": "Colour"
   },
   "COLOUR_PICKER_TITLE": {
     "zh_CN": "调色盘",
@@ -3372,15 +3372,15 @@
     "en_GB": "Invalid Data File"
   },
   "PROJECT_OPEN_REBUILD_TITLE": {
-    "zh_CN": "重新构建并导出工程",
+    "zh_CN": "重新构建并导出项目",
     "en_GB": "Rebuild and Export Project"
   },
   "PROJECT_OPEN_REBUILD_CONFIRM": {
-    "zh_CN": "工程数据与 Blueprint 元数据不匹配，生成文件可能已过期。是否重新构建并导出，再检查一次？取消将退出程序。",
+    "zh_CN": "项目数据与蓝图元数据不匹配，生成文件可能已过期。是否重新构建并导出，再检查一次？取消将退出程序。",
     "en_GB": "Project data does not match the Blueprint metadata. Generated files may be out of date. Rebuild and export, then check again? Cancelling will exit the application."
   },
   "PROJECT_OPEN_PREPARATION_LOG": {
-    "zh_CN": "工程未打开。完整构建和导出日志：{0}",
+    "zh_CN": "项目未打开。完整构建和导出日志：{0}",
     "en_GB": "The project was not opened. Full build and export log: {0}"
   },
   "INVALID_DATA_FILE_MESSAGE": {
@@ -3685,7 +3685,7 @@
   },
   "TEXT_CONFIG_FILL_COLOR": {
     "zh_CN": "填充颜色",
-    "en_GB": "Fill Color"
+    "en_GB": "Fill Colour"
   },
   "TEXT_CONFIG_LETTER_SPACING": {
     "zh_CN": "字间距",
@@ -3705,7 +3705,7 @@
   },
   "TEXT_CONFIG_OUTLINE_COLOR": {
     "zh_CN": "描边颜色",
-    "en_GB": "Outline Color"
+    "en_GB": "Outline Colour"
   },
   "TEXT_CONFIG_OUTLINE_THICKNESS": {
     "zh_CN": "描边粗细",
@@ -3725,11 +3725,11 @@
   },
   "TEXT_CONFIG_START_COLOR": {
     "zh_CN": "起始颜色",
-    "en_GB": "Start Color"
+    "en_GB": "Start Colour"
   },
   "TEXT_CONFIG_END_COLOR": {
     "zh_CN": "结束颜色",
-    "en_GB": "End Color"
+    "en_GB": "End Colour"
   },
   "TEXT_CONFIG_CURVE": {
     "zh_CN": "曲线",
@@ -3801,7 +3801,7 @@
   },
   "TEXT_CONFIG_COLOR": {
     "zh_CN": "颜色",
-    "en_GB": "Color"
+    "en_GB": "Colour"
   },
   "CURVE_WINDOW": {
     "zh_CN": "曲线窗口",
@@ -4460,7 +4460,7 @@
     "en_GB": "ScriptMixin conflicts with Blueprint graph mode"
   },
   "SCRIPT_MIXIN_METADATA_INVALID": {
-    "zh_CN": "Mixin metadata 无效：{error}",
+    "zh_CN": "Mixin 元数据无效：{error}",
     "en_GB": "Invalid Mixin metadata: {error}"
   },
   "SCRIPT_MIXIN_INHERITANCE_CONFLICT": {
@@ -4480,7 +4480,7 @@
     "en_GB": "The script name must start with an ASCII letter or underscore, contain only ASCII letters, digits and underscores, and cannot be a Lua keyword."
   },
   "SCRIPT_MIXIN_EXISTS": {
-    "zh_CN": "Mixin 脚本或同名 metadata 文件已存在。",
+    "zh_CN": "Mixin 脚本或同名元数据文件已存在。",
     "en_GB": "The Mixin script or its metadata file already exists."
   },
   "SCRIPT_MIXIN_REMOVE_FIELDS": {
@@ -4760,19 +4760,19 @@
     "en_GB": "Native preview unavailable"
   },
   "UI_PREVIEW_COMPILE_REQUIRED": {
-    "zh_CN": "原生预览尚未就绪。源码工程请先编译；Standalone 工程若仍无法预览，请更新配套预览程序。",
+    "zh_CN": "原生预览尚未就绪。C++ Source 项目请先编译；Standalone 项目若仍无法预览，请更新配套预览程序。",
     "en_GB": "Native preview is not ready. Build source projects first; if a Standalone preview remains unavailable, update its matching preview runtime."
   },
   "UI_PREVIEW_BUILD_REQUIRED": {
-    "zh_CN": "工程正在编译或上次编译未成功；成功发布后将恢复原生预览。",
+    "zh_CN": "项目正在编译或上次编译未成功；成功发布后将恢复原生预览。",
     "en_GB": "The project is building or its last build failed. Native preview resumes after a successful build and publication."
   },
   "UI_SAVE_NATIVE_VALIDATION_PENDING": {
-    "zh_CN": "UI 资产仅通过结构检查，尚未执行原生控件校验。请编译 C++ 工程完成校验。",
+    "zh_CN": "UI 资产仅通过结构检查，尚未执行原生控件校验。请编译 C++ 项目完成校验。",
     "en_GB": "UI assets passed structural checks only. Native control validation has not run; build the C++ project to complete validation."
   },
   "UI_PREVIEW_SNAPSHOT_INVALID": {
-    "zh_CN": "预览程序或其 UI 注册表无效或不匹配。源码工程请重新编译；Standalone 工程请更新 EditorCache 中的预览 JSON 和 Binaries 中的配套程序。",
+    "zh_CN": "预览程序或其 UI 注册表无效或不匹配。C++ Source 项目请重新编译；Standalone 项目请更新 EditorCache 中的预览 JSON 和 Binaries 中的配套程序。",
     "en_GB": "The preview runtime or its UI registry is invalid or mismatched. Rebuild source projects; for Standalone, update the preview JSON in EditorCache and matching runtime in Binaries."
   },
   "UI_REGISTRY_CANVAS_REQUIRED": {
@@ -4780,7 +4780,7 @@
     "en_GB": "This project's UI registry does not contain Engine.Canvas, which is required to create the default UI root. Restore the native control and rebuild."
   },
   "ACTOR_PREVIEW_HOST_UNAVAILABLE": {
-    "zh_CN": "Actor Shader 实时预览不可用，已回退到本地纹理：{0}",
+    "zh_CN": "Actor 着色器实时预览不可用，已回退到本地纹理：{0}",
     "en_GB": "Live Actor shader preview is unavailable. Local texture rendering is being used: {0}"
   },
   "UI_ASSET_DELETE_REFERENCED": {
@@ -4797,7 +4797,7 @@
   },
   "ANCHOR_TOP_CENTER": {
     "zh_CN": "顶部居中",
-    "en_GB": "Top Center"
+    "en_GB": "Top Centre"
   },
   "ANCHOR_TOP_RIGHT": {
     "zh_CN": "右上",
@@ -4805,15 +4805,15 @@
   },
   "ANCHOR_CENTER_LEFT": {
     "zh_CN": "左侧居中",
-    "en_GB": "Center Left"
+    "en_GB": "Centre Left"
   },
   "ANCHOR_CENTER": {
     "zh_CN": "居中",
-    "en_GB": "Center"
+    "en_GB": "Centre"
   },
   "ANCHOR_CENTER_RIGHT": {
     "zh_CN": "右侧居中",
-    "en_GB": "Center Right"
+    "en_GB": "Centre Right"
   },
   "ANCHOR_BOTTOM_LEFT": {
     "zh_CN": "左下",
@@ -4821,7 +4821,7 @@
   },
   "ANCHOR_BOTTOM_CENTER": {
     "zh_CN": "底部居中",
-    "en_GB": "Bottom Center"
+    "en_GB": "Bottom Centre"
   },
   "ANCHOR_BOTTOM_RIGHT": {
     "zh_CN": "右下",
@@ -4833,7 +4833,7 @@
   },
   "ANCHOR_STRETCH_HORIZONTAL_CENTER": {
     "zh_CN": "居中横向拉伸",
-    "en_GB": "Stretch Horizontal Center"
+    "en_GB": "Stretch Horizontal Centre"
   },
   "ANCHOR_STRETCH_HORIZONTAL_BOTTOM": {
     "zh_CN": "底部横向拉伸",
@@ -4845,7 +4845,7 @@
   },
   "ANCHOR_STRETCH_VERTICAL_CENTER": {
     "zh_CN": "居中纵向拉伸",
-    "en_GB": "Stretch Vertical Center"
+    "en_GB": "Stretch Vertical Centre"
   },
   "ANCHOR_STRETCH_VERTICAL_RIGHT": {
     "zh_CN": "右侧纵向拉伸",
@@ -5084,7 +5084,7 @@
     "en_GB": "Fog Seed"
   },
   "MAP_PREVIEW_UNAVAILABLE": {
-    "zh_CN": "当前预览程序不支持地图预览。源码工程请重新编译；Standalone 工程请更新配套预览程序。",
+    "zh_CN": "当前预览程序不支持地图预览。C++ Source 项目请重新编译；Standalone 项目请更新配套预览程序。",
     "en_GB": "The preview runtime does not support map preview. Rebuild source projects; for Standalone, update the matching preview runtime."
   },
   "MAP_VIEWPORT_OPTIONS": {

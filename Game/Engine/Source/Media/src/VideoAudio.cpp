@@ -81,7 +81,7 @@ AudioData extractAudio(const std::string& path) {
     SwrContextPtr resampler(rawResampler);
     requireFfmpeg(allocationResult, "Failed to allocate video audio converter");
     requireFfmpeg(swr_init(resampler.get()),
-                  "Failed to initialize video audio converter");
+                  "Failed to initialise video audio converter");
 
     PacketPtr packet(av_packet_alloc());
     FramePtr frame(av_frame_alloc());

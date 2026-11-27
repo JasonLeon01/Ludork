@@ -279,7 +279,7 @@ void WindowsWebViewSessionImpl::initializeWebView() {
                 if (FAILED(result) || environment == nullptr) {
                     state->initializing = false;
                     state->showError(
-                        L"Unable to initialize Microsoft WebView2.");
+                        L"Unable to initialise Microsoft WebView2.");
                     return S_OK;
                 }
                 state->environment = environment;
@@ -336,7 +336,7 @@ void WindowsWebViewSessionImpl::initializeWebView() {
             .Get());
     if (FAILED(created)) {
         initializing = false;
-        showError(L"Unable to initialize Microsoft WebView2.");
+        showError(L"Unable to initialise Microsoft WebView2.");
     }
 }
 

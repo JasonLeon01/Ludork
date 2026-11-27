@@ -660,7 +660,7 @@ void ShaderCache::Impl::prepare(
             if (!inserted && position->second != hash) {
                 throw std::runtime_error(
                     "Shader inputs changed during preparation; restart "
-                    "initialization: " +
+                    "initialisation: " +
                     name);
             }
         }
@@ -681,7 +681,7 @@ void ShaderCache::Impl::prepare(
         if (ludork::standard::sha256(bytes) != hash) {
             throw std::runtime_error(
                 "Shader inputs changed during preparation; restart "
-                "initialization: " +
+                "initialisation: " +
                 name);
         }
     });

@@ -34,7 +34,7 @@ internal sealed class ReferenceDocumentScanWorker : IDisposable
             ?? throw new InvalidDataException($"The indexed document could not be read: {document.Path}");
         if (document.Data is null && (document.Catalog is not MapCatalogEntry catalog
             || data["type"]?.GetValue<string>() != "map" || !MapDataService.mapMatchesCatalogEntry(data, catalog)))
-            throw new InvalidDataException($"The indexed map no longer matches its catalog: {document.Path}");
+            throw new InvalidDataException($"The indexed map no longer matches its catalogue: {document.Path}");
         return scanner.Scan(document.Section, document.Key, data);
     }
 

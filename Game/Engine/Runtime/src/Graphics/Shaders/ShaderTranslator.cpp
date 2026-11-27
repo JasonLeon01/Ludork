@@ -27,7 +27,7 @@ namespace ludork::runtime::graphics::shader_translator_impl {
 
 Process::Process() {
     if (!glslang::InitializeProcess()) {
-        throw std::runtime_error("Cannot initialize the GLSL compiler");
+        throw std::runtime_error("Cannot initialise the GLSL compiler");
     }
 }
 

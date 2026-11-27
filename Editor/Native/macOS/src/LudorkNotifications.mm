@@ -20,7 +20,7 @@ void* ludork_notifications_create(LudorkNotificationCallback callback,
                                      context:context];
             return (__bridge_retained void*)center;
         } @catch (NSException* exception) {
-            NSLog(@"Could not initialize Ludork notifications: %@",
+            NSLog(@"Could not initialise Ludork notifications: %@",
                   exception.reason);
             return nullptr;
         }

@@ -378,7 +378,7 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
                 const RuntimeValue::Array& arguments) -> RuntimeValue::Array {
                 if (arguments.empty()) {
                     throw std::invalid_argument(
-                        "Generated initializer requires self");
+                        "Generated initialiser requires self");
                 }
                 RuntimeValue::Array parameters(arguments.begin() + 1,
                                                arguments.end());

@@ -93,7 +93,7 @@ struct UiControlAdapterTraits;
                             "false"),                                          \
         UI_CONTROL_PROPERTY("slantAngle", "Slant Angle", "float", false,       \
                             "0.0"),                                            \
-        UI_CONTROL_PROPERTY("fillColor", "Fill Color", "sf.Color", false,      \
+        UI_CONTROL_PROPERTY("fillColor", "Fill Colour", "sf.Color", false,     \
                             "[255,255,255,255]"),                              \
         UI_CONTROL_PROPERTY("letterSpacing", "Letter Spacing", "float", false, \
                             "1.0"),                                            \
@@ -101,13 +101,13 @@ struct UiControlAdapterTraits;
                             "1.0"),                                            \
         UI_CONTROL_PROPERTY("lineAlignment", "Line Alignment",                 \
                             "sf.Text.LineAlignment", false, "\"default\""),    \
-        UI_CONTROL_PROPERTY("outlineColor", "Outline Color", "sf.Color",       \
+        UI_CONTROL_PROPERTY("outlineColor", "Outline Colour", "sf.Color",      \
                             false, "[0,0,0,255]"),                             \
         UI_CONTROL_PROPERTY("outlineThickness", "Outline Thickness", "float",  \
                             false, "0.0"),                                     \
         UI_CONTROL_PROPERTY("glowEnabled", "Glow Enabled", "bool", false,      \
                             "false"),                                          \
-        UI_CONTROL_PROPERTY("glowColor", "Glow Color", "sf.Color", false,      \
+        UI_CONTROL_PROPERTY("glowColor", "Glow Colour", "sf.Color", false,     \
                             "[255,255,255,0]"),                                \
         UI_CONTROL_PROPERTY("glowRadius", "Glow Radius", "float", false,       \
                             "0.0"),                                            \
@@ -189,9 +189,9 @@ struct UiControlAdapterTraits;
         "Solid Rect", "Visual", UiChildPolicy::None, UiControlSlotType::None,  \
         UI_CONTROL_PROPERTY("size", "Size", "sf.Vector2f", false,              \
                             "[100.0,32.0]"),                                   \
-        UI_CONTROL_PROPERTY("fillColor", "Fill Color", "sf.Color", false,      \
+        UI_CONTROL_PROPERTY("fillColor", "Fill Colour", "sf.Color", false,     \
                             "[255,255,255,255]"),                              \
-        UI_CONTROL_PROPERTY("outlineColor", "Outline Color", "sf.Color",       \
+        UI_CONTROL_PROPERTY("outlineColor", "Outline Colour", "sf.Color",      \
                             false, "[0,0,0,0]"),                               \
         UI_CONTROL_PROPERTY("outlineThickness", "Outline Thickness", "float",  \
                             false, "0.0"))                                     \
@@ -211,9 +211,9 @@ struct UiControlAdapterTraits;
                             "null"),                                           \
         UI_CONTROL_PROPERTY("fillTextureRect", "Fill Texture Rect",            \
                             "sf.IntRect", false, "null"),                      \
-        UI_CONTROL_PROPERTY("backgroundColor", "Background Color", "sf.Color", \
-                            false, "[255,255,255,64]"),                        \
-        UI_CONTROL_PROPERTY("fillColor", "Fill Color", "sf.Color", false,      \
+        UI_CONTROL_PROPERTY("backgroundColor", "Background Colour",            \
+                            "sf.Color", false, "[255,255,255,64]"),            \
+        UI_CONTROL_PROPERTY("fillColor", "Fill Colour", "sf.Color", false,     \
                             "[255,255,255,255]"))                              \
     BIND_UI_CONTROL(                                                           \
         ImageUiControlAdapterTag, "Engine.Image", "Engine.Image", "Image",     \

@@ -36,7 +36,7 @@ std::vector<std::uint8_t> decompressZlib(std::span<const std::uint8_t> bytes,
     stream.next_in = const_cast<Bytef*>(bytes.data());
     stream.avail_in = static_cast<uInt>(bytes.size());
     if (inflateInit2(&stream, windowBits) != Z_OK) {
-        throw std::runtime_error("Failed to initialize zlib decompression");
+        throw std::runtime_error("Failed to initialise zlib decompression");
     }
     std::vector<std::uint8_t> result;
     std::array<std::uint8_t, DecompressionChunkSize> buffer{};

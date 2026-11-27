@@ -19,7 +19,7 @@
   "BLUEPRINT_AI_PROVIDER": "Provider",
   "BLUEPRINT_AI_MODEL": "Model",
   "BLUEPRINT_AI_ENDPOINT": "Endpoint",
-  "BLUEPRINT_AI_ORGANIZATION": "Organization",
+  "BLUEPRINT_AI_ORGANIZATION": "Organisation",
   "BLUEPRINT_AI_PROJECT": "Project",
   "BLUEPRINT_AI_API_KEY": "API Key",
   "BLUEPRINT_AI_API_KEY_UNCHANGED": "Enter a new API key to replace it",

@@ -126,7 +126,7 @@ class PureDataParser:
         if identifier == "nil":
             raise self.error(
                 "nil cannot be stored in structured metadata; omit the field "
-                "or use a serializable value"
+                "or use a serialisable value"
             )
         raise self.error(
             f"unsupported identifier {identifier!r}; "
@@ -503,7 +503,7 @@ def value_initialized_default(context: GeneratorContext, type_name: str, type_mo
         if isinstance(first_schema, dict) and "union" in first_schema:
             return value
         if value is None and first_schema != "nil":
-            raise ValueError(f"value-initialized variant branch {first} has nil state not represented by its metadata schema")
+            raise ValueError(f"value-initialised variant branch {first} has nil state not represented by its metadata schema")
         return wrap_metadata_union(first_schema, value)
     if parsed.name == "std::monostate":
         return None
@@ -514,7 +514,7 @@ def value_initialized_default(context: GeneratorContext, type_name: str, type_mo
     if parsed.name in SEQUENCE_TYPES:
         if parsed.name == "std::array":
             if len(parsed.arguments) != 2 or not parsed.arguments[1].name.isdecimal():
-                raise ValueError(f"value-initialized array default requires a literal size: {type_name}")
+                raise ValueError(f"value-initialised array default requires a literal size: {type_name}")
             return [value_initialized_default(context, render_parsed_type(parsed.arguments[0]), type_modules) for _ in range(int(parsed.arguments[1].name))]
         return []
     if parsed.name in PAIR_TYPES | TUPLE_TYPES:
@@ -527,7 +527,7 @@ def value_initialized_default(context: GeneratorContext, type_name: str, type_mo
         return 0.0
     if schema == "string":
         return ""
-    raise ValueError(f"cannot derive value-initialized metadata default for {type_name}; declare an explicit default")
+    raise ValueError(f"cannot derive value-initialised metadata default for {type_name}; declare an explicit default")
 
 
 def tag_declared_default(context: GeneratorContext, value: object, type_name: str, type_modules: dict[str, str], value_initialized: bool = False) -> object:

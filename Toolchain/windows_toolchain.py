@@ -517,7 +517,7 @@ def owned_paths(project: pathlib.Path) -> tuple[set[pathlib.Path], set[pathlib.P
             if value.get("platform") == "win32":
                 for name in value.get("artifacts", {}):
                     if pathlib.Path(name).name != name:
-                        raise ValueError(f"Invalid native artifact name: {name}")
+                        raise ValueError(f"Invalid native artefact name: {name}")
                     files.add(project / "bin" / configuration / name)
                     files.add(project / "bin" / configuration / pathlib.Path(name).with_suffix(".pdb"))
                 files.add(record)
@@ -530,7 +530,7 @@ def owned_paths(project: pathlib.Path) -> tuple[set[pathlib.Path], set[pathlib.P
         if value.get("platform") == "win32" and value.get("runtimeDirectory") in ("bin/Debug", "bin/Release"):
             for name in value.get("files", []):
                 if not isinstance(name, str) or pathlib.Path(name).name != name:
-                    raise ValueError("Invalid preview artifact name.")
+                    raise ValueError("Invalid preview artefact name.")
                 files.add(project / value["runtimeDirectory"] / name)
                 files.add(project / value["runtimeDirectory"] / pathlib.Path(name).with_suffix(".pdb"))
             files.update(metadata / name for name in ("Preview.json", "UiPreview.registry.json", "Preview.building"))

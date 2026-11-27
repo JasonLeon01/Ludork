@@ -79,7 +79,7 @@ void validateJsonDepth(const std::string& bytes) {
 NetTransportImpl::NetTransportImpl() {
 #if defined(LUDORK_SERVER_AVAILABLE) && !defined(__EMSCRIPTEN__)
     if (!ix::initNetSystem()) {
-        throw std::runtime_error("Could not initialize the network transport.");
+        throw std::runtime_error("Could not initialise the network transport.");
     }
 #endif
 }

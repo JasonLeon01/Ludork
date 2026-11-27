@@ -45,7 +45,7 @@ def archive_template(root: pathlib.Path, destination: pathlib.Path, platform: st
         raise ValueError(f"Project template was not found: {root}")
     root = root.resolve()
     if (root / ENTRY_SCRIPT).exists() or (root / "Scripts/Entry.luac").exists():
-        raise ValueError(f"Project template must not contain an initialized entry: {root}")
+        raise ValueError(f"Project template must not contain an initialised entry: {root}")
     read_entry_template(root)
     if destination.resolve().is_relative_to(root):
         raise ValueError("Template archives must be outside their input template.")

@@ -90,7 +90,7 @@ const std::vector<std::uint8_t>& VideoDecoder::rgbaFrame() {
                              frame_->width, frame_->height, AV_PIX_FMT_RGBA,
                              SWS_BILINEAR, nullptr, nullptr, nullptr);
     if (context == nullptr) {
-        throw std::runtime_error("Failed to initialize video frame converter");
+        throw std::runtime_error("Failed to initialise video frame converter");
     }
     scaler_.reset(context);
     rgba_.resize(static_cast<std::size_t>(frame_->width) * frame_->height * 4U);

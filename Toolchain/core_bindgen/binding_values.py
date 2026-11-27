@@ -465,7 +465,7 @@ def table_value_trait_lines(
         )
         if info.options.get("strict_fields", "false").lower() == "true":
             names = " && ".join(f'key != "{prop.name}"' for prop in properties) or "true"
-            lines.extend(["    for (const auto& entry : value) {", '        if (entry.first.get_type() != lua_glue::Type::String) throw std::invalid_argument("Unknown table initializer field");', "        const std::string key = entry.first.as<std::string>();", f'        if ({names}) throw std::invalid_argument("Unknown table initializer field: " + key);', "    }"])
+            lines.extend(["    for (const auto& entry : value) {", '        if (entry.first.get_type() != lua_glue::Type::String) throw std::invalid_argument("Unknown table initialiser field");', "        const std::string key = entry.first.as<std::string>();", f'        if ({names}) throw std::invalid_argument("Unknown table initialiser field: " + key);', "    }"])
         for index, prop in enumerate(writable):
             value_name = f"propertyValue{index}"
             value_type = property_type(context, prop)
@@ -516,7 +516,7 @@ def table_value_trait_lines(
         lines.extend(
             [
                 "    if (!(value.get_type() == lua_glue::Type::Table))",
-                '        throw std::invalid_argument("expected a Lua table initializer");',
+                '        throw std::invalid_argument("expected a Lua table initialiser");',
                 f"    {info.cpp_name} result{{}};",
                 "    readInto(result, value.as<lua_glue::Table>());",
                 "    return result;",

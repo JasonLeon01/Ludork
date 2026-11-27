@@ -33,7 +33,7 @@
 ---@field private _DISPLAY_PROGRESS_COMPLETE_THRESHOLD number
 local Scene = {}
 
----@brief Show initialization directly, before transition shaders are prepared.
+---@brief Show initialisation directly, before transition shaders are prepared.
 function Scene:onEnter() end
 
 ---@brief Create progress bar UI and start the required loading and title scene task.

@@ -54,7 +54,7 @@ int initializeNativeModule(lua_State* state, const char* name,
         const std::string detail =
             ludork::application::detail::luaErrorMessage(state);
         lua_settop(state, stackBase);
-        throw std::runtime_error("Failed to initialize native Lua module '" +
+        throw std::runtime_error("Failed to initialise native Lua module '" +
                                  std::string(name) + "': " + detail);
     }
     if (!lua_istable(state, -1)) {
@@ -115,7 +115,7 @@ int runRuntime(const std::filesystem::path& executablePath, int argc,
         LuaSF_quiesce_state(state);
         LuaSF_shutdown_state(state);
         lua_close(state);
-        reportStartupError("Unable to initialize the Lua runtime state.");
+        reportStartupError("Unable to initialise the Lua runtime state.");
         return 1;
     }
 

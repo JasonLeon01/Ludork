@@ -1,6 +1,6 @@
 ---@meta Source.Locale.Core
 ---
---- Loads translation dictionaries and exposes localization functions.
+--- Loads translation dictionaries and exposes localisation functions.
 
 ---@class Source.Locale.Core.Module
 ---@field DEFAULT_LANGUAGE        string
@@ -27,22 +27,22 @@ function Core.GetLocaleKeys() end
 --- Entry calls this once before reading user settings; requiring the module does not load dictionaries.
 function Core.Init() end
 
----@brief Get localized content for a specific locale.
+---@brief Get localised content for a specific locale.
 ---
 --- - localeKey: Locale identifier (e.g., "en_GB", "zh_CN").
 --- - key: The translation key to look up.
 ---
----@return The localized string, or the key itself if not found.
+---@return The localised string, or the key itself if not found.
 ---@param localeKey string
 ---@param key       string
 ---@return string
 function Core.GetLocaleContent(localeKey, key) end
 
----@brief Get localized content for the current language.
+---@brief Get localised content for the current language.
 ---
 --- - key: The translation key to look up.
 ---
----@return The localized string, or the key itself if not found.
+---@return The localised string, or the key itself if not found.
 ---@param key string
 ---@return string
 function Core.GetContent(key) end
@@ -53,11 +53,11 @@ function Core.GetContent(key) end
 ---@return table<string, string>
 function Core.GetLocaleDict() end
 
----@brief Resolve a locale key or replace localized placeholders in a string.
+---@brief Resolve a locale key or replace localised placeholders in a string.
 ---
 --- - value: A locale key or source value containing `{ID}` placeholders.
 ---
----@return The localized or formatted value.
+---@return The localised or formatted value.
 ---@param value string
 ---@return string
 function Core.ApplyStringLocaleFormat(value) end

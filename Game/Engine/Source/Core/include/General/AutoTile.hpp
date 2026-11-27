@@ -48,7 +48,7 @@ struct LUDORK_ENGINE_API AutoTile {
              bool passable = true, std::string material = "");
 
     ////////////////////////////////////////////////////////////
-    /// \brief Serialize the material to a dictionary.
+    /// \brief Serialise the material to a dictionary.
     ///
     /// - \return Dictionary containing all material fields
     ///

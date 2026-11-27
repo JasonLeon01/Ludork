@@ -269,7 +269,7 @@ std::shared_ptr<TextStyle> richStyle(const RuntimeData& value,
             result->outlineColor =
                 colorValue(*color, source + ".outline.color");
         } else if (requireAll) {
-            configError(source + ".outline", "Missing color");
+            configError(source + ".outline", "Missing colour");
         }
         if (const auto thickness = findValue(outlineMap, "thickness")) {
             result->outlineThickness = static_cast<float>(numberValue(

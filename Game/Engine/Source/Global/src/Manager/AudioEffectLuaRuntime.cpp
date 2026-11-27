@@ -132,7 +132,7 @@ sf::SoundSource::EffectProcessor createLuaAudioEffectProcessor(
         const std::lock_guard<std::mutex> lock(runtimeMutex);
         if (!runtimeInitialized) {
             throw std::runtime_error(
-                "Audio-effect Lua runtime is not initialized");
+                "Audio-effect Lua runtime is not initialised");
         }
         packagePath = runtimePackagePath;
     }

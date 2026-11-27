@@ -68,11 +68,11 @@ void callConstructorFunction(lua_State* state, const lua_glue::Object& function,
     const int maximumArgumentCount = std::max(0, info.parameterCount - 1);
     if (!info.vararg && argumentCount > maximumArgumentCount) {
         throw std::invalid_argument(
-            "Class initializer received too many arguments");
+            "Class initialiser received too many arguments");
     }
     ludork::standard::ensureLuaStack(
         state, static_cast<std::size_t>(argumentCount) + 2,
-        "class initializer arguments");
+        "class initialiser arguments");
     function.push(state);
     instance.push(state);
     for (int index = firstArgument; index <= originalTop; ++index) {
@@ -83,7 +83,7 @@ void callConstructorFunction(lua_State* state, const lua_glue::Object& function,
         size_t length = 0;
         const char* message = luaL_tolstring(state, -1, &length);
         const std::string error = message == nullptr
-                                      ? "Class initializer failed"
+                                      ? "Class initialiser failed"
                                       : std::string(message, length);
         lua_pop(state, 2);
         throw std::runtime_error(error);

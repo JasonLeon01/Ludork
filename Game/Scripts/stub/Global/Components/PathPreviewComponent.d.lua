@@ -14,7 +14,7 @@ local PathPreviewComponent = {}
 --- This component renders semi-transparent rectangles along the
 --- planned path to show where the actor will move.
 
----@brief Initialize the PathPreviewComponent.
+---@brief Initialise the PathPreviewComponent.
 --- - gameMap: The game map this component operates on.
 --- - routeState: The path route state to read the planned path from.
 ---@param gameMap    GameMap

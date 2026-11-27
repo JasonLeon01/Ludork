@@ -51,7 +51,7 @@ void validateNativeRoots(lua_glue::StateView lua,
     for (const lua_glue::Table& root : roots) {
         if ((nativeObjectForType(lua, fields, root).get_type() !=
              lua_glue::Type::Userdata)) {
-            throw std::runtime_error("Lua class initializer must call " +
+            throw std::runtime_error("Lua class initialiser must call " +
                                      nativeTypeName(lua, root) +
                                      ".init(self, ...)");
         }

@@ -17,7 +17,7 @@ Class = Class or {}
 ---@field __getters     table<string, fun(self: T): any> | nil
 ---@field __setters     table<string, fun(self: T, value: any)> | nil
 
---- Finalize a definition table as a Ludork class with C3 MRO.
+--- Finalise a definition table as a Ludork class with C3 MRO.
 ---@generic T: table
 ---@param definition T
 ---@param ...        table | userdata

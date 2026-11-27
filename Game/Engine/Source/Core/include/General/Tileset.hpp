@@ -48,7 +48,7 @@ struct LUDORK_ENGINE_API Tileset {
                 std::vector<std::array<bool, 4>>());
 
     ////////////////////////////////////////////////////////////
-    /// \brief Serialize the tileset to a dictionary.
+    /// \brief Serialise the tileset to a dictionary.
     ///
     /// - \return Dictionary containing all tileset fields
     ////////////////////////////////////////////////////////////

@@ -61,7 +61,7 @@ int cachedLookupThunk(lua_State* state) {
     if (lua_istable(state, -1)) {
         const int ownerIndex = lua_absindex(state, -1);
         // Native descriptors have the same metadata field names, but their
-        // receivers must follow native-root initialization and shadow replay.
+        // receivers must follow native-root initialisation and shadow replay.
         if (accessor && isClass(state, ownerIndex)) {
             pushRawField(state, ownerIndex, category);
             if (lua_istable(state, -1)) {

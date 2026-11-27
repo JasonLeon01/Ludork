@@ -151,7 +151,7 @@ void validateCurve(const Curve::CurveData& curve, const char* channel) {
         if (key.time < 0 || key.time > 1) {
             throw std::invalid_argument(
                 std::string(
-                    "Particle curve time must be normalized to [0,1]: ") +
+                    "Particle curve time must be normalised to [0,1]: ") +
                 channel);
         }
     }

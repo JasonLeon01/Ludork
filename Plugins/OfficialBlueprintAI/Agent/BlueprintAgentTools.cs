@@ -592,7 +592,7 @@ internal sealed class BlueprintAgentTools : IAgentToolExecutor
                 """),
             new AgentToolDefinition(
                 "get_api_catalog",
-                "Search the current Lua metadata and Blueprint node API catalog by symbol, type, or purpose.",
+                "Search the current Lua metadata and Blueprint node API catalogue by symbol, type, or purpose.",
                 """
                 {
                   "type": "object",

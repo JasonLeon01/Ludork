@@ -2,7 +2,7 @@
 
 --- Save/Load system for persisting and restoring game state.
 ---
---- Save data is serialized as JSON and stored in plain `.json` or encrypted
+--- Save data is serialised as JSON and stored in plain `.json` or encrypted
 --- `.ldc` files.
 
 local Save = {}
@@ -10,7 +10,7 @@ local Save = {}
 ---@brief Save game state to the file format selected by `SAVE_AS_LDC`.
 ---
 --- - @param filePath Path whose extension matches the configured save format.
---- - @param instance GameInstance object to serialize and save.
+--- - @param instance GameInstance object to serialise and save.
 ---@param filePath string
 ---@param instance Source.GameInstance.GameInstance
 function Save.SaveGame(filePath, instance) end

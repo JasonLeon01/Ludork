@@ -11,12 +11,12 @@ sf::Color hexColor(const std::string& value, int alpha) {
         text.erase(0, 2);
     }
     if (text.size() != 6 && text.size() != 8) {
-        throw std::runtime_error("Invalid hex color string");
+        throw std::runtime_error("Invalid hex colour string");
     }
     if (!std::all_of(text.begin(), text.end(), [](unsigned char character) {
             return std::isxdigit(character) != 0;
         })) {
-        throw std::runtime_error("Invalid hex color string");
+        throw std::runtime_error("Invalid hex colour string");
     }
     const auto red =
         static_cast<std::uint8_t>(std::stoul(text.substr(0, 2), nullptr, 16));

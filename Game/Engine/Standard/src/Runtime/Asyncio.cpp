@@ -123,7 +123,7 @@ int createTask(lua_State* state) {
             threadState = lua_newthread(state);
             if (lua_glue::InitializeState(threadState) != 0) {
                 throw std::runtime_error(
-                    "Unable to initialize asyncio coroutine");
+                    "Unable to initialise asyncio coroutine");
             }
         }
         const lua_glue::Object thread =

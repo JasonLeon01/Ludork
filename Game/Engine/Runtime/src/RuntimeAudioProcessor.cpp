@@ -65,7 +65,7 @@ AudioProcessor::Impl::Impl(AudioProcessorOptions options) {
         luaL_openlibs(state_);
         if (LuaSF_initialize_state(state_) != 0) {
             throw std::runtime_error(
-                "Unable to initialize the isolated audio-effect Lua state");
+                "Unable to initialise the isolated audio-effect Lua state");
         }
         lua_sf::LuaStateExecutionScope execution(state_);
         if (!execution.active()) {

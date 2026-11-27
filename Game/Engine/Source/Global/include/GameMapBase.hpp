@@ -77,7 +77,7 @@ public:
         std::function<bool(Actor&, const std::string&)> layerVisible);
 
     ////////////////////////////////////////////////////////////
-    /// \brief Build a grayscale texture from a material map
+    /// \brief Build a greyscale texture from a material map
     ///
     /// - \param size Output texture size
     /// - \param materialMap Material values in range `[0, 1]`

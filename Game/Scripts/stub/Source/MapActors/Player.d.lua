@@ -88,7 +88,7 @@ function Player:setClassPath(classPath) end
 function Player:onFixedTick(fixedDelta) end
 
 ---
----@brief Serialize player information for serialization.
+---@brief Serialise player information for serialisation.
 ---
 --- - @return A dictionary containing player class path, tag, position, all numeric Base attributes, and inventory.
 ---
@@ -96,12 +96,12 @@ function Player:onFixedTick(fixedDelta) end
 function Player:asDict() end
 
 ---
----@brief Initialize a player character from a class path.
+---@brief Initialise a player character from a class path.
 ---
 --- - @param playerPath  Path to the player class.
 --- - @param applyInitialEquipment Whether Class defaults should be equipped; defaults to true.
 ---
---- - @return A new `Player` instance initialized with the provided class path.
+--- - @return A new `Player` instance initialised with the provided class path.
 ---
 ---@param playerPath             string
 ---@param applyInitialEquipment? boolean
@@ -109,11 +109,11 @@ function Player:asDict() end
 function Player.InitPlayer(playerPath, applyInitialEquipment) end
 
 ---
----@brief Deserialize player attributes and inventory from a dictionary.
+---@brief Deserialise player attributes and inventory from a dictionary.
 ---
 --- - @param data  A dictionary containing player attributes and inventory.
 ---
---- - @return A new `Player` instance initialized with the provided data.
+--- - @return A new `Player` instance initialised with the provided data.
 ---
 ---@param data Source.MapActors.Player.SaveData
 ---@return Source.MapActors.Player.Player

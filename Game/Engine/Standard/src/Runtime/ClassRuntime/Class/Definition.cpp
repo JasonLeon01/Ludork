@@ -186,7 +186,7 @@ constexpr const char* CLASS_RESERVED_FIELDS[] = {
 
 void validateClassDefinition(const lua_glue::Table& definition) {
     if (rawBool(definition, protocol::CLASS_MARKER_FIELD)) {
-        throw std::invalid_argument("Class definition is already finalized");
+        throw std::invalid_argument("Class definition is already finalised");
     }
     if (tableHasMetatable(definition)) {
         throw std::invalid_argument(
@@ -212,12 +212,12 @@ lua_glue::Table normalizeClassBases(lua_glue::StateView lua,
         const lua_glue::Object rawBase = bases.raw_get<lua_glue::Object>(index);
         if (!rawBase.is<lua_glue::Table>()) {
             throw std::invalid_argument(
-                "Class bases must be finalized class tables or native types");
+                "Class bases must be finalised class tables or native types");
         }
         const lua_glue::Table base = rawBase.as<lua_glue::Table>();
         if (!isFinalizedClass(base) && !isNativeType(lua, base)) {
             throw std::invalid_argument(
-                "Class bases must be finalized class tables or native types");
+                "Class bases must be finalised class tables or native types");
         }
         bool duplicate = false;
         for (const lua_glue::Table& existing : accepted) {
@@ -247,7 +247,7 @@ void setClassClosure(lua_State* state, const lua_glue::Table& target,
     lua_pop(state, 1);
 }
 
-// ── Class finalization
+// ── Class finalisation
 // ────────────────────────────────────────────────────────
 
 lua_glue::Table finalizeClassImpl(lua_glue::Table definition,

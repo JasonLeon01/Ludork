@@ -383,7 +383,7 @@ int nativeBaseInitializer(lua_State* state) {
         lua_glue::StateView lua(state);
         if (lua_gettop(state) < 1) {
             throw std::invalid_argument(
-                "Native base initializer requires a class instance");
+                "Native base initialiser requires a class instance");
         }
         const lua_glue::Table nativeType =
             lua_glue::Read<lua_glue::Table>(state, lua_upvalueindex(1));
@@ -391,7 +391,7 @@ int nativeBaseInitializer(lua_State* state) {
             lua_glue::Read<lua_glue::Object>(state, 1);
         if (!isCompositeInstance(lua, instance)) {
             throw std::invalid_argument(
-                "Native base initializer requires a composite class instance");
+                "Native base initialiser requires a composite class instance");
         }
         lua_glue::Table fields =
             class_native::getUserFields(lua, instance, false);
@@ -399,7 +399,7 @@ int nativeBaseInitializer(lua_State* state) {
             fields.raw_get<lua_glue::Object>(NATIVE_INITIALIZING_FIELD);
         if (!rawInitializing.is<bool>() || !rawInitializing.as<bool>()) {
             throw std::runtime_error(
-                "Native base initializers may only run during class "
+                "Native base initialisers may only run during class "
                 "construction");
         }
         const lua_glue::Object rawClass =
@@ -417,7 +417,7 @@ int nativeBaseInitializer(lua_State* state) {
         }
         if (!knownRoot) {
             throw std::invalid_argument(
-                "Native initializer target is not an exact class root");
+                "Native initialiser target is not an exact class root");
         }
         const lua_glue::Object rawInitialized =
             fields.raw_get<lua_glue::Object>(CLASS_INITIALIZED_ROOTS_FIELD);
@@ -431,7 +431,7 @@ int nativeBaseInitializer(lua_State* state) {
             initialized.raw_get<lua_glue::Object>(nativeType);
         if (alreadyInitialized.is<bool>() && alreadyInitialized.as<bool>()) {
             throw std::runtime_error(
-                "Native base initializer was called twice for " +
+                "Native base initialiser was called twice for " +
                 nativeTypeName(lua, nativeType));
         }
         const lua_glue::Object rawObjects =

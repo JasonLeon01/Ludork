@@ -60,18 +60,18 @@ public:
     TileLayerGraphics& operator=(const TileLayerGraphics&) = delete;
 
     ////////////////////////////////////////////////////////////
-    /// \brief Set the color tint of a specific tile
+    /// \brief Set the colour tint of a specific tile
     ///
     /// - \param x Tile X coordinate
     /// - \param y Tile Y coordinate
-    /// - \param color Tint color to apply
+    /// - \param color Tint colour to apply
     ///
     ////////////////////////////////////////////////////////////
     BIND_METHOD()
     void setTileColor(int x, int y, sf::Color color);
 
     ////////////////////////////////////////////////////////////
-    /// \brief Reset a tile color to its material opacity value
+    /// \brief Reset a tile colour to its material opacity value
     ///
     /// - \param x Tile X coordinate
     /// - \param y Tile Y coordinate
@@ -81,11 +81,11 @@ public:
     void resetTileColor(int x, int y);
 
     ////////////////////////////////////////////////////////////
-    /// \brief Flood fill connected valid tiles with a color overlay
+    /// \brief Flood fill connected valid tiles with a colour overlay
     ///
     /// - \param startX Seed tile X coordinate
     /// - \param startY Seed tile Y coordinate
-    /// - \param color Fill color
+    /// - \param color Fill colour
     ///
     /// - \return List of affected tile coordinates
     ///

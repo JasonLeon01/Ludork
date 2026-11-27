@@ -36,7 +36,7 @@ lua_glue::Table classFunction(lua_glue::ThisState state,
         const lua_glue::Object base = lua_glue::MakeObject(lua, rawBase);
         if (!base.is<lua_glue::Table>()) {
             throw std::invalid_argument(
-                "Class bases must be finalized class tables or native types");
+                "Class bases must be finalised class tables or native types");
         }
         baseList.add(base);
     }
@@ -92,7 +92,7 @@ lua_glue::Object constructNamed(lua_glue::ThisState state,
         const CallableInfo info = inspectCallable(initializer);
         if (info.parameterNames.empty() && !tableIsEmpty(arguments)) {
             throw std::invalid_argument(
-                "Class initializer exposes no named parameters");
+                "Class initialiser exposes no named parameters");
         }
         values.reserve(info.parameterNames.size());
         for (const std::string& name : info.parameterNames) {

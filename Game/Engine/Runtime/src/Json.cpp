@@ -369,7 +369,7 @@ void writeValue(std::ostream& output, const RuntimeData& value) {
         }
         output.put('}');
     } else {
-        throw std::invalid_argument("Runtime object is not JSON serializable");
+        throw std::invalid_argument("Runtime object is not JSON serialisable");
     }
 }
 
@@ -391,7 +391,7 @@ std::string stringifyJSON(const RuntimeData& value) {
     std::ostringstream output;
     writeValue(output, value);
     if (!output) {
-        throw std::runtime_error("Failed to serialize JSON value");
+        throw std::runtime_error("Failed to serialise JSON value");
     }
     return output.str();
 }

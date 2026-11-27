@@ -77,7 +77,7 @@ public sealed class PluginWorkspace : IEditorPluginRuntime, IDisposable
         if (string.IsNullOrWhiteSpace(projectPath))
             return GlobalHost.Management;
         return (GetProjectHost(projectPath)
-            ?? throw new InvalidOperationException("Project plugins have not been initialized.")).Management;
+            ?? throw new InvalidOperationException("Project plug-ins have not been initialised.")).Management;
     }
 
     public IReadOnlyList<RegisteredPluginMenuCommand> GetMenuCommands(string? projectPath)

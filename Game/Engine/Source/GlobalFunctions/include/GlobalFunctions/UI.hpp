@@ -5,30 +5,30 @@
 BIND_FUNCTION_GROUP(name = "UI")
 
 ////////////////////////////////////////////////////////////
-/// \brief Convert a hexadecimal color string to `sf::Color`
+/// \brief Convert a hexadecimal colour string to `sf::Color`
 ///
 /// Supported input forms are `#RRGGBB`, `$RRGGBB`, `0xRRGGBB`
 /// and `RRGGBBAA`.
 ///
-/// - \param value Hexadecimal color string
+/// - \param value Hexadecimal colour string
 /// - \param alpha Alpha value used when the string does not contain alpha
 ///
-/// - \return Parsed color value
+/// - \return Parsed colour value
 ///
 ////////////////////////////////////////////////////////////
 BIND_FUNCTION(name = "HexColor")
 sf::Color hexColor(const std::string& value, int alpha = 255);
 
 ////////////////////////////////////////////////////////////
-/// \brief Convert an integer color value to `sf::Color`
+/// \brief Convert an integer colour value to `sf::Color`
 ///
 /// The low 24 bits are interpreted as RGB. The high 8 bits
 /// are used as alpha when non-zero, otherwise `alpha` is used.
 ///
-/// - \param value Packed integer color value
+/// - \param value Packed integer colour value
 /// - \param alpha Fallback alpha value
 ///
-/// - \return Parsed color value
+/// - \return Parsed colour value
 ///
 ////////////////////////////////////////////////////////////
 BIND_FUNCTION(name = "HexColor")

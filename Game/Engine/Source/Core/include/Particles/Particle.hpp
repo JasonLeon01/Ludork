@@ -25,7 +25,7 @@ public:
     /// - \param moveFunction Callback executed on each update
     /// - \param countTime Initial accumulated time
     /// - \param inResourcePath Texture resource path
-    /// - \param inInfo Initial particle transform/color state
+    /// - \param inInfo Initial particle transform/colour state
     ///
     ////////////////////////////////////////////////////////////
     BIND_INIT()
@@ -76,7 +76,7 @@ public:
     std::string resourcePath;
 
     ////////////////////////////////////////////////////////////
-    /// \brief Mutable particle transform and color state
+    /// \brief Mutable particle transform and colour state
     ///
     ////////////////////////////////////////////////////////////
     BIND_PROPERTY()
@@ -84,7 +84,7 @@ public:
 
 private:
     ////////////////////////////////////////////////////////////
-    /// \brief Track transform/color changes and schedule geometry update
+    /// \brief Track transform/colour changes and schedule geometry update
     ///
     ////////////////////////////////////////////////////////////
     void checkUpdate();
