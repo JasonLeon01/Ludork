@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <LangVersion>13.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>Ludork.Plugins.OfficialGeneralDataBlueprintExport</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Editor/Ludork.Plugin.Abstractions/Ludork.Plugin.Abstractions.csproj" Private="false" />
+    <ProjectReference Include="../../Editor/Ludork.Plugin.Avalonia/Ludork.Plugin.Avalonia.csproj" Private="false" />
+    <PackageReference Include="Avalonia" Version="12.1.0" ExcludeAssets="runtime" />
+    <None Update="plugin.json;locales/**/*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

@@ -16,6 +16,7 @@ internal sealed class EditorFileSaveBatch
     private static readonly StringComparer pathComparer = OperatingSystem.IsWindows()
         ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
     private readonly Dictionary<string, byte[]> writes = new(pathComparer);
+    private readonly HashSet<string> newFiles = new(pathComparer);
     private readonly Dictionary<string, string> fileWrites = new(pathComparer);
     private readonly HashSet<string> deletions = new(pathComparer);
     private string? recyclePath;
@@ -28,13 +29,21 @@ internal sealed class EditorFileSaveBatch
     public void Write(string path, byte[] content)
     {
         string fullPath = Path.GetFullPath(path);
+        newFiles.Remove(fullPath);
         fileWrites.Remove(fullPath);
         writes[fullPath] = content;
+    }
+
+    public void CreateFile(string path, byte[] content)
+    {
+        Write(path, content);
+        newFiles.Add(Path.GetFullPath(path));
     }
 
     public void WriteFromFile(string path, string source)
     {
         string fullPath = Path.GetFullPath(path);
+        newFiles.Remove(fullPath);
         writes.Remove(fullPath);
         fileWrites[fullPath] = Path.GetFullPath(source);
     }
@@ -271,7 +280,7 @@ internal sealed class EditorFileSaveBatch
                 report(currentPath);
                 verifyFile(write.Key);
                 ensureDirectory(Path.GetDirectoryName(write.Key)!, createdDirectories);
-                replaceFile(write.Value, write.Key, errors);
+                replaceFile(write.Value, write.Key, errors, overwrite: !newFiles.Contains(write.Key));
                 changedFiles.Add(write.Key);
             }
             foreach (string path in deletions.Where(path => !prepared.ContainsKey(path) && !replacedPaths.Contains(path)))
@@ -402,6 +411,8 @@ internal sealed class EditorFileSaveBatch
 
         void verifyFile(string path)
         {
+            if (newFiles.Contains(path) && (File.Exists(path) || Directory.Exists(path) || EditorPathSandbox.IsLink(path)))
+                throw new IOException($"The file already exists: {path}");
             if (canWrite is not null && ProjectDiskSnapshot.ReadFingerprint(path) != expectedFiles.GetValueOrDefault(path))
                 throw new IOException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED") + Environment.NewLine + path);
         }
@@ -487,14 +498,14 @@ internal sealed class EditorFileSaveBatch
         created.Add(path);
     }
 
-    private static void replaceFile(string source, string destination, ICollection<string> errors)
+    private static void replaceFile(string source, string destination, ICollection<string> errors, bool overwrite = true)
     {
         string temporary = createSiblingPath(destination);
         try
         {
             using (FileStream input = new(source, FileMode.Open, FileAccess.Read, FileShare.Read))
                 FilePersistence.WriteDurable(temporary, input.CopyTo);
-            FilePersistence.MoveFile(temporary, destination, true);
+            FilePersistence.MoveFile(temporary, destination, overwrite);
         }
         finally
         {

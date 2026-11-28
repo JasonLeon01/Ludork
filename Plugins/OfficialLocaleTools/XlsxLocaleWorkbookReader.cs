@@ -1,3 +1,4 @@
+using Ludork.Plugin.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -18,6 +19,7 @@ internal static class XlsxLocaleWorkbookReader
 
     public static LocaleWorkbookData Read(
         string workbookPath,
+        PluginLocalizer localizer,
         CancellationToken cancellationToken)
     {
         using FileStream workbookStream = new FileStream(
@@ -75,6 +77,7 @@ internal static class XlsxLocaleWorkbookReader
                 languageMaps,
                 firstLocations,
                 duplicates,
+                localizer,
                 cancellationToken);
             worksheetCount++;
         }
@@ -104,6 +107,7 @@ internal static class XlsxLocaleWorkbookReader
         IDictionary<string, Dictionary<string, string>> languageMaps,
         IDictionary<string, string> firstLocations,
         ICollection<DuplicateLocaleId> duplicates,
+        PluginLocalizer localizer,
         CancellationToken cancellationToken)
     {
         List<SheetRow> rows = ReadRows(
@@ -115,8 +119,7 @@ internal static class XlsxLocaleWorkbookReader
             !headerRow.Cells.TryGetValue(1, out string? firstHeader) ||
             !string.Equals(firstHeader?.Trim(), "ID", StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidDataException(
-                sheetName + ": row 1 must begin with ID and contain a language column.");
+            throw new InvalidDataException(localizer.Format("LOCALE_SHEET_ID_HEADER_REQUIRED", sheetName));
         }
 
         SortedDictionary<int, string> languages = new SortedDictionary<int, string>();
@@ -135,8 +138,7 @@ internal static class XlsxLocaleWorkbookReader
         }
         if (languages.Count == 0)
         {
-            throw new InvalidDataException(
-                sheetName + ": row 1 must contain at least one language column.");
+            throw new InvalidDataException(localizer.Format("LOCALE_SHEET_LANGUAGE_HEADER_REQUIRED", sheetName));
         }
 
         foreach (SheetRow row in rows.Where(row => row.Number > 1))

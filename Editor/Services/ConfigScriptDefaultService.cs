@@ -1,12 +1,13 @@
 using Ludork.Models;
+using Ludork.Plugin.Abstractions;
 using MoonSharp.Interpreter;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
-using Token = Ludork.Services.LuaSourceTokens.Token;
-using TokenKind = Ludork.Services.LuaSourceTokens.TokenKind;
+using Token = Ludork.Plugin.Abstractions.LuaSourceTokens.Token;
+using TokenKind = Ludork.Plugin.Abstractions.LuaSourceTokens.TokenKind;
 
 namespace Ludork.Services;
 

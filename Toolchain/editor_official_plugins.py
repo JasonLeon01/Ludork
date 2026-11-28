@@ -20,6 +20,7 @@ OFFICIAL_PLUGIN_DIRECTORIES = (
     "OfficialRandomMap",
     "OfficialMotaMapFill",
     "OfficialResourceCleanup",
+    "OfficialGeneralDataBlueprintExport",
 )
 
 EXCLUDED_DIRECTORY_NAMES = frozenset(

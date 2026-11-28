@@ -111,7 +111,10 @@ public partial class App
             owner is MainWindow cleanupWindow
                 ? cleanupWindow.CreateResourceCleanupHost()
                 : null,
-            CancellationToken.None);
+            CancellationToken.None)
+        {
+            BlueprintWorkspace = (owner as MainWindow)?.CreatePluginBlueprintWorkspace(),
+        };
         await executePluginOperationAsync(
             owner,
             userInterface,

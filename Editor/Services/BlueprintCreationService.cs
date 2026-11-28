@@ -82,6 +82,22 @@ public sealed class BlueprintCreationService
             }
         }
 
+        JsonObject blueprint = new()
+        {
+            ["parent"] = parent,
+            ["attrs"] = attrs,
+            ["graph"] = CreateInitialGraph(metadataService, classResolver, parent),
+        };
+        bool created = gameData.Blueprints.CreateBlueprint(key, blueprint);
+        return new BlueprintCreationResult(
+            created,
+            key,
+            created ? BlueprintCreationFailure.None : BlueprintCreationFailure.AlreadyExists);
+    }
+
+    internal static JsonObject CreateInitialGraph(LuaMetadataService metadataService,
+        BlueprintClassResolver classResolver, string parent)
+    {
         BlueprintNodeDefinitionCatalog catalog = new(metadataService, classResolver);
         JsonObject nodeGraph = [];
         JsonObject startNodes = [];
@@ -91,21 +107,7 @@ public sealed class BlueprintCreationService
             nodeGraph[parentEvent.MemberName] = initial.EventGraph;
             startNodes[parentEvent.MemberName] = initial.StartNode?.DeepClone();
         }
-        JsonObject blueprint = new()
-        {
-            ["parent"] = parent,
-            ["attrs"] = attrs,
-            ["graph"] = new JsonObject
-            {
-                ["nodeGraph"] = nodeGraph,
-                ["startNodes"] = startNodes,
-            },
-        };
-        bool created = gameData.Blueprints.CreateBlueprint(key, blueprint);
-        return new BlueprintCreationResult(
-            created,
-            key,
-            created ? BlueprintCreationFailure.None : BlueprintCreationFailure.AlreadyExists);
+        return new JsonObject { ["nodeGraph"] = nodeGraph, ["startNodes"] = startNodes };
     }
 
     private bool isValidParent(string parentClass)

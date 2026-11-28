@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "Ludork.OfficialGeneralDataBlueprintExport",
+  "name": "Official General Data Blueprint Export",
+  "version": "1.0.0",
+  "minimumEditorVersion": "1.0.0",
+  "entryType": "Ludork.Plugins.OfficialGeneralDataBlueprintExport.OfficialGeneralDataBlueprintExportPlugin"
+}

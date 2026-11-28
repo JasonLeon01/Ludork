@@ -1,3 +1,4 @@
+-- @general-data-blueprint {"type":"Item","parent":"Source.MapActors.Item","memberField":"ID"}
 local Engine = require("Engine")
 local ConditionalActor = require("Source.MapActors.ConditionalActor")
 local Data = require("Source.Data")

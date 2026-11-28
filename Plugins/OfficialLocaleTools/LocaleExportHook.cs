@@ -27,7 +27,7 @@ internal sealed class LocaleExportHook : IProjectExportHook
         SortedSet<string> outputPaths = new SortedSet<string>(StringComparer.Ordinal);
         if (File.Exists(workbookPath))
         {
-            LocaleWorkbookData workbook = XlsxLocaleWorkbookReader.Read(workbookPath, CancellationToken.None);
+            LocaleWorkbookData workbook = XlsxLocaleWorkbookReader.Read(workbookPath, _localizer, CancellationToken.None);
             foreach (string language in workbook.Languages.Keys)
                 outputPaths.Add(LocaleProjectPaths.OutputRelativeDirectory + "/" + LocaleExporter.GetFileName(language));
         }
@@ -57,7 +57,7 @@ internal sealed class LocaleExportHook : IProjectExportHook
         {
             LocaleExportResult result = await Task.Run(
                 () => LocaleExporter.Export(
-                    workbookPath,
+                    XlsxLocaleWorkbookReader.Read(workbookPath, _localizer, context.CancellationToken),
                     outputDirectory,
                     context.CancellationToken),
                 context.CancellationToken).ConfigureAwait(false);

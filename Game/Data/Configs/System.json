@@ -69,7 +69,7 @@
     "ext": [
       ".json"
     ],
-    "value": "Actors/BP_Actor_Braver.json"
+    "value": "Players/BP_Bravor.json"
   },
   "startRegion": {
     "type": "string",

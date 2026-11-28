@@ -1,3 +1,4 @@
+-- @general-data-blueprint {"type":"Player","parent":"Source.MapActors.Player","memberField":"ID"}
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local PlayerChangeKind = require("Enums.PlayerChangeKind")

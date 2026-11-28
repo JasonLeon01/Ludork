@@ -1,3 +1,4 @@
+-- @general-data-blueprint {"type":"Enemy","parent":"Source.MapActors.Enemy","memberField":"ID"}
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")

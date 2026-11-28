@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Ludork.Services;
+namespace Ludork.Plugin.Abstractions;
 
-internal static class LuaIdentifier
+public static class LuaIdentifier
 {
     private static readonly HashSet<string> keywords = new(StringComparer.Ordinal)
     {

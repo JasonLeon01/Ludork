@@ -26,11 +26,10 @@ internal static class LocaleExporter
     private sealed record PendingLocaleFile(string TemporaryPath, string DestinationPath, IReadOnlyDictionary<string, string> Values);
 
     public static LocaleExportResult Export(
-        string workbookPath,
+        LocaleWorkbookData workbook,
         string outputDirectory,
         CancellationToken cancellationToken)
     {
-        LocaleWorkbookData workbook = XlsxLocaleWorkbookReader.Read(workbookPath, cancellationToken);
         Directory.CreateDirectory(outputDirectory);
 
         List<PendingLocaleFile> pendingFiles = new List<PendingLocaleFile>();

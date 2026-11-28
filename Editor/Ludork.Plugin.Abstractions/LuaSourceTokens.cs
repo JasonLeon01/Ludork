@@ -5,11 +5,12 @@ using System.IO;
 using System.Text;
 using System.Threading;
 
-namespace Ludork.Services;
+namespace Ludork.Plugin.Abstractions;
 
-internal static class LuaSourceTokens
+public static class LuaSourceTokens
 {
-    public static List<Token> Read(string source, CancellationToken token = default)
+    public static List<Token> Read(string source, CancellationToken token = default,
+        Action<int, int>? lineComment = null)
     {
         List<Token> result = [];
         Stack<char> brackets = new();
@@ -30,6 +31,7 @@ internal static class LuaSourceTokens
                     continue;
                 while (position < source.Length && source[position] is not '\r' and not '\n')
                     position++;
+                lineComment?.Invoke(tokenStart, position);
                 continue;
             }
             if (current is '\'' or '"')

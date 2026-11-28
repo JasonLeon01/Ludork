@@ -1,11 +1,12 @@
+using Ludork.Plugin.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using Token = Ludork.Services.LuaSourceTokens.Token;
-using TokenKind = Ludork.Services.LuaSourceTokens.TokenKind;
+using Token = Ludork.Plugin.Abstractions.LuaSourceTokens.Token;
+using TokenKind = Ludork.Plugin.Abstractions.LuaSourceTokens.TokenKind;
 
 namespace Ludork.Services;
 

@@ -271,6 +271,8 @@ public sealed record PluginMenuContext(
     IResourceCleanupHost? ResourceCleanupHost,
     CancellationToken CancellationToken)
 {
+    public IPluginBlueprintWorkspace? BlueprintWorkspace { get; init; }
+
     public PluginMenuContext(
         string? projectPath,
         string editorLanguage,
