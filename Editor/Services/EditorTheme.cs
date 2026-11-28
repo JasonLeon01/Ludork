@@ -10,4 +10,6 @@ public static class EditorTheme
     public static Color Color(string key) => PluginTheme.Color(key);
 
     public static FontFamily FontFamily => PluginTheme.FontFamily;
+
+    public static FontFamily MonoFontFamily => PluginTheme.MonoFontFamily;
 }

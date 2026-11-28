@@ -17,7 +17,7 @@
             </Grid>
         </ControlTemplate>
     </UserControl.Resources>
-    <Grid Background="{DynamicResource Editor.BackgroundBrush}">
+    <Grid Background="{DynamicResource Editor.CanvasBrush}">
         <nodify:NodifyEditor x:Name="Editor"
                              ItemsSource="{Binding Nodes}"
                              SelectedItems="{Binding SelectedNodes}"
@@ -33,15 +33,28 @@
             </nodify:NodifyEditor.Resources>
             <nodify:NodifyEditor.GridLineTemplate>
                 <DataTemplate>
-                    <nodify:LargeGridLine Width="{Binding $parent[nodify:NodifyEditor].Bounds.Width}"
-                                          Height="{Binding $parent[nodify:NodifyEditor].Bounds.Height}"
-                                          OffsetX="{Binding $parent[nodify:NodifyEditor].OffsetX}"
-                                          OffsetY="{Binding $parent[nodify:NodifyEditor].OffsetY}"
-                                          Zoom="{Binding $parent[nodify:NodifyEditor].Zoom}"
-                                          Spacing="32"
-                                          Thickness="0.5"
-                                          Brush="{DynamicResource Editor.HoverBrush}"
-                                          ZIndex="-2" />
+                    <Grid Width="{Binding $parent[nodify:NodifyEditor].Bounds.Width}"
+                          Height="{Binding $parent[nodify:NodifyEditor].Bounds.Height}"
+                          ZIndex="-2">
+                        <nodify:LargeGridLine Width="{Binding $parent[nodify:NodifyEditor].Bounds.Width}"
+                                              Height="{Binding $parent[nodify:NodifyEditor].Bounds.Height}"
+                                              OffsetX="{Binding $parent[nodify:NodifyEditor].OffsetX}"
+                                              OffsetY="{Binding $parent[nodify:NodifyEditor].OffsetY}"
+                                              Zoom="{Binding $parent[nodify:NodifyEditor].Zoom}"
+                                              Spacing="32"
+                                              Thickness="0.5"
+                                              Opacity="0.45"
+                                              Brush="{DynamicResource Editor.BorderSubtleBrush}" />
+                        <nodify:LargeGridLine Width="{Binding $parent[nodify:NodifyEditor].Bounds.Width}"
+                                              Height="{Binding $parent[nodify:NodifyEditor].Bounds.Height}"
+                                              OffsetX="{Binding $parent[nodify:NodifyEditor].OffsetX}"
+                                              OffsetY="{Binding $parent[nodify:NodifyEditor].OffsetY}"
+                                              Zoom="{Binding $parent[nodify:NodifyEditor].Zoom}"
+                                              Spacing="128"
+                                              Thickness="0.8"
+                                              Opacity="0.95"
+                                              Brush="{DynamicResource Editor.BorderSubtleBrush}" />
+                    </Grid>
                 </DataTemplate>
             </nodify:NodifyEditor.GridLineTemplate>
             <nodify:NodifyEditor.ConnectionTemplate>
@@ -103,7 +116,7 @@
                                   MinWidth="190">
                                 <Border IsVisible="{Binding IsInactiveEntry}" Width="300" Height="64" Padding="10,7"
                                         Grid.ColumnSpan="2" Margin="0,-76,0,0" VerticalAlignment="Top"
-                                        HorizontalAlignment="Left" CornerRadius="7"
+                                        HorizontalAlignment="Left" CornerRadius="{DynamicResource Editor.RadiusMd}"
                                         BorderThickness="1" BorderBrush="{DynamicResource Editor.TextMutedBrush}"
                                         Background="{DynamicResource Editor.SurfaceBrush}">
                                     <TextBlock Text="{Binding EntryNotice}" TextWrapping="Wrap"
@@ -114,13 +127,20 @@
                                            FontWeight="SemiBold"
                                            TextTrimming="CharacterEllipsis"
                                            VerticalAlignment="Center" />
-                                <TextBlock Grid.Column="1"
-                                           Text="!"
-                                           IsVisible="{Binding IsUnresolved}"
-                                           Foreground="{DynamicResource Editor.ErrorBrush}"
-                                           FontWeight="Bold"
-                                           Margin="8,0,0,0"
-                                           VerticalAlignment="Center" />
+                                <Border Grid.Column="1"
+                                        IsVisible="{Binding IsUnresolved}"
+                                        Width="16" Height="16"
+                                        CornerRadius="8"
+                                        Background="{DynamicResource Editor.ErrorBrush}"
+                                        Margin="8,0,0,0"
+                                        VerticalAlignment="Center">
+                                    <TextBlock Text="!"
+                                               Foreground="{DynamicResource Editor.TextOnAccentBrush}"
+                                               FontSize="11"
+                                               FontWeight="Bold"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center" />
+                                </Border>
                             </Grid>
                         </nodify:Node.Header>
                         <nodify:Node.InputConnectorTemplate>
@@ -165,6 +185,6 @@
         </nodify:NodifyEditor>
         <TextBlock x:Name="SearchError" IsVisible="False" IsHitTestVisible="False"
                    VerticalAlignment="Top" Margin="12" TextWrapping="Wrap"
-                   Foreground="OrangeRed" />
+                   Foreground="{DynamicResource Editor.ErrorBrush}" />
     </Grid>
 </UserControl>

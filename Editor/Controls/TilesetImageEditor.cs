@@ -142,7 +142,7 @@ public sealed class TilesetImageEditor : Control, IDisposable
 
     public override void Render(DrawingContext context)
     {
-        context.FillRectangle(new SolidColorBrush(Color.FromRgb(30, 30, 30)), Bounds);
+        context.FillRectangle(Ludork.Services.EditorTheme.Brush("Canvas"), Bounds);
         if (image is null)
             return;
         Rect imageBounds = new(0, 0, image.PixelSize.Width, image.PixelSize.Height);

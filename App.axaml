@@ -35,7 +35,7 @@
                                              BaseHigh="{StaticResource Editor.TextColor}"
                                              BaseMedium="{StaticResource Editor.TextMutedColor}"
                                              ChromeLow="{StaticResource Editor.SurfaceColor}"
-                                             ChromeMediumLow="{StaticResource Editor.SurfaceColor}"
+                                             ChromeMediumLow="{StaticResource Editor.SurfaceElevatedColor}"
                                              ChromeHigh="{StaticResource Editor.InputColor}"
                                              ErrorText="{StaticResource Editor.ErrorColor}" />
             </fluent:FluentTheme.Palettes>

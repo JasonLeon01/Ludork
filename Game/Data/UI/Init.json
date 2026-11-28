@@ -196,7 +196,7 @@
           {
             "name": "SplashBackground",
             "controlId": "Engine.SolidRect",
-            "properties": { "fillColor": [72, 72, 72, 255] },
+            "properties": { "fillColor": [24, 27, 34, 255] },
             "slot": {
               "anchors": { "min": [0, 0], "max": [1, 1] },
               "offsets": { "left": 0, "top": 0, "right": 0, "bottom": 0 },

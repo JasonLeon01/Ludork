@@ -13,6 +13,8 @@ public static class PluginTheme
 
     public static FontFamily FontFamily => Resource<FontFamily>("Editor.FontFamily");
 
+    public static FontFamily MonoFontFamily => Resource<FontFamily>("Editor.MonoFontFamily");
+
     private static T Resource<T>(string key)
     {
         Application? application = Application.Current;

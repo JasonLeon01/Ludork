@@ -57,9 +57,19 @@ public sealed class ParticleOverviewWindow : Window
         sidebar.Children.Add(search);
         sidebar.Children.Add(add);
         sidebar.Children.Add(resources);
+        Border sidebarContainer = new()
+        {
+            Background = EditorTheme.Brush("Surface"),
+            Child = sidebar,
+        };
         Grid root = new() { ColumnDefinitions = new ColumnDefinitions("220,5,*") };
-        root.Children.Add(sidebar);
-        GridSplitter splitter = new() { Width = 5, HorizontalAlignment = HorizontalAlignment.Stretch };
+        root.Children.Add(sidebarContainer);
+        GridSplitter splitter = new()
+        {
+            Width = 5,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            ResizeDirection = GridResizeDirection.Columns,
+        };
         Grid.SetColumn(splitter, 1);
         root.Children.Add(splitter);
         EditorLayoutService.BindColumns(root, splitter, "ParticleOverview.Columns", 0, 2);

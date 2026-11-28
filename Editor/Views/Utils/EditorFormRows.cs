@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Ludork.Services;
 
 namespace Ludork.Views.Utils;
 
@@ -16,6 +17,7 @@ internal static class EditorFormRows
         row.Children.Add(new TextBlock
         {
             Text = label,
+            Foreground = EditorTheme.Brush("TextMuted"),
             VerticalAlignment = VerticalAlignment.Center,
             TextWrapping = TextWrapping.Wrap,
         });

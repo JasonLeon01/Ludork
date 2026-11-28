@@ -43,7 +43,14 @@ internal sealed class TilesetEditorTab : Grid
         dataList.AddHandler(KeyDownEvent, onListKeyDown, RoutingStrategies.Tunnel);
         dataList.AddHandler(ContextRequestedEvent, onListContextRequested, RoutingStrategies.Tunnel);
 
-        Children.Add(dataList);
+        Border listPane = new()
+        {
+            Background = EditorTheme.Brush("Surface"),
+            BorderBrush = EditorTheme.Brush("BorderSubtle"),
+            BorderThickness = new Thickness(0, 0, 1, 0),
+            Child = dataList,
+        };
+        Children.Add(listPane);
         Grid.SetColumn(detail, 1);
         Children.Add(detail);
         refreshList();

@@ -2,17 +2,23 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="Ludork.Views.Utils.AlertDialog"
         Width="440"
-        Height="180"
+        MinHeight="150"
+        MaxHeight="420"
+        SizeToContent="Height"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource Editor.BackgroundBrush}"
         FontFamily="{DynamicResource Editor.FontFamily}"
         Icon="/Editor/Assets/icon.ico">
-    <Grid Margin="24" RowDefinitions="*,Auto">
-        <TextBlock x:Name="MessageText" TextWrapping="Wrap" VerticalAlignment="Center" />
-        <Button x:Name="ConfirmButton"
-                Grid.Row="1"
-                HorizontalAlignment="Right"
-                Click="onConfirm" />
+    <Grid RowDefinitions="*,Auto">
+        <ScrollViewer Grid.Row="0" Margin="24,20" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <TextBlock x:Name="MessageText" TextWrapping="Wrap" VerticalAlignment="Center" />
+        </ScrollViewer>
+        <Border Grid.Row="1" Classes="editor-panel-footer" Padding="20,12">
+            <Button x:Name="ConfirmButton"
+                    Classes="dialog accent"
+                    HorizontalAlignment="Right"
+                    Click="onConfirm" />
+        </Border>
     </Grid>
 </Window>

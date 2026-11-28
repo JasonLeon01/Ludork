@@ -4,7 +4,7 @@
              xmlns:vm="clr-namespace:Ludork.ViewModels.Materials"
              xmlns:local="clr-namespace:Ludork.Controls"
              x:Class="Ludork.Controls.MaterialGraphControl"
-             x:DataType="vm:MaterialGraphViewModel" Focusable="True" Background="{DynamicResource Editor.BackgroundBrush}">
+             x:DataType="vm:MaterialGraphViewModel" Focusable="True" Background="{DynamicResource Editor.CanvasBrush}">
     <nodify:NodifyEditor x:Name="Editor" ItemsSource="{Binding Nodes}"
                          SelectedItems="{Binding SelectedNodes}" Connections="{Binding Connections}"
                          PendingConnection="{Binding PendingConnection}"
@@ -12,12 +12,23 @@
         <nodify:NodifyEditor.ViewTranslateTransform><TranslateTransform /></nodify:NodifyEditor.ViewTranslateTransform>
         <nodify:NodifyEditor.GridLineTemplate>
             <DataTemplate>
-                <nodify:LargeGridLine Width="{Binding $parent[nodify:NodifyEditor].Bounds.Width}"
-                    Height="{Binding $parent[nodify:NodifyEditor].Bounds.Height}"
-                    OffsetX="{Binding $parent[nodify:NodifyEditor].OffsetX}"
-                    OffsetY="{Binding $parent[nodify:NodifyEditor].OffsetY}"
-                    Zoom="{Binding $parent[nodify:NodifyEditor].Zoom}" Spacing="32" Thickness="0.5"
-                    Brush="{DynamicResource Editor.HoverBrush}" />
+                <Grid Width="{Binding $parent[nodify:NodifyEditor].Bounds.Width}"
+                      Height="{Binding $parent[nodify:NodifyEditor].Bounds.Height}">
+                    <nodify:LargeGridLine Width="{Binding $parent[nodify:NodifyEditor].Bounds.Width}"
+                        Height="{Binding $parent[nodify:NodifyEditor].Bounds.Height}"
+                        OffsetX="{Binding $parent[nodify:NodifyEditor].OffsetX}"
+                        OffsetY="{Binding $parent[nodify:NodifyEditor].OffsetY}"
+                        Zoom="{Binding $parent[nodify:NodifyEditor].Zoom}" Spacing="32" Thickness="0.5"
+                        Opacity="0.45"
+                        Brush="{DynamicResource Editor.BorderSubtleBrush}" />
+                    <nodify:LargeGridLine Width="{Binding $parent[nodify:NodifyEditor].Bounds.Width}"
+                        Height="{Binding $parent[nodify:NodifyEditor].Bounds.Height}"
+                        OffsetX="{Binding $parent[nodify:NodifyEditor].OffsetX}"
+                        OffsetY="{Binding $parent[nodify:NodifyEditor].OffsetY}"
+                        Zoom="{Binding $parent[nodify:NodifyEditor].Zoom}" Spacing="128" Thickness="0.8"
+                        Opacity="0.95"
+                        Brush="{DynamicResource Editor.BorderSubtleBrush}" />
+                </Grid>
             </DataTemplate>
         </nodify:NodifyEditor.GridLineTemplate>
         <nodify:NodifyEditor.ConnectionTemplate>

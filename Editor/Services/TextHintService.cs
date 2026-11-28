@@ -1,6 +1,5 @@
 using Ludork.Plugin.Abstractions;
 using System;
-using System.IO;
 
 namespace Ludork.Services;
 
@@ -8,7 +7,6 @@ public static class TextHintService
 {
     private static readonly TextHintRefresh refresh = new();
     private static IEditorPluginRuntime? runtime;
-    private static string projectPath = string.Empty;
 
     static TextHintService()
     {
@@ -20,23 +18,15 @@ public static class TextHintService
     public static IEditorPluginRuntime? Runtime => runtime;
     public static ITextHintRefresh Refresh => refresh;
 
-    public static void Configure(IEditorPluginRuntime? pluginRuntime, string? activeProjectPath = null)
+    public static void Configure(IEditorPluginRuntime? pluginRuntime)
     {
         runtime = pluginRuntime;
-        SetProjectPath(activeProjectPath);
-    }
-
-    public static void SetProjectPath(string? activeProjectPath)
-    {
-        projectPath = string.IsNullOrWhiteSpace(activeProjectPath)
-            ? string.Empty
-            : Path.GetFullPath(activeProjectPath);
         Invalidate();
     }
 
-    public static string? Resolve(string? text)
+    public static string? Resolve(string? text, string? projectPath)
     {
-        if (runtime is null || projectPath.Length == 0 || string.IsNullOrWhiteSpace(text))
+        if (runtime is null || string.IsNullOrEmpty(projectPath) || string.IsNullOrWhiteSpace(text))
             return null;
         string token = text.Trim();
         if (!isSingleToken(token))

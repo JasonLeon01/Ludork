@@ -14,7 +14,6 @@ namespace Ludork.ViewModels;
 
 public sealed class MainViewModel : ViewModelBase, IDisposable
 {
-    private string selectedLanguage = LocaleService.CurrentLanguage;
     private bool disposed;
     private EditorDocument? activeDocument;
     private EditorDocument? pendingActorDocument;
@@ -84,6 +83,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             CommonFunctionsCommand, GameVariablesCommand, GeneralDataCommand,
         ];
         ChangeLanguageCommand = new RelayCommand<string>(changeLanguage);
+        LocaleService.LanguageChanged += onLanguageChanged;
         FileExplorers.FileClicked += onExplorerFileClicked;
         FileExplorers.FileOpened += onExplorerFileOpened;
         FileExplorers.FilesChanged += onExplorerFilesChanged;
@@ -147,18 +147,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public IRelayCommand UndoCommand { get; }
     public IRelayCommand RedoCommand { get; }
     public IRelayCommand<string> ChangeLanguageCommand { get; }
-    public string SelectedLanguage
-    {
-        get => selectedLanguage;
-        private set
-        {
-            if (!SetProperty(ref selectedLanguage, value))
-                return;
-            OnPropertyChanged(nameof(IsEnglishLanguage));
-            OnPropertyChanged(nameof(IsChineseLanguage));
-        }
-    }
-
+    public string SelectedLanguage => LocaleService.CurrentLanguage;
     public bool IsEnglishLanguage => string.Equals(SelectedLanguage, "en_GB", StringComparison.Ordinal);
     public bool IsChineseLanguage => string.Equals(SelectedLanguage, "zh_CN", StringComparison.Ordinal);
     public bool IndividualWindow
@@ -268,6 +257,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         if (disposed)
             return;
         disposed = true;
+        LocaleService.LanguageChanged -= onLanguageChanged;
         ProjectSave.PendingInputsChanged -= onModifiedChanged;
         ProjectSave.SavePreparing -= onSavePreparing;
         GameData.ModifiedChanged -= onModifiedChanged;
@@ -462,9 +452,15 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             || string.Equals(SelectedLanguage, language, StringComparison.Ordinal)
             || !LocaleService.SetLanguage(language))
             return;
-        SelectedLanguage = language;
-        MapWorkspace.refreshMaps();
         LanguageChangeRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void onLanguageChanged(object? sender, EventArgs args)
+    {
+        OnPropertyChanged(nameof(SelectedLanguage));
+        OnPropertyChanged(nameof(IsEnglishLanguage));
+        OnPropertyChanged(nameof(IsChineseLanguage));
+        MapWorkspace.refreshMaps();
     }
 
     public string File => LocaleService.Get("FILE");
@@ -472,7 +468,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public string OpenProject => LocaleService.Get("OPEN_PROJECT");
     public string Save => LocaleService.Get("SAVE");
     public string PackProject => LocaleService.Get("PACK_PROJECT");
-    public string Exit => LocaleService.Get("EXIT");
+    public string CloseWindow => LocaleService.Get("CLOSE_WINDOW");
+    public string QuitApplication => LocaleService.Get("QUIT_LUDORK");
     public string Plugins => LocaleService.Get("PLUGINS");
     public string ImportPlugin => LocaleService.Get("IMPORT_PLUGIN");
     public string ManagePlugins => LocaleService.Get("MANAGE_PLUGINS");

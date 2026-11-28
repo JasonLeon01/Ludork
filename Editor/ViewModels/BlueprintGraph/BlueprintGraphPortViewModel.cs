@@ -66,7 +66,7 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
     public bool IsExecution => Model.Kind == BlueprintGraphPortKind.Exec;
     public bool IsData => !IsExecution;
     public IBrush ConnectorFill => IsConnected ? Brush : Brushes.Transparent;
-    public IBrush Brush => HasInputError || Model.ValueDiagnostic is not null ? Brushes.OrangeRed
+    public IBrush Brush => HasInputError || Model.ValueDiagnostic is not null ? Ludork.Services.EditorTheme.Brush("Error")
         : Model.Kind == BlueprintGraphPortKind.Exec ? BlueprintGraphBrushes.Execution : BlueprintGraphBrushes.Parameter;
 
     public void SetPlainTextInputs(bool enabled, BlueprintParameterTextDraft? draft = null)

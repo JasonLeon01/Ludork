@@ -42,19 +42,20 @@
         <Border x:Name="SourcesPane" Grid.Column="0" Grid.RowSpan="3"
                 MinWidth="36"
                 Background="{DynamicResource Editor.SurfaceBrush}"
-                BorderBrush="{DynamicResource Editor.BorderBrush}"
+                BorderBrush="{DynamicResource Editor.BorderSubtleBrush}"
                 BorderThickness="0,0,1,0">
             <Grid RowDefinitions="36,*">
-                <ToggleButton x:Name="SourcesButton"
-                              Grid.Row="0"
-                              HorizontalAlignment="Left"
-                              Margin="3"
-                              IsChecked="{Binding IsSourcesExpanded, Mode=TwoWay}"
-                              Classes="toolbar"
-                              ToolTip.Tip="{Binding SourcesToggleHint}"
-                              AutomationProperties.Name="{Binding SourcesToggleHint}">
-                    <Image Source="{StaticResource EditorImage.ChevronRight}" />
-                </ToggleButton>
+                <Border Grid.Row="0" Classes="editor-panel-header">
+                    <ToggleButton x:Name="SourcesButton"
+                                  HorizontalAlignment="Left"
+                                  Margin="3"
+                                  IsChecked="{Binding IsSourcesExpanded, Mode=TwoWay}"
+                                  Classes="toolbar"
+                                  ToolTip.Tip="{Binding SourcesToggleHint}"
+                                  AutomationProperties.Name="{Binding SourcesToggleHint}">
+                        <Image Source="{StaticResource EditorImage.ChevronRight}" />
+                    </ToggleButton>
+                </Border>
                 <ListBox x:Name="RootEntries"
                          Grid.Row="1"
                          Width="143"
@@ -77,7 +78,8 @@
                 </ListBox>
             </Grid>
         </Border>
-        <Grid Grid.Row="0" Grid.Column="1" ColumnDefinitions="Auto,Auto,*,160,Auto,Auto,Auto" ColumnSpacing="4" Margin="2">
+        <Border Grid.Row="0" Grid.Column="1" Classes="editor-panel-header">
+        <Grid ColumnDefinitions="Auto,Auto,*,160,Auto,Auto,Auto" ColumnSpacing="4" Margin="4,2">
             <Button Grid.Column="0" Classes="toolbar" Click="onBack" IsEnabled="{Binding CanGoBack}"
                     ToolTip.Tip="{Binding BackLabel}" AutomationProperties.Name="{Binding BackLabel}">
                 <Image Source="{StaticResource EditorImage.ChevronRight}" RenderTransform="rotate(180deg)" />
@@ -102,10 +104,10 @@
                                        IsVisible="{Binding ShowSeparator}"
                                        VerticalAlignment="Center"
                                        Margin="2,0,4,0" />
-                                <Button Content="{Binding Label}"
+                                <Button Classes="breadcrumb"
+                                        Content="{Binding Label}"
                                         CommandParameter="{Binding Path}"
-                                        Click="onBreadcrumbClick"
-                                        Padding="6,2" />
+                                        Click="onBreadcrumbClick" />
                             </StackPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
@@ -113,7 +115,31 @@
             </ScrollViewer>
             <TextBox x:Name="SearchBox" Grid.Column="3"
                      Text="{Binding SearchText, Mode=TwoWay}"
-                     VerticalAlignment="Center" />
+                     VerticalAlignment="Center">
+                <TextBox.InnerLeftContent>
+                    <Viewbox Width="13" Height="13" Margin="8,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                        <Path Data="{StaticResource EditorIcon.Search}"
+                              Stroke="{DynamicResource Editor.TextMutedBrush}"
+                              StrokeThickness="1.5"
+                              StrokeLineCap="Round"
+                              StrokeJoin="Round" />
+                    </Viewbox>
+                </TextBox.InnerLeftContent>
+                <TextBox.InnerRightContent>
+                    <Button Classes="toolbar"
+                            Width="22" Height="22" MinHeight="22" Padding="0" Margin="0,0,3,0"
+                            IsVisible="{Binding IsSearching}"
+                            Focusable="False"
+                            Click="onClearSearch">
+                        <Viewbox Width="10" Height="10">
+                            <Path Data="{StaticResource EditorIcon.Close}"
+                                  Stroke="{DynamicResource Editor.TextMutedBrush}"
+                                  StrokeThickness="1.6"
+                                  StrokeLineCap="Round" />
+                        </Viewbox>
+                    </Button>
+                </TextBox.InnerRightContent>
+            </TextBox>
             <ToggleButton x:Name="ViewModeButton"
                           Grid.Column="4"
                           IsChecked="{Binding IconView, Mode=TwoWay}"
@@ -205,8 +231,10 @@
                 </SplitButton.Flyout>
             </SplitButton>
         </Grid>
-        <Grid x:Name="EntriesSelectionSurface" Grid.Row="1" Grid.Column="1" ClipToBounds="True">
+        </Border>
+        <Grid x:Name="EntriesSelectionSurface" Grid.Row="1" Grid.Column="1" ClipToBounds="True" Background="{DynamicResource Editor.CanvasBrush}">
             <ListBox x:Name="IconEntries"
+                     Background="Transparent"
                      Focusable="True"
                      ItemsSource="{Binding Entries}"
                      SelectionChanged="onEntriesSelectionChanged"
@@ -230,10 +258,13 @@
                                                          Height="{Binding ((vm:FileExplorerViewModel)DataContext).IconSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}"
                                                          Stretch="Uniform"
                                                          HorizontalAlignment="Center" />
-                                <TextBlock Text="*" IsVisible="{Binding IsModified}"
-                                           HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                           FontSize="{Binding ((vm:FileExplorerViewModel)DataContext).ModifiedFontSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}" FontWeight="Bold" Foreground="{DynamicResource Editor.AccentBrush}"
-                                           IsHitTestVisible="False" />
+                                <Ellipse Width="7" Height="7" IsVisible="{Binding IsModified}"
+                                         HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                         Margin="0,0,1,1"
+                                         Fill="{DynamicResource Editor.AccentBrush}"
+                                         Stroke="{DynamicResource Editor.CanvasBrush}"
+                                         StrokeThickness="1"
+                                         IsHitTestVisible="False" />
                             </Grid>
                             <TextBlock Text="{Binding Name}"
                                        TextAlignment="Center"
@@ -253,6 +284,7 @@
                 </ListBox.ItemTemplate>
             </ListBox>
             <ListBox x:Name="ListEntries"
+                     Background="Transparent"
                      Focusable="True"
                      IsVisible="False"
                      ItemsSource="{Binding Entries}"
@@ -287,10 +319,13 @@
                                                          Width="{Binding ((vm:FileExplorerViewModel)DataContext).ListIconSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}"
                                                          Height="{Binding ((vm:FileExplorerViewModel)DataContext).ListIconSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}"
                                                          Stretch="Uniform" />
-                                <TextBlock Text="*" IsVisible="{Binding IsModified}"
-                                           HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                           FontSize="{Binding ((vm:FileExplorerViewModel)DataContext).ModifiedFontSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}" FontWeight="Bold" Foreground="{DynamicResource Editor.AccentBrush}"
-                                           IsHitTestVisible="False" />
+                                <Ellipse Width="7" Height="7" IsVisible="{Binding IsModified}"
+                                         HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                         Margin="0,0,1,1"
+                                         Fill="{DynamicResource Editor.AccentBrush}"
+                                         Stroke="{DynamicResource Editor.CanvasBrush}"
+                                         StrokeThickness="1"
+                                         IsHitTestVisible="False" />
                             </Grid>
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="{Binding Name}" FontSize="{Binding ((vm:FileExplorerViewModel)DataContext).EntryFontSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}" />
@@ -306,28 +341,30 @@
             </ListBox>
             <Canvas IsHitTestVisible="False" ClipToBounds="True">
                 <Border x:Name="EntriesSelectionBox" IsVisible="False"
-                        Background="#338ab4f8" BorderBrush="{DynamicResource Editor.AccentBrush}"
-                        BorderThickness="1" CornerRadius="2" />
+                        Background="{DynamicResource Editor.SelectionFillBrush}" BorderBrush="{DynamicResource Editor.AccentBrush}"
+                        BorderThickness="1" CornerRadius="{DynamicResource Editor.RadiusSm}" />
                 <Border x:Name="DropTargetHighlight" IsVisible="False"
-                        BorderBrush="{DynamicResource Editor.AccentBrush}" BorderThickness="2" CornerRadius="2" />
+                        BorderBrush="{DynamicResource Editor.AccentBrush}" BorderThickness="2" CornerRadius="{DynamicResource Editor.RadiusSm}" />
             </Canvas>
             <Border x:Name="DropTargetHint" IsVisible="False" IsHitTestVisible="False" HorizontalAlignment="Left"
-                    VerticalAlignment="Bottom" Margin="6" Padding="6,3" CornerRadius="2"
-                    Background="{DynamicResource Editor.SurfaceBrush}" BorderBrush="{DynamicResource Editor.AccentBrush}" BorderThickness="1">
+                    VerticalAlignment="Bottom" Margin="6" Padding="6,3" CornerRadius="{DynamicResource Editor.RadiusSm}"
+                    Background="{DynamicResource Editor.SurfaceElevatedBrush}" BorderBrush="{DynamicResource Editor.AccentBrush}" BorderThickness="1">
                 <TextBlock x:Name="DropTargetLabel" TextWrapping="Wrap" />
             </Border>
         </Grid>
-        <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="*,Auto" Margin="8,2">
-            <StackPanel Spacing="2" VerticalAlignment="Center">
-                <TextBlock IsVisible="{Binding IsLoading}" Text="{Binding LoadingLabel}" FontSize="12" Foreground="{DynamicResource Editor.TextMutedBrush}" />
-                <TextBlock Text="{Binding LoadingError}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding LoadingError}" FontSize="12" Foreground="{DynamicResource Editor.TextMutedBrush}" />
-            </StackPanel>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" ToolTip.Tip="{Binding ZoomHint}">
-                <Slider x:Name="ZoomSlider" Width="120" Minimum="50" Maximum="200"
-                        SmallChange="10" LargeChange="25" Value="{Binding Zoom, Mode=TwoWay}"
-                        AutomationProperties.Name="{Binding ZoomHint}" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding ZoomLabel}" Width="38" VerticalAlignment="Center" TextAlignment="Right" />
-            </StackPanel>
-        </Grid>
+        <Border Grid.Row="2" Grid.Column="1" Classes="editor-panel-footer" Padding="8,2">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="2" VerticalAlignment="Center">
+                    <TextBlock IsVisible="{Binding IsLoading}" Text="{Binding LoadingLabel}" FontSize="12" Foreground="{DynamicResource Editor.TextMutedBrush}" />
+                    <TextBlock Text="{Binding LoadingError}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding LoadingError}" FontSize="12" Foreground="{DynamicResource Editor.TextMutedBrush}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" ToolTip.Tip="{Binding ZoomHint}">
+                    <Slider x:Name="ZoomSlider" Width="120" Minimum="50" Maximum="200"
+                            SmallChange="10" LargeChange="25" Value="{Binding Zoom, Mode=TwoWay}"
+                            AutomationProperties.Name="{Binding ZoomHint}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding ZoomLabel}" Width="38" VerticalAlignment="Center" TextAlignment="Right" />
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>

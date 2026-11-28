@@ -28,7 +28,7 @@ internal sealed class PluginCreationDialog : Window
     };
     private readonly TextBlock error = new()
     {
-        Foreground = new SolidColorBrush(Color.Parse("#ef9a9a")),
+        Foreground = EditorTheme.Brush("Error"),
         TextWrapping = TextWrapping.Wrap,
         IsVisible = false,
     };
@@ -67,31 +67,43 @@ internal sealed class PluginCreationDialog : Window
         create.Click += onCreate;
         Button cancel = new() { Content = LocaleService.Get("CANCEL") };
         cancel.Click += (_, _) => Close((string?)null);
+        cancel.Classes.Add("dialog");
+        create.Classes.Add("dialog");
+        create.Classes.Add("accent");
         StackPanel buttons = new()
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Right,
             Spacing = 8,
-            Children = { create, cancel },
+            Children = { cancel, create },
         };
+        Border footer = new()
+        {
+            Padding = new Thickness(20, 12),
+            Child = buttons,
+        };
+        footer.Classes.Add("editor-panel-footer");
         form = new StackPanel
         {
-            Margin = new Thickness(22),
+            Margin = new Thickness(22, 20),
             Spacing = 12,
             Children =
             {
-                new TextBlock { Text = LocaleService.Get("PLUGIN_NAME") },
+                new TextBlock { Text = LocaleService.Get("PLUGIN_NAME"), Foreground = EditorTheme.Brush("TextMuted") },
                 name,
-                new TextBlock { Text = LocaleService.Get("PLUGIN_ID") },
+                new TextBlock { Text = LocaleService.Get("PLUGIN_ID"), Foreground = EditorTheme.Brush("TextMuted") },
                 id,
-                new TextBlock { Text = LocaleService.Get("PLUGIN_TEMPLATE") },
+                new TextBlock { Text = LocaleService.Get("PLUGIN_TEMPLATE"), Foreground = EditorTheme.Brush("TextMuted") },
                 templateChoices,
                 scope,
                 error,
-                buttons,
             },
         };
-        Content = form;
+        Grid root = new() { RowDefinitions = new RowDefinitions("*,Auto") };
+        root.Children.Add(form);
+        Grid.SetRow(footer, 1);
+        root.Children.Add(footer);
+        Content = root;
         Opened += (_, _) => name.Focus();
         Closing += (_, args) => args.Cancel = creating;
         KeyDown += (_, args) =>

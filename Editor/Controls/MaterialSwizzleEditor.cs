@@ -14,7 +14,7 @@ internal sealed class MaterialSwizzleEditor : StackPanel
     private readonly int[] lengths;
     private readonly ComboBox length;
     private readonly StackPanel components = new() { Spacing = 4 };
-    private readonly TextBlock error = new() { Foreground = Brushes.OrangeRed, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock error = new() { Foreground = EditorTheme.Brush("Error"), TextWrapping = TextWrapping.Wrap };
     private readonly Action<JsonNode?, bool> changed;
     private string value;
 

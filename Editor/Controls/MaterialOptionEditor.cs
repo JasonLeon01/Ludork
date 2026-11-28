@@ -26,7 +26,7 @@ internal sealed class MaterialOptionEditor : StackPanel
         TextBlock error = new()
         {
             Text = $"{LocaleService.Get("MATERIAL_INVALID_OPTION")}: {initial}",
-            Foreground = Brushes.OrangeRed,
+            Foreground = Ludork.Services.EditorTheme.Brush("Error"),
             TextWrapping = TextWrapping.Wrap,
             IsVisible = selected is null,
         };

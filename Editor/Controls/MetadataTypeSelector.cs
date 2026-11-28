@@ -33,7 +33,7 @@ public sealed class MetadataTypeSelector : UserControl
     private string? selectedKeyModule;
     private readonly TextBlock itemLabel = new() { VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock kindLabel = new() { Text = "kind", VerticalAlignment = VerticalAlignment.Center };
-    private readonly TextBlock error = new() { Foreground = Brushes.OrangeRed, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock error = new() { Foreground = EditorTheme.Brush("Error"), TextWrapping = TextWrapping.Wrap };
     private string? selectedModule;
     private bool updating;
     private string? readError;

@@ -1,15 +1,23 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Color x:Key="Editor.CanvasColor">#16171A</Color>
+    <SolidColorBrush x:Key="Editor.CanvasBrush" Color="{StaticResource Editor.CanvasColor}" />
     <Color x:Key="Editor.BackgroundColor">#1E1F22</Color>
     <SolidColorBrush x:Key="Editor.BackgroundBrush" Color="{StaticResource Editor.BackgroundColor}" />
-    <Color x:Key="Editor.SurfaceColor">#2B2D30</Color>
+    <Color x:Key="Editor.SurfaceColor">#25272B</Color>
     <SolidColorBrush x:Key="Editor.SurfaceBrush" Color="{StaticResource Editor.SurfaceColor}" />
-    <Color x:Key="Editor.InputColor">#35373B</Color>
+    <Color x:Key="Editor.SurfaceElevatedColor">#2E3136</Color>
+    <SolidColorBrush x:Key="Editor.SurfaceElevatedBrush" Color="{StaticResource Editor.SurfaceElevatedColor}" />
+    <Color x:Key="Editor.InputColor">#32353B</Color>
     <SolidColorBrush x:Key="Editor.InputBrush" Color="{StaticResource Editor.InputColor}" />
-    <Color x:Key="Editor.HoverColor">#35373B</Color>
+    <Color x:Key="Editor.HoverColor">#3C4048</Color>
     <SolidColorBrush x:Key="Editor.HoverBrush" Color="{StaticResource Editor.HoverColor}" />
-    <Color x:Key="Editor.BorderColor">#43454A</Color>
+    <Color x:Key="Editor.BorderSubtleColor">#32353C</Color>
+    <SolidColorBrush x:Key="Editor.BorderSubtleBrush" Color="{StaticResource Editor.BorderSubtleColor}" />
+    <Color x:Key="Editor.BorderColor">#464A52</Color>
     <SolidColorBrush x:Key="Editor.BorderBrush" Color="{StaticResource Editor.BorderColor}" />
+    <Color x:Key="Editor.BorderStrongColor">#5A5F6B</Color>
+    <SolidColorBrush x:Key="Editor.BorderStrongBrush" Color="{StaticResource Editor.BorderStrongColor}" />
     <Color x:Key="Editor.TextColor">#DFE1E5</Color>
     <SolidColorBrush x:Key="Editor.TextBrush" Color="{StaticResource Editor.TextColor}" />
     <Color x:Key="Editor.TextMutedColor">#A8ADB7</Color>
@@ -28,11 +36,19 @@
     <SolidColorBrush x:Key="Editor.TextOnAccentBrush" Color="{StaticResource Editor.TextOnAccentColor}" />
     <Color x:Key="Editor.ErrorColor">#F07878</Color>
     <SolidColorBrush x:Key="Editor.ErrorBrush" Color="{StaticResource Editor.ErrorColor}" />
+    <Color x:Key="Editor.ErrorMutedColor">#4A2528</Color>
+    <SolidColorBrush x:Key="Editor.ErrorMutedBrush" Color="{StaticResource Editor.ErrorMutedColor}" />
     <Color x:Key="Editor.WarningColor">#E2B66E</Color>
     <SolidColorBrush x:Key="Editor.WarningBrush" Color="{StaticResource Editor.WarningColor}" />
+    <Color x:Key="Editor.WarningMutedColor">#4A3B22</Color>
+    <SolidColorBrush x:Key="Editor.WarningMutedBrush" Color="{StaticResource Editor.WarningMutedColor}" />
     <Color x:Key="Editor.SuccessColor">#83C49A</Color>
     <SolidColorBrush x:Key="Editor.SuccessBrush" Color="{StaticResource Editor.SuccessColor}" />
-    <Color x:Key="Editor.OverlayColor">#DD2B2D30</Color>
+    <Color x:Key="Editor.SuccessMutedColor">#213D2E</Color>
+    <SolidColorBrush x:Key="Editor.SuccessMutedBrush" Color="{StaticResource Editor.SuccessMutedColor}" />
+    <Color x:Key="Editor.SelectionFillColor">#334C8DFF</Color>
+    <SolidColorBrush x:Key="Editor.SelectionFillBrush" Color="{StaticResource Editor.SelectionFillColor}" />
+    <Color x:Key="Editor.OverlayColor">#E62E3136</Color>
     <SolidColorBrush x:Key="Editor.OverlayBrush" Color="{StaticResource Editor.OverlayColor}" />
     <Color x:Key="Editor.StandaloneBadgeColor">#244538</Color>
     <SolidColorBrush x:Key="Editor.StandaloneBadgeBrush" Color="{StaticResource Editor.StandaloneBadgeColor}" />
@@ -43,14 +59,18 @@
     <Color x:Key="Editor.SourceBadgeTextColor">#CFB3F4</Color>
     <SolidColorBrush x:Key="Editor.SourceBadgeTextBrush" Color="{StaticResource Editor.SourceBadgeTextColor}" />
     <FontFamily x:Key="Editor.FontFamily">avares://Avalonia.Fonts.Inter/Assets#Inter, avares://Ludork/Editor/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC</FontFamily>
+    <FontFamily x:Key="Editor.MonoFontFamily">Cascadia Mono, Menlo, Monaco, Consolas, monospace</FontFamily>
     <x:Double x:Key="Editor.FontSize">13</x:Double>
     <x:Double x:Key="Editor.CaptionFontSize">12</x:Double>
     <x:Double x:Key="Editor.HeadingFontSize">14</x:Double>
     <x:Double x:Key="Editor.FieldHeight">28</x:Double>
     <x:Double x:Key="Editor.TabHeight">32</x:Double>
     <Thickness x:Key="Editor.FieldPadding">8,0</Thickness>
+    <CornerRadius x:Key="Editor.RadiusSm">4</CornerRadius>
+    <CornerRadius x:Key="Editor.RadiusMd">6</CornerRadius>
+    <CornerRadius x:Key="Editor.RadiusLg">10</CornerRadius>
     <CornerRadius x:Key="ControlCornerRadius">4</CornerRadius>
-    <CornerRadius x:Key="OverlayCornerRadius">4</CornerRadius>
+    <CornerRadius x:Key="OverlayCornerRadius">6</CornerRadius>
     <x:Double x:Key="ControlContentThemeFontSize">13</x:Double>
     <x:Double x:Key="TabItemHeaderFontSize">13</x:Double>
     <x:Double x:Key="TextControlThemeMinHeight">28</x:Double>
@@ -65,24 +85,24 @@
     <Thickness x:Key="MenuFlyoutPresenterBorderThemeThickness">1</Thickness>
     <SolidColorBrush x:Key="SystemControlBackgroundAltHighBrush" Color="{StaticResource Editor.BackgroundColor}" />
     <SolidColorBrush x:Key="SystemControlBackgroundChromeBlackLowBrush" Color="{StaticResource Editor.BackgroundColor}" />
-    <SolidColorBrush x:Key="ListBoxBackground" Color="{StaticResource Editor.BackgroundColor}" />
-    <SolidColorBrush x:Key="TreeViewBackground" Color="{StaticResource Editor.BackgroundColor}" />
+    <SolidColorBrush x:Key="ListBoxBackground" Color="{StaticResource Editor.SurfaceColor}" />
+    <SolidColorBrush x:Key="TreeViewBackground" Color="{StaticResource Editor.SurfaceColor}" />
     <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="{StaticResource Editor.BackgroundColor}" />
     <SolidColorBrush x:Key="SystemControlBackgroundChromeMediumLowBrush" Color="{StaticResource Editor.SurfaceColor}" />
     <SolidColorBrush x:Key="SystemControlBackgroundChromeLowBrush" Color="{StaticResource Editor.SurfaceColor}" />
-    <SolidColorBrush x:Key="SystemControlBackgroundChromeMediumBrush" Color="{StaticResource Editor.SurfaceColor}" />
-    <SolidColorBrush x:Key="MenuFlyoutPresenterBackground" Color="{StaticResource Editor.SurfaceColor}" />
-    <SolidColorBrush x:Key="ToolTipBackground" Color="{StaticResource Editor.SurfaceColor}" />
-    <SolidColorBrush x:Key="FlyoutPresenterBackground" Color="{StaticResource Editor.SurfaceColor}" />
+    <SolidColorBrush x:Key="SystemControlBackgroundChromeMediumBrush" Color="{StaticResource Editor.SurfaceElevatedColor}" />
+    <SolidColorBrush x:Key="MenuFlyoutPresenterBackground" Color="{StaticResource Editor.SurfaceElevatedColor}" />
+    <SolidColorBrush x:Key="ToolTipBackground" Color="{StaticResource Editor.SurfaceElevatedColor}" />
+    <SolidColorBrush x:Key="FlyoutPresenterBackground" Color="{StaticResource Editor.SurfaceElevatedColor}" />
     <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="{StaticResource Editor.SurfaceColor}" />
     <SolidColorBrush x:Key="ComboBoxBackgroundDisabled" Color="{StaticResource Editor.SurfaceColor}" />
     <SolidColorBrush x:Key="TextControlBackground" Color="{StaticResource Editor.InputColor}" />
     <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="{StaticResource Editor.InputColor}" />
     <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="{StaticResource Editor.InputColor}" />
-    <SolidColorBrush x:Key="ButtonBackground" Color="{StaticResource Editor.SurfaceColor}" />
-    <SolidColorBrush x:Key="ToggleButtonBackground" Color="{StaticResource Editor.SurfaceColor}" />
+    <SolidColorBrush x:Key="ButtonBackground" Color="{StaticResource Editor.SurfaceElevatedColor}" />
+    <SolidColorBrush x:Key="ToggleButtonBackground" Color="{StaticResource Editor.SurfaceElevatedColor}" />
     <SolidColorBrush x:Key="ComboBoxBackground" Color="{StaticResource Editor.InputColor}" />
-    <SolidColorBrush x:Key="ComboBoxBackgroundPointerOver" Color="{StaticResource Editor.InputColor}" />
+    <SolidColorBrush x:Key="ComboBoxBackgroundPointerOver" Color="{StaticResource Editor.HoverColor}" />
     <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="{StaticResource Editor.HoverColor}" />
     <SolidColorBrush x:Key="ToggleButtonBackgroundPointerOver" Color="{StaticResource Editor.HoverColor}" />
     <SolidColorBrush x:Key="MenuFlyoutItemBackgroundPointerOver" Color="{StaticResource Editor.HoverColor}" />
@@ -91,16 +111,16 @@
     <SolidColorBrush x:Key="TreeViewItemBackgroundPointerOver" Color="{StaticResource Editor.HoverColor}" />
     <SolidColorBrush x:Key="ComboBoxBackgroundPressed" Color="{StaticResource Editor.HoverColor}" />
     <SolidColorBrush x:Key="ButtonBorderBrush" Color="{StaticResource Editor.BorderColor}" />
-    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="{StaticResource Editor.BorderColor}" />
-    <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="{StaticResource Editor.BorderColor}" />
+    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="{StaticResource Editor.BorderStrongColor}" />
+    <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="{StaticResource Editor.BorderSubtleColor}" />
     <SolidColorBrush x:Key="ToggleButtonBorderBrush" Color="{StaticResource Editor.BorderColor}" />
-    <SolidColorBrush x:Key="ToggleButtonBorderBrushPointerOver" Color="{StaticResource Editor.BorderColor}" />
+    <SolidColorBrush x:Key="ToggleButtonBorderBrushPointerOver" Color="{StaticResource Editor.BorderStrongColor}" />
     <SolidColorBrush x:Key="TextControlBorderBrush" Color="{StaticResource Editor.BorderColor}" />
-    <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="{StaticResource Editor.BorderColor}" />
-    <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="{StaticResource Editor.BorderColor}" />
+    <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="{StaticResource Editor.BorderStrongColor}" />
+    <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="{StaticResource Editor.BorderSubtleColor}" />
     <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="{StaticResource Editor.BorderColor}" />
-    <SolidColorBrush x:Key="ComboBoxBorderBrushPointerOver" Color="{StaticResource Editor.BorderColor}" />
-    <SolidColorBrush x:Key="ComboBoxBorderBrushDisabled" Color="{StaticResource Editor.BorderColor}" />
+    <SolidColorBrush x:Key="ComboBoxBorderBrushPointerOver" Color="{StaticResource Editor.BorderStrongColor}" />
+    <SolidColorBrush x:Key="ComboBoxBorderBrushDisabled" Color="{StaticResource Editor.BorderSubtleColor}" />
     <SolidColorBrush x:Key="MenuFlyoutPresenterBorderBrush" Color="{StaticResource Editor.BorderColor}" />
     <SolidColorBrush x:Key="FlyoutPresenterBorderBrush" Color="{StaticResource Editor.BorderColor}" />
     <SolidColorBrush x:Key="ToolTipBorderBrush" Color="{StaticResource Editor.BorderColor}" />
@@ -186,9 +206,9 @@
     <Thickness x:Key="ExpanderHeaderPadding">8,0</Thickness>
     <Thickness x:Key="ExpanderChevronMargin">4,0,4,0</Thickness>
     <Thickness x:Key="ExpanderContentPadding">8</Thickness>
-    <SolidColorBrush x:Key="ExpanderHeaderBackground" Color="{StaticResource Editor.SurfaceColor}" />
+    <SolidColorBrush x:Key="ExpanderHeaderBackground" Color="{StaticResource Editor.SurfaceElevatedColor}" />
     <SolidColorBrush x:Key="ExpanderHeaderForeground" Color="{StaticResource Editor.TextColor}" />
-    <SolidColorBrush x:Key="ExpanderHeaderBorderBrush" Color="{StaticResource Editor.BorderColor}" />
+    <SolidColorBrush x:Key="ExpanderHeaderBorderBrush" Color="{StaticResource Editor.BorderSubtleColor}" />
     <SolidColorBrush x:Key="ExpanderChevronForeground" Color="{StaticResource Editor.TextMutedColor}" />
     <SolidColorBrush x:Key="ExpanderChevronBackground" Color="Transparent" />
     <SolidColorBrush x:Key="ExpanderChevronBorderBrush" Color="Transparent" />
@@ -206,7 +226,7 @@
     <SolidColorBrush x:Key="ExpanderChevronBorderBrushPressed" Color="Transparent" />
     <SolidColorBrush x:Key="ExpanderHeaderBackgroundDisabled" Color="{StaticResource Editor.SurfaceColor}" />
     <SolidColorBrush x:Key="ExpanderHeaderForegroundDisabled" Color="{StaticResource Editor.TextDisabledColor}" />
-    <SolidColorBrush x:Key="ExpanderHeaderBorderBrushDisabled" Color="{StaticResource Editor.BorderColor}" />
+    <SolidColorBrush x:Key="ExpanderHeaderBorderBrushDisabled" Color="{StaticResource Editor.BorderSubtleColor}" />
     <SolidColorBrush x:Key="ExpanderChevronForegroundDisabled" Color="{StaticResource Editor.TextDisabledColor}" />
     <SolidColorBrush x:Key="ExpanderChevronBackgroundDisabled" Color="Transparent" />
     <SolidColorBrush x:Key="ExpanderChevronBorderBrushDisabled" Color="Transparent" />

@@ -256,7 +256,7 @@ public sealed partial class BlueprintVariableForm
                 }
                 if (next is JsonArray or JsonObject)
                 {
-                    box.BorderBrush = Brushes.OrangeRed;
+                    box.BorderBrush = EditorTheme.Brush("Error");
                     setTransientInput(box, true);
                     return;
                 }
@@ -266,7 +266,7 @@ public sealed partial class BlueprintVariableForm
                 if (!long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out long number)
                     || field.Range is BlueprintVariableRange range && (number < range.Minimum || number > range.Maximum))
                 {
-                    box.BorderBrush = Brushes.OrangeRed;
+                    box.BorderBrush = EditorTheme.Brush("Error");
                     setTransientInput(box, true);
                     return;
                 }
@@ -278,7 +278,7 @@ public sealed partial class BlueprintVariableForm
                     || !double.IsFinite(number)
                     || field.Range is BlueprintVariableRange range && (number < range.Minimum || number > range.Maximum))
                 {
-                    box.BorderBrush = Brushes.OrangeRed;
+                    box.BorderBrush = EditorTheme.Brush("Error");
                     setTransientInput(box, true);
                     return;
                 }

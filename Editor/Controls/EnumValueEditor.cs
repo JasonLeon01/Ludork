@@ -27,7 +27,7 @@ public sealed class EnumValueEditor : StackPanel
         };
         TextBlock diagnostic = new()
         {
-            Foreground = Brushes.OrangeRed,
+            Foreground = EditorTheme.Brush("Error"),
             TextWrapping = TextWrapping.Wrap,
         };
         Spacing = 3;

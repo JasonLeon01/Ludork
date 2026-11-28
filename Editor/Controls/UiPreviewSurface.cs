@@ -58,7 +58,7 @@ public sealed class UiPreviewSurface : UserControl
         RenderOptions.SetBitmapInterpolationMode(image, BitmapInterpolationMode.None);
         selectionBorder = new Border
         {
-            BorderBrush = new SolidColorBrush(Color.Parse("#3DAEE9")),
+            BorderBrush = EditorTheme.Brush("Accent"),
             BorderThickness = new Thickness(1),
             IsHitTestVisible = false,
             IsVisible = false,
@@ -67,7 +67,7 @@ public sealed class UiPreviewSurface : UserControl
         {
             Width = 9,
             Height = 9,
-            Background = new SolidColorBrush(Color.Parse("#3DAEE9")),
+            Background = EditorTheme.Brush("Accent"),
             BorderBrush = Brushes.White,
             BorderThickness = new Thickness(1),
             Cursor = new Cursor(StandardCursorType.BottomRightCorner),
@@ -128,9 +128,9 @@ public sealed class UiPreviewSurface : UserControl
         };
         viewport = new Border
         {
-            Background = Ludork.Services.EditorTheme.Brush("Background"),
-            BorderBrush = EditorTheme.Brush("Border"),
-            BorderThickness = new Thickness(1),
+            Background = EditorTheme.Brush("Canvas"),
+            BorderBrush = EditorTheme.Brush("BorderSubtle"),
+            BorderThickness = new Thickness(0),
             ClipToBounds = true,
             Child = viewportContent,
         };
@@ -536,7 +536,7 @@ public sealed class UiPreviewSurface : UserControl
     {
         return new Border
         {
-            Background = new SolidColorBrush(Color.Parse("#3DAEE9")),
+            Background = EditorTheme.Brush("Accent"),
             Opacity = 0.45,
             IsHitTestVisible = false,
             IsVisible = false,

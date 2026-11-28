@@ -17,10 +17,22 @@ public sealed partial class MaterialWindow
 {
     private Control buildParameterPane()
     {
-        Grid pane = new() { RowDefinitions = new RowDefinitions("Auto,2*,5,3*,Auto") };
+        Grid pane = new()
+        {
+            RowDefinitions = new RowDefinitions("Auto,2*,5,3*,Auto"),
+            Background = EditorTheme.Brush("Surface"),
+        };
         pane.RowDefinitions[1].MinHeight = 80;
         pane.RowDefinitions[3].MinHeight = 100;
-        pane.Children.Add(new TextBlock { Text = LocaleService.Get("MATERIAL_PARAMETERS"), FontSize = 18, Margin = new Thickness(12) });
+        Border header = new()
+        {
+            Background = EditorTheme.Brush("SurfaceElevated"),
+            BorderBrush = EditorTheme.Brush("BorderSubtle"),
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Padding = new Thickness(12, 8),
+            Child = new TextBlock { Text = LocaleService.Get("MATERIAL_PARAMETERS"), FontSize = 14, FontWeight = FontWeight.SemiBold },
+        };
+        pane.Children.Add(header);
         parameterList.SelectionChanged += (_, _) =>
         {
             if (refreshingParameters)
@@ -41,7 +53,7 @@ public sealed partial class MaterialWindow
         GridSplitter splitter = new()
         {
             Height = 5, HorizontalAlignment = HorizontalAlignment.Stretch,
-            ResizeDirection = GridResizeDirection.Rows, Background = EditorTheme.Brush("Border"),
+            ResizeDirection = GridResizeDirection.Rows,
         };
         Grid.SetRow(splitter, 2);
         pane.Children.Add(splitter);

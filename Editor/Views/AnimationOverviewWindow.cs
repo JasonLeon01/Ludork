@@ -43,7 +43,14 @@ public sealed class AnimationOverviewWindow : Window
 
         Grid root = new() { ColumnDefinitions = new ColumnDefinitions("240,*") };
         animationList.SelectionChanged += (_, _) => select(animationList.SelectedItem as string);
-        root.Children.Add(animationList);
+        Border listPane = new()
+        {
+            Background = EditorTheme.Brush("Surface"),
+            BorderBrush = EditorTheme.Brush("BorderSubtle"),
+            BorderThickness = new Thickness(0, 0, 1, 0),
+            Child = animationList,
+        };
+        root.Children.Add(listPane);
         Grid.SetColumn(editorHost, 1);
         root.Children.Add(editorHost);
         Content = DeferredWindowInitializer.CreateLoadingContent();

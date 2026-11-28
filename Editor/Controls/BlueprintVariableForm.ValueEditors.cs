@@ -127,7 +127,7 @@ public sealed partial class BlueprintVariableForm
             if (!double.TryParse(input.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out double next)
                 || !double.IsFinite(next) || Math.Abs(next) > limit)
             {
-                input.BorderBrush = Brushes.OrangeRed;
+                input.BorderBrush = EditorTheme.Brush("Error");
                 setTransientInput(input, true);
                 return;
             }
@@ -213,7 +213,7 @@ public sealed partial class BlueprintVariableForm
                 JsonNode? parsed = JsonNode.Parse(current);
                 if (parsed is not null and not JsonArray)
                 {
-                    box.BorderBrush = new SolidColorBrush(Color.Parse("#c65353"));
+                    box.BorderBrush = EditorTheme.Brush("Error");
                     setTransientInput(box, true);
                     return;
                 }
@@ -223,7 +223,7 @@ public sealed partial class BlueprintVariableForm
             }
             catch (JsonException)
             {
-                box.BorderBrush = new SolidColorBrush(Color.Parse("#c65353"));
+                box.BorderBrush = EditorTheme.Brush("Error");
                 setTransientInput(box, true);
             }
         };
@@ -614,7 +614,7 @@ public sealed partial class BlueprintVariableForm
     }
 
     private ProjectAssetPaths? currentAssetPaths => HistoryGameData?.AssetPaths
-        ?? FileSelectorDialog.FindProject(TopLevel.GetTopLevel(this) as Window)?.GameData.AssetPaths;
+        ?? ProjectWindowContext.Find(this)?.GameData.AssetPaths;
 
     private bool tryResolveAssetDirectory(string? reference, out string directory)
     {

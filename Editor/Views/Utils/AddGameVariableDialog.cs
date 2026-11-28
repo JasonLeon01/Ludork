@@ -45,7 +45,7 @@ public sealed class AddGameVariableDialog : Window
         typeBox.SelectedIndex = 0;
         errorText = new TextBlock
         {
-            Foreground = new SolidColorBrush(Color.Parse("#c85050")),
+            Foreground = EditorTheme.Brush("Error"),
             TextWrapping = TextWrapping.Wrap,
         };
 

@@ -29,7 +29,7 @@ internal sealed class ExternalChangesCoordinator : IDisposable
         this.owner = owner;
         this.session = session;
         activeWindow = owner;
-        saveCheck = checkAsync;
+        saveCheck = () => checkAsync(true);
         session.ProjectSave.SessionExternalChangeCheck = session.ProjectSave.ExternalChangeCheck = saveCheck;
         session.EditOperations.Changed += onEditOperationChanged;
         activationSubscription = Window.IsActiveProperty.Changed.AddClassHandler<Window>((window, _) =>
@@ -64,12 +64,13 @@ internal sealed class ExternalChangesCoordinator : IDisposable
         Dispatcher.UIThread.Post(async () =>
         {
             queued = false;
-            if (requested && !disposed && !session.EditOperations.IsBusy)
-                await checkAsync();
+            if (requested && !disposed && activeWindow.IsActive && !session.EditOperations.IsBusy
+                && owner is not MainWindow { IsClosingProject: true } && Application.Current is not App { IsQuitRequested: true })
+                await checkAsync(false);
         }, DispatcherPriority.Background);
     }
 
-    private async Task<bool> checkAsync()
+    private async Task<bool> checkAsync(bool showProgress)
     {
         if (disposed || running || session.EditOperations.IsBusy)
             return false;
@@ -85,7 +86,7 @@ internal sealed class ExternalChangesCoordinator : IDisposable
                         changes => EditorEditWorkflow.RunInteractionAsync(progress, dialogOwner,
                             window => ExternalChangesDialog.ShowAsync(window, changes, session.ProjectPath)),
                         cancellation.Token, progress);
-                }, false);
+                }, false, showProgress);
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {

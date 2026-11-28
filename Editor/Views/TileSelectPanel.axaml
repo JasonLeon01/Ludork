@@ -31,60 +31,71 @@
         </Style>
     </UserControl.Styles>
 
-    <Grid RowDefinitions="48,Auto,*" RowSpacing="4">
-        <ListBox x:Name="AutoTileList" Grid.Row="0"
-                 Classes="autoTiles"
-                 Height="48"
-                 Padding="0,4"
-                 Opacity="{Binding SelectionOpacity}"
-                 IsEnabled="{Binding IsLayerSelected}"
-                 ItemsSource="{Binding AutoTiles}"
-                 SelectedItem="{Binding SelectedAutoTile, Mode=TwoWay}"
-                 SelectionMode="Single"
-                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                 ScrollViewer.VerticalScrollBarVisibility="Disabled">
-            <ListBox.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <StackPanel Orientation="Horizontal" Spacing="2" />
-                </ItemsPanelTemplate>
-            </ListBox.ItemsPanel>
-            <ListBox.ItemTemplate>
-                <DataTemplate x:DataType="vm:AutoTileItemViewModel">
-                    <controls:AutoTilePreview Width="32"
-                                              Height="{DynamicResource Editor.TabHeight}"
-                                              CellSize="32"
-                                              AssetPaths="{Binding AssetPaths}"
-                                              AssetPath="{Binding AssetPath}"
-                                              ToolTip.Tip="{Binding Key}" />
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+    <Border Classes="editor-panel">
+        <Grid RowDefinitions="Auto,Auto,*">
+            <Border Grid.Row="0"
+                    Background="{DynamicResource Editor.SurfaceBrush}"
+                    BorderBrush="{DynamicResource Editor.BorderSubtleBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="4,0">
+                <ListBox x:Name="AutoTileList"
+                         Classes="autoTiles"
+                         Height="48"
+                         Padding="0,4"
+                         Opacity="{Binding SelectionOpacity}"
+                         IsEnabled="{Binding IsLayerSelected}"
+                         ItemsSource="{Binding AutoTiles}"
+                         SelectedItem="{Binding SelectedAutoTile, Mode=TwoWay}"
+                         SelectionMode="Single"
+                         ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                         ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="2" />
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:AutoTileItemViewModel">
+                            <controls:AutoTilePreview Width="32"
+                                                      Height="{DynamicResource Editor.TabHeight}"
+                                                      CellSize="32"
+                                                      AssetPaths="{Binding AssetPaths}"
+                                                      AssetPath="{Binding AssetPath}"
+                                                      ToolTip.Tip="{Binding Key}" />
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Border>
 
-        <ScrollViewer Grid.Row="1"
-                      Classes="no-auto-hide"
-                      HorizontalScrollBarVisibility="Auto"
-                      VerticalScrollBarVisibility="Disabled">
-            <TabStrip Classes="tilesetTabs"
-                      Height="{DynamicResource Editor.TabHeight}"
-                      HorizontalAlignment="Left"
-                      ItemsSource="{Binding Tilesets}"
-                      SelectedItem="{Binding SelectedTileset, Mode=TwoWay}">
-                <TabStrip.ItemTemplate>
-                    <DataTemplate x:DataType="vm:TilesetTabViewModel">
-                        <TextBlock Text="{Binding Name}"
-                                   TextTrimming="CharacterEllipsis"
-                                   ToolTip.Tip="{Binding Key}" />
-                    </DataTemplate>
-                </TabStrip.ItemTemplate>
-            </TabStrip>
-        </ScrollViewer>
+            <Border Grid.Row="1" Classes="editor-panel-header">
+                <ScrollViewer Classes="no-auto-hide"
+                              HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Disabled">
+                    <TabStrip Classes="tilesetTabs"
+                              Background="Transparent"
+                              Height="{DynamicResource Editor.TabHeight}"
+                              HorizontalAlignment="Left"
+                              ItemsSource="{Binding Tilesets}"
+                              SelectedItem="{Binding SelectedTileset, Mode=TwoWay}">
+                        <TabStrip.ItemTemplate>
+                            <DataTemplate x:DataType="vm:TilesetTabViewModel">
+                                <TextBlock Text="{Binding Name}"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip.Tip="{Binding Key}" />
+                            </DataTemplate>
+                        </TabStrip.ItemTemplate>
+                    </TabStrip>
+                </ScrollViewer>
+            </Border>
 
-        <ScrollViewer Grid.Row="2"
-                      HorizontalScrollBarVisibility="Auto"
-                      VerticalScrollBarVisibility="Auto"
-                      Opacity="{Binding SelectionOpacity}"
-                      IsEnabled="{Binding IsLayerSelected}">
-            <controls:TileGridView x:Name="TileGrid" DataContext="{Binding}" />
-        </ScrollViewer>
-    </Grid>
+            <Border Grid.Row="2" Classes="editor-canvas">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Auto"
+                              Opacity="{Binding SelectionOpacity}"
+                              IsEnabled="{Binding IsLayerSelected}">
+                    <controls:TileGridView x:Name="TileGrid" DataContext="{Binding}" />
+                </ScrollViewer>
+            </Border>
+        </Grid>
+    </Border>
 </UserControl>

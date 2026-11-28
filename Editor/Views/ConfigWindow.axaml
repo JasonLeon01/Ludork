@@ -11,7 +11,7 @@
         Icon="/Editor/Assets/icon.ico">
     <Grid ColumnDefinitions="220,*">
         <Border Background="{DynamicResource Editor.SurfaceBrush}"
-                BorderBrush="{DynamicResource Editor.BorderBrush}"
+                BorderBrush="{DynamicResource Editor.BorderSubtleBrush}"
                 BorderThickness="0,0,1,0">
             <ListBox x:Name="ConfigList"
                      Margin="8"

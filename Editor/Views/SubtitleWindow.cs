@@ -24,7 +24,7 @@ public sealed partial class SubtitleWindow : Window, IProjectSaveParticipant
     private readonly EditorDocumentBinding binding;
     private readonly Toast toast;
     private readonly StackPanel properties = new() { Spacing = 8, Margin = new Thickness(10) };
-    private readonly TextBlock errors = new() { Foreground = Brushes.OrangeRed, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock errors = new() { Foreground = EditorTheme.Brush("Error"), TextWrapping = TextWrapping.Wrap };
     private readonly SubtitleTimeline timeline;
     private readonly Dictionary<Control, string> inputErrors = [];
     private JsonObject data;
@@ -127,12 +127,21 @@ public sealed partial class SubtitleWindow : Window, IProjectSaveParticipant
     {
         Grid root = new() { RowDefinitions = new RowDefinitions("*,Auto,145"), ColumnDefinitions = new ColumnDefinitions("*,5,360") };
         root.Children.Add(createPreview());
-        GridSplitter splitter = new() { Width = 5, HorizontalAlignment = HorizontalAlignment.Stretch };
+        GridSplitter splitter = new()
+        {
+            Width = 5,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            ResizeDirection = GridResizeDirection.Columns,
+        };
         Grid.SetColumn(splitter, 1);
         root.Children.Add(splitter);
-        ScrollViewer inspector = new() { Content = properties };
-        Grid.SetColumn(inspector, 2);
-        root.Children.Add(inspector);
+        Border inspectorPane = new()
+        {
+            Background = EditorTheme.Brush("Surface"),
+            Child = new ScrollViewer { Content = properties },
+        };
+        Grid.SetColumn(inspectorPane, 2);
+        root.Children.Add(inspectorPane);
         Control toolbar = createPlaybackToolbar();
         Grid.SetColumnSpan(toolbar, 3);
         Grid.SetRow(toolbar, 1);

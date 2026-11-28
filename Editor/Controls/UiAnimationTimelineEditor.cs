@@ -179,7 +179,6 @@ public sealed class UiAnimationTimelineEditor : UserControl
         GridSplitter splitter = new()
         {
             Width = 5,
-            Background = EditorTheme.Brush("Surface"),
             ResizeDirection = GridResizeDirection.Columns,
         };
         Grid.SetColumn(splitter, 1);

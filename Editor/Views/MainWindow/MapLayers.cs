@@ -83,9 +83,36 @@ public partial class MainWindow
             app.openProject(this, fullPath);
     }
 
-    public async void CloseForProjectSwitch()
+    private void onQuitApplication(object? sender, EventArgs args)
+    {
+        if (Application.Current is App app)
+            app.requestQuit();
+    }
+
+    internal bool IsClosingProject => closingPrompt || closeConfirmed;
+    internal Task PendingEdit => viewModel?.GameData.EditOperations.Completion ?? Task.CompletedTask;
+
+    internal bool CanCloseImmediately()
+    {
+        viewModel?.ProjectSave.FlushPendingChanges();
+        return !IsClosingProject && viewModel?.IsModified != true && viewModel?.GameData.EditOperations.IsBusy != true
+            && projectOperations?.IsPending != true && (projectRunner is null || projectRunner.State == ProjectRunState.Idle);
+    }
+
+    internal Task<bool> ConfirmQuitAsync() =>
+        closingPrompt ? Task.FromResult(false) : confirmLeaveAsync();
+
+    internal async Task CloseConfirmedAsync()
     {
         closingPrompt = true;
+        await stopProjectAsync();
+        closingPrompt = false;
+        closeConfirmed = true;
+        Close();
+    }
+
+    private async Task stopProjectAsync()
+    {
         Task completion = projectOperations?.Completion ?? Task.CompletedTask;
         projectOperations?.Cancel();
         if (projectRunner is not null && projectRunner.State != ProjectRunState.Idle)
@@ -95,9 +122,6 @@ public partial class MainWindow
             await projectRunner.StopAsync(generation);
         }
         await completion;
-        closingPrompt = false;
-        closeConfirmed = true;
-        Close();
     }
 
     private async Task<bool> confirmLeaveAsync()
@@ -395,68 +419,31 @@ public partial class MainWindow
 
     private async void onClosing(object? sender, WindowClosingEventArgs args)
     {
-        if (viewModel?.GameData.EditOperations.IsBusy == true)
-        {
-            args.Cancel = true;
-            return;
-        }
         if (closeConfirmed)
             return;
-        if (projectOperations?.IsPending == true)
+        if (closingPrompt || viewModel?.GameData.EditOperations.IsBusy == true
+            || Application.Current is App { IsQuitRequested: true })
         {
             args.Cancel = true;
-            if (closingPrompt)
-                return;
-            closingPrompt = true;
-            Task completion = projectOperations.Completion;
-            projectOperations.Cancel();
-            if (projectRunner is not null && projectRunner.State != ProjectRunState.Idle)
-            {
-                long generation = projectRunner.RunGeneration;
-                await projectRunner.SetPerformanceMonitoringAsync(false, generation);
-                await projectRunner.StopAsync(generation);
-            }
-            await completion;
-            closingPrompt = false;
-            Close();
             return;
         }
-        viewModel?.ProjectSave.FlushPendingChanges();
-        bool hasRunningProject = projectRunner is not null
-            && projectRunner.State != ProjectRunState.Idle;
-        if (viewModel?.IsModified != true && !hasRunningProject)
+        if (CanCloseImmediately())
             return;
         args.Cancel = true;
-        if (closingPrompt)
-            return;
         closingPrompt = true;
-        if (viewModel?.IsModified == true)
+        try
         {
-            UnsavedChangesResult result = await new UnsavedChangesDialog(viewModel.GameData.GetUnsavedDocumentPaths()
-                .Concat(viewModel.ProjectSave.PendingInputPaths).Distinct(StringComparer.Ordinal).ToArray(), ProjectPath).ShowDialog<UnsavedChangesResult>(this);
-            if (result == UnsavedChangesResult.Cancel)
+            if (await confirmLeaveAsync())
             {
-                closingPrompt = false;
-                return;
-            }
-            if (result == UnsavedChangesResult.Save)
-            {
-                if (!await EditorSaveWorkflow.TrySaveAsync(this, viewModel.ProjectSave))
-                {
-                    closingPrompt = false;
-                    return;
-                }
+                await stopProjectAsync();
+                closeConfirmed = true;
+                Dispatcher.UIThread.Post(Close);
             }
         }
-        if (projectRunner is not null && projectRunner.State != ProjectRunState.Idle)
+        finally
         {
-            long generation = projectRunner.RunGeneration;
-            await projectRunner.SetPerformanceMonitoringAsync(false, generation);
-            await projectRunner.StopAsync(generation);
+            closingPrompt = false;
         }
-        closingPrompt = false;
-        closeConfirmed = true;
-        Close();
     }
 
     protected override void OnClosed(EventArgs args)

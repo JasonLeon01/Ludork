@@ -672,7 +672,7 @@ internal sealed partial class GeneralDataPage : UserControl
                 Height = 28,
                 Padding = new Thickness(0),
                 VerticalAlignment = VerticalAlignment.Center,
-                Foreground = new SolidColorBrush(Color.FromRgb(200, 80, 80)),
+                Foreground = EditorTheme.Brush("Error"),
             };
             removeBtn.Click += async (_, _) => await onRemoveParamAsync(paramName);
             Grid.SetColumn(removeBtn, 3);

@@ -24,7 +24,7 @@ public sealed class PluginManagerWindow : Window
     private readonly StackPanel pluginList = new() { Spacing = 10 };
     private readonly TextBlock registryDiagnostic = new()
     {
-        Foreground = new SolidColorBrush(Color.Parse("#ffb74d")),
+        Foreground = EditorTheme.Brush("Warning"),
         TextWrapping = TextWrapping.Wrap,
         IsVisible = false,
     };
@@ -47,14 +47,17 @@ public sealed class PluginManagerWindow : Window
         EditorLayoutService.AttachWindow(this, nameof(PluginManagerWindow));
 
         createButton.Content = LocaleService.Get("CREATE_PLUGIN");
+        createButton.Classes.Add("dialog");
+        createButton.Classes.Add("accent");
         createButton.Click += onCreate;
         importButton.Content = LocaleService.Get("IMPORT_PLUGIN");
+        importButton.Classes.Add("dialog");
         importButton.Click += onImport;
         Button closeButton = new()
         {
             Content = LocaleService.Get("CLOSE"),
-            MinWidth = 88,
         };
+        closeButton.Classes.Add("dialog");
         closeButton.Click += (_, _) => Close();
 
         StackPanel buttons = new()
@@ -63,9 +66,15 @@ public sealed class PluginManagerWindow : Window
             HorizontalAlignment = HorizontalAlignment.Right,
             Spacing = 8,
         };
-        buttons.Children.Add(createButton);
-        buttons.Children.Add(importButton);
         buttons.Children.Add(closeButton);
+        buttons.Children.Add(importButton);
+        buttons.Children.Add(createButton);
+        Border footer = new()
+        {
+            Padding = new Thickness(20, 12),
+            Child = buttons,
+        };
+        footer.Classes.Add("editor-panel-footer");
 
         Grid listGrid = new();
         listGrid.Children.Add(new ScrollViewer
@@ -74,17 +83,23 @@ public sealed class PluginManagerWindow : Window
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
         });
 
-        Grid content = new()
+        Grid body = new()
         {
-            Margin = new Thickness(20),
-            RowDefinitions = new RowDefinitions("Auto,*,Auto"),
+            Margin = new Thickness(20, 18),
+            RowDefinitions = new RowDefinitions("Auto,*"),
             RowSpacing = 12,
         };
-        content.Children.Add(registryDiagnostic);
+        body.Children.Add(registryDiagnostic);
         Grid.SetRow(listGrid, 1);
-        content.Children.Add(listGrid);
-        Grid.SetRow(buttons, 2);
-        content.Children.Add(buttons);
+        body.Children.Add(listGrid);
+
+        Grid content = new()
+        {
+            RowDefinitions = new RowDefinitions("*,Auto"),
+        };
+        content.Children.Add(body);
+        Grid.SetRow(footer, 1);
+        content.Children.Add(footer);
         Content = content;
         Opened += async (_, _) => await refreshAsync();
         KeyDown += onKeyDown;
@@ -313,7 +328,7 @@ public sealed class PluginManagerWindow : Window
                 Text = item.Diagnostic,
                 TextWrapping = TextWrapping.Wrap,
                 Foreground = EditorTheme.Brush("Text"),
-                FontFamily = FontFamily.Parse("Consolas"),
+                FontFamily = EditorTheme.MonoFontFamily,
                 FontSize = 12,
             };
             details.Children.Add(diagnosticLabel);
@@ -334,15 +349,16 @@ public sealed class PluginManagerWindow : Window
                 Content = LocaleService.Get("PLUGIN_UNINSTALL"),
                 HorizontalAlignment = HorizontalAlignment.Right,
             };
+            uninstall.Classes.Add("danger");
             uninstall.Click += async (_, _) => await uninstallAsync(uninstall, item, management, scope);
             cardContent.Children.Add(uninstall);
         }
         return new Border
         {
-            Background = new SolidColorBrush(Color.Parse("#292a2d")),
-            BorderBrush = Ludork.Services.EditorTheme.Brush("Border"),
+            Background = EditorTheme.Brush("Surface"),
+            BorderBrush = EditorTheme.Brush("BorderSubtle"),
             BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(5),
+            CornerRadius = new CornerRadius(6),
             Child = cardContent,
         };
     }
@@ -352,7 +368,7 @@ public sealed class PluginManagerWindow : Window
         TextBlock label = new()
         {
             Text = LocaleService.Get(labelKey),
-            Foreground = new SolidColorBrush(Color.Parse("#9e9e9e")),
+            Foreground = EditorTheme.Brush("TextMuted"),
             MinWidth = 85,
         };
         TextBlock text = new()
@@ -435,15 +451,14 @@ public sealed class PluginManagerWindow : Window
 
     private static IBrush getStatusBrush(PluginRuntimeStatus status)
     {
-        Color color = status switch
+        return status switch
         {
-            PluginRuntimeStatus.Loaded => Color.Parse("#81c784"),
-            PluginRuntimeStatus.PendingRestart => Color.Parse("#ffb74d"),
-            PluginRuntimeStatus.UnregisteredPendingRestart => Color.Parse("#ffb74d"),
-            PluginRuntimeStatus.PendingDeletion => Color.Parse("#ffb74d"),
-            _ => Color.Parse("#ef9a9a"),
+            PluginRuntimeStatus.Loaded => EditorTheme.Brush("Success"),
+            PluginRuntimeStatus.PendingRestart => EditorTheme.Brush("Warning"),
+            PluginRuntimeStatus.UnregisteredPendingRestart => EditorTheme.Brush("Warning"),
+            PluginRuntimeStatus.PendingDeletion => EditorTheme.Brush("Warning"),
+            _ => EditorTheme.Brush("Error"),
         };
-        return new SolidColorBrush(color);
     }
 }
 

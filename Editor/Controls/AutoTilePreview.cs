@@ -20,7 +20,7 @@ public sealed class AutoTilePreview : Control
     public static readonly StyledProperty<int> CellSizeProperty =
         AvaloniaProperty.Register<AutoTilePreview, int>(nameof(CellSize), EngineConstants.CellSize);
 
-    private static readonly IBrush EmptyBrush = new SolidColorBrush(Color.FromRgb(60, 60, 60));
+    private static IBrush EmptyBrush => Ludork.Services.EditorTheme.Brush("SurfaceElevated");
     private Bitmap? bitmap;
 
     public AutoTilePreview()

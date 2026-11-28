@@ -4,17 +4,21 @@
              x:Class="Ludork.Views.GeneralDataPage"
              x:ClassModifier="internal"
              x:DataType="vm:GeneralDataPageViewModel">
-    <Grid x:Name="PageLayout" ColumnDefinitions="240,4,*">
-        <Grid RowDefinitions="Auto,*,Auto">
-            <TextBox x:Name="SearchBox" Margin="4" Text="{Binding SearchText, Mode=TwoWay}" />
-            <ListBox x:Name="MemberList" Grid.Row="1" SelectionMode="Single"
-                     Background="{DynamicResource Editor.SurfaceBrush}" />
-            <Button x:Name="AddMemberButton" Grid.Row="2" Margin="4" HorizontalAlignment="Stretch" />
-        </Grid>
-        <GridSplitter x:Name="MemberSplitter" Grid.Column="1" Width="4" VerticalAlignment="Stretch"
-                      Background="{DynamicResource Editor.InputBrush}" />
+    <Grid x:Name="PageLayout" ColumnDefinitions="240,5,*">
+        <Border Background="{DynamicResource Editor.SurfaceBrush}">
+            <Grid RowDefinitions="Auto,*,Auto">
+                <TextBox x:Name="SearchBox" Margin="6" Text="{Binding SearchText, Mode=TwoWay}" />
+                <ListBox x:Name="MemberList" Grid.Row="1" SelectionMode="Single"
+                         Background="Transparent" />
+                <Border Grid.Row="2" Classes="editor-panel-footer" Padding="6">
+                    <Button x:Name="AddMemberButton" HorizontalAlignment="Stretch" />
+                </Border>
+            </Grid>
+        </Border>
+        <GridSplitter x:Name="MemberSplitter" Grid.Column="1" Width="5" VerticalAlignment="Stretch"
+                      ResizeDirection="Columns" />
         <Grid Grid.Column="2" RowDefinitions="Auto,*">
-            <Border Padding="8,6" Background="{DynamicResource Editor.SurfaceBrush}">
+            <Border Classes="editor-panel-header" Padding="8,6">
                 <Grid ColumnDefinitions="*,Auto,8,Auto,4,Auto">
                     <Button x:Name="EditAbilityGraphButton" Grid.Column="1"
                             IsVisible="{Binding HasEvents}" IsEnabled="{Binding CanEditSelectedAbilityGraph}" />
@@ -26,12 +30,14 @@
             </Border>
             <ScrollViewer x:Name="FormScroll" Grid.Row="1" HorizontalScrollBarVisibility="Disabled"
                           IsVisible="{Binding IsFormView}">
-                <StackPanel x:Name="FormContent" Spacing="6" Margin="8" />
+                <StackPanel x:Name="FormContent" Spacing="6" Margin="10" />
             </ScrollViewer>
             <ScrollViewer x:Name="TableScroll" Grid.Row="1" HorizontalScrollBarVisibility="Auto"
                           VerticalScrollBarVisibility="Disabled" IsVisible="{Binding IsTableView}">
                 <Grid x:Name="TableSurface" RowDefinitions="Auto,*" HorizontalAlignment="Left">
-                    <Grid x:Name="TableHeader" Background="{DynamicResource Editor.InputBrush}" />
+                    <Border Grid.Row="0" Classes="editor-panel-header">
+                        <Grid x:Name="TableHeader" />
+                    </Border>
                     <ListBox x:Name="TableList" Grid.Row="1" SelectionMode="Single"
                              Background="{DynamicResource Editor.SurfaceBrush}" />
                 </Grid>

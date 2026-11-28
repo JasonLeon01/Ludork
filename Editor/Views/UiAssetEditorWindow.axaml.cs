@@ -153,7 +153,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
                 timelineHeight = previewLayout.RowDefinitions[3].Height;
             }
             previewLayout.RowDefinitions[1].Height = expanded ? previewHeight : new GridLength(1, GridUnitType.Star);
-            previewLayout.RowDefinitions[2].Height = new GridLength(expanded ? 5 : 0);
+            previewLayout.RowDefinitions[2].Height = new GridLength(expanded ? 6 : 0);
             previewLayout.RowDefinitions[3].Height = expanded ? timelineHeight : GridLength.Auto;
             timelineSplitter.IsVisible = expanded;
         }

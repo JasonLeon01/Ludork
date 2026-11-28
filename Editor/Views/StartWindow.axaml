@@ -44,7 +44,7 @@
             <Setter Property="Foreground" Value="{DynamicResource Editor.TextBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource Editor.BorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="CornerRadius" Value="{DynamicResource Editor.RadiusMd}" />
         </Style>
         <Style Selector="Button.startAction:pointerover">
             <Setter Property="Background" Value="{DynamicResource Editor.HoverBrush}" />
@@ -85,18 +85,17 @@
         </Style>
     </Window.Styles>
 
+    <Border BorderBrush="{DynamicResource Editor.BorderSubtleBrush}" BorderThickness="1">
     <Grid RowDefinitions="Auto,58,*">
         <NativeMenuBar Grid.Row="0"
                        HorizontalAlignment="Stretch"
                        MaxHeight="64" />
 
         <Border Grid.Row="1"
-                Background="{DynamicResource Editor.SurfaceBrush}"
-                BorderBrush="{DynamicResource Editor.BorderBrush}"
-                BorderThickness="0,0,0,1"
+                Classes="editor-panel-header"
                 Padding="24,0"
                 PointerPressed="onTitleBarPointerPressed">
-            <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8">
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
                 <Image Width="44" Height="44"
                        VerticalAlignment="Center"
                        Source="/Editor/Assets/icon.png"
@@ -107,6 +106,22 @@
                            Foreground="{DynamicResource Editor.TextBrush}"
                            FontSize="18"
                            FontWeight="SemiBold" />
+                <Button Grid.Column="3"
+                        Classes="windowClose"
+                        VerticalAlignment="Center"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        AutomationProperties.Name="{Binding CloseWindow}"
+                        ToolTip.Tip="{Binding CloseWindow}"
+                        HotKey="{OnPlatform Default=Ctrl+W, macOS=Meta+W}"
+                        Click="onCloseWindow">
+                    <Viewbox Width="12" Height="12">
+                        <Path Data="{StaticResource EditorIcon.Close}"
+                              Stroke="{DynamicResource Editor.TextMutedBrush}"
+                              StrokeThickness="1.6"
+                              StrokeLineCap="Round" />
+                    </Viewbox>
+                </Button>
             </Grid>
         </Border>
 
@@ -281,4 +296,5 @@
             </StackPanel>
         </Grid>
     </Grid>
+    </Border>
 </Window>

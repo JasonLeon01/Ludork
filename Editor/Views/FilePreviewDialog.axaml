@@ -4,7 +4,7 @@
         Width="640" Height="480"
         WindowStartupLocation="CenterOwner"
         Icon="/Editor/Assets/icon.ico">
-    <Border Padding="12" Background="{DynamicResource Editor.BackgroundBrush}">
+    <Border Padding="12" Background="{DynamicResource Editor.CanvasBrush}">
         <Grid>
             <Image x:Name="PreviewImage" Stretch="Uniform" />
             <TextBlock x:Name="PreviewStatus"

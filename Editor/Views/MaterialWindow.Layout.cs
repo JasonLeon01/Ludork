@@ -97,7 +97,7 @@ public sealed partial class MaterialWindow
             {
                 Title = LocaleService.Get("MATERIAL_GENERATED_SHADER"), Width = 1000, Height = 700,
                 Content = new TextBox { Text = generatedShader, IsReadOnly = true, AcceptsReturn = true,
-                    FontFamily = new FontFamily("monospace"), TextWrapping = TextWrapping.NoWrap },
+                    FontFamily = EditorTheme.MonoFontFamily, TextWrapping = TextWrapping.NoWrap },
             };
             window.Show(this);
         };
@@ -134,6 +134,5 @@ public sealed partial class MaterialWindow
     {
         Width = 5, HorizontalAlignment = HorizontalAlignment.Stretch,
         ResizeDirection = GridResizeDirection.Columns,
-        Background = EditorTheme.Brush("Border"),
     };
 }

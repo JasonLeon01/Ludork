@@ -10,22 +10,26 @@
         Background="{DynamicResource Editor.BackgroundBrush}"
         FontFamily="{DynamicResource Editor.FontFamily}"
         Icon="/Editor/Assets/icon.ico">
-    <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="12">
-        <TextBlock x:Name="AppNameText"
-                   HorizontalAlignment="Center"
-                   FontSize="28"
-                   FontWeight="Bold" />
-        <TextBlock x:Name="VersionText"
-                   Grid.Row="1"
-                   HorizontalAlignment="Center" />
-        <controls:DocumentationView x:Name="Documentation" Grid.Row="2" />
-        <TextBlock x:Name="CopyrightText"
-                   Grid.Row="3"
-                   HorizontalAlignment="Center"
-                   Foreground="{DynamicResource Editor.TextMutedBrush}" />
-        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-            <Button x:Name="LicensesButton" Click="onOpenLicenses" />
-            <Button x:Name="CloseButton" Click="onClose" />
-        </StackPanel>
+    <Grid RowDefinitions="*,Auto">
+        <Grid Margin="24,20,24,16" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="12">
+            <TextBlock x:Name="AppNameText"
+                       HorizontalAlignment="Center"
+                       FontSize="28"
+                       FontWeight="Bold" />
+            <TextBlock x:Name="VersionText"
+                       Grid.Row="1"
+                       HorizontalAlignment="Center" />
+            <controls:DocumentationView x:Name="Documentation" Grid.Row="2" />
+            <TextBlock x:Name="CopyrightText"
+                       Grid.Row="3"
+                       HorizontalAlignment="Center"
+                       Foreground="{DynamicResource Editor.TextMutedBrush}" />
+        </Grid>
+        <Border Grid.Row="1" Classes="editor-panel-footer" Padding="20,12">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                <Button x:Name="LicensesButton" Classes="dialog" Click="onOpenLicenses" />
+                <Button x:Name="CloseButton" Classes="dialog accent" Click="onClose" />
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

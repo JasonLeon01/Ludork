@@ -22,7 +22,7 @@ public sealed class AddBlueprintAttributeDialog : Window
     private readonly TextBox fileBase = EditorInputs.CreateEditableTextBox();
     private readonly StackPanel baseRow = new() { Spacing = 4 };
     private readonly TextBlock declaredHint = new() { TextWrapping = TextWrapping.Wrap, Foreground = EditorTheme.Brush("TextMuted") };
-    private readonly TextBlock error = new() { Foreground = Brushes.OrangeRed, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock error = new() { Foreground = EditorTheme.Brush("Error"), TextWrapping = TextWrapping.Wrap };
     private BlueprintFieldMetadata? declaration;
     private LuaMetadataType customType = LuaMetadataType.Parse("string");
     private string customBase = string.Empty;

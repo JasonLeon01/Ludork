@@ -19,9 +19,7 @@ namespace Ludork.ViewModels;
 
 public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
 {
-    private static readonly List<string> clipboardPaths = [];
-    private static bool clipboardCut;
-    private static WeakReference<FileExplorerEntryViewModel>? copiedFolder;
+    private readonly FileExplorerClipboard clipboard;
     private readonly string projectPath;
     private readonly ProjectConfigService projectConfig;
     private readonly ProjectDataStore gameData;
@@ -37,14 +35,16 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
     [ObservableProperty] private bool isSourcesExpanded;
     [ObservableProperty] private FileExplorerEntryViewModel? selectedEntry;
 
-    public FileExplorerViewModel(
+    internal FileExplorerViewModel(
         string projectPath,
         ProjectConfigService projectConfig,
         ProjectDataStore gameData,
         BlueprintPreviewService previewService,
         ReferenceIndexService referenceIndex,
-        FileExplorerTabState? initialState = null)
+        FileExplorerClipboard clipboard,
+        FileExplorerTabState? initialState)
     {
+        this.clipboard = clipboard;
         this.projectPath = Path.GetFullPath(projectPath);
         this.projectConfig = projectConfig;
         this.gameData = gameData;
@@ -96,7 +96,7 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
     public string ProjectPath => projectPath;
     public EditorThumbnailService Thumbnails => gameData.Thumbnails;
     public bool IsReadOnly { get; set; }
-    public bool HasClipboard => clipboardPaths.Any(pathExists);
+    public bool HasClipboard => clipboard.Paths.Any(pathExists);
 
     public void RequestDataCreation(EditorDataCreationRequest request)
     {
@@ -190,25 +190,25 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
         IReadOnlyList<string> normalized = normalizeTopLevelPaths(selected);
         if (cut && gameData.GetBuiltInPathError(normalized) is not null)
             return;
-        clipboardPaths.Clear();
-        clipboardPaths.AddRange(normalized.Where(isEditablePath));
-        clipboardCut = cut && clipboardPaths.Count != 0;
-        copiedFolder = !cut && selected.Length == 1 && clipboardPaths.Count == 1
-            && SelectedEntry is { IsDirectory: true } folder && PathComparer.Equals(folder.FullPath, clipboardPaths[0])
+        clipboard.Paths.Clear();
+        clipboard.Paths.AddRange(normalized.Where(isEditablePath));
+        clipboard.Cut = cut && clipboard.Paths.Count != 0;
+        clipboard.CopiedFolder = !cut && selected.Length == 1 && clipboard.Paths.Count == 1
+            && SelectedEntry is { IsDirectory: true } folder && PathComparer.Equals(folder.FullPath, clipboard.Paths[0])
             ? new WeakReference<FileExplorerEntryViewModel>(folder) : null;
     }
 
     partial void OnSelectedEntryChanged(FileExplorerEntryViewModel? oldValue, FileExplorerEntryViewModel? newValue)
     {
-        if (copiedFolder?.TryGetTarget(out FileExplorerEntryViewModel? folder) == true && ReferenceEquals(folder, oldValue))
-            copiedFolder = null;
+        if (clipboard.CopiedFolder?.TryGetTarget(out FileExplorerEntryViewModel? folder) == true && ReferenceEquals(folder, oldValue))
+            clipboard.CopiedFolder = null;
     }
 
     internal string GetTransferDirectory(FileExplorerEntryViewModel? entry, bool keyboardPaste = false)
     {
         if (entry is null)
             return CurrentPath;
-        bool duplicateBesideSource = keyboardPaste && copiedFolder?.TryGetTarget(out FileExplorerEntryViewModel? folder) == true
+        bool duplicateBesideSource = keyboardPaste && clipboard.CopiedFolder?.TryGetTarget(out FileExplorerEntryViewModel? folder) == true
             && ReferenceEquals(entry, folder);
         return entry.IsDirectory && !duplicateBesideSource ? entry.FullPath : Path.GetDirectoryName(entry.FullPath)!;
     }

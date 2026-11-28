@@ -18,9 +18,9 @@ namespace Ludork.Controls;
 public sealed partial class WorldMapCanvas : Control, IDisposable
 {
     internal const string ChildDragPrefix = "LUDORK_WORLD_CHILD:";
-    private static readonly IBrush OutsideBrush = Ludork.Services.EditorTheme.Brush("Background");
+    private static readonly IBrush OutsideBrush = EditorTheme.Brush("Canvas");
     private static readonly IBrush WorldBrush = EditorTheme.Brush("Surface");
-    private static readonly IBrush HoleBrush = EditorTheme.Brush("Background");
+    private static readonly IBrush HoleBrush = EditorTheme.Brush("Canvas");
     private static readonly Pen WorldBorderPen = new(EditorTheme.Brush("Border"), 1);
     private static readonly Pen GridPen = new(new SolidColorBrush(Color.FromArgb(35, 255, 255, 255)), 1);
     private static readonly Pen PlacementPen = new(new SolidColorBrush(Color.FromArgb(220, 240, 240, 240)), 1);

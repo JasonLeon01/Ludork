@@ -30,7 +30,7 @@ public sealed class TextConfigEditorWindow : Window
     private readonly TextBox previewText = EditorInputs.CreateEditableTextBox();
     private readonly TextBlock validationText = new()
     {
-        Foreground = new SolidColorBrush(Color.Parse("#ff7777")),
+        Foreground = EditorTheme.Brush("Error"),
         TextWrapping = TextWrapping.Wrap,
     };
     private readonly Toast toast;
@@ -99,9 +99,7 @@ public sealed class TextConfigEditorWindow : Window
     {
         Border inspectorBorder = new()
         {
-            Background = new SolidColorBrush(Color.Parse("#1c1c1c")),
-            BorderBrush = Ludork.Services.EditorTheme.Brush("Border"),
-            BorderThickness = new Thickness(1),
+            Background = EditorTheme.Brush("Surface"),
             Child = new ScrollViewer
             {
                 Content = inspector,
@@ -136,7 +134,6 @@ public sealed class TextConfigEditorWindow : Window
         root.Children.Add(inspectorBorder);
         GridSplitter splitter = new()
         {
-            Background = new SolidColorBrush(Color.Parse("#363636")),
             ResizeDirection = GridResizeDirection.Columns,
         };
         Grid.SetColumn(splitter, 1);

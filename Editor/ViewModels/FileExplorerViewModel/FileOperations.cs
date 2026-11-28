@@ -23,13 +23,13 @@ public sealed partial class FileExplorerViewModel
         string? target = getTargetDirectory(targetDirectory);
         if (target is null)
             return FileOperationResult.Empty;
-        if (clipboardCut)
-            return await moveBatchAsync(clipboardPaths.ToArray(), target, true, progress);
+        if (clipboard.Cut)
+            return await moveBatchAsync(clipboard.Paths.ToArray(), target, true, progress);
         List<string> errors = [];
         List<string> externalAdded = [];
         List<string> managedAdded = [];
         FileCopyBatch copies = new(externalAdded, errors, progress);
-        foreach (string source in clipboardPaths.Where(path => pathExists(path) && isEditablePath(path)).ToArray())
+        foreach (string source in clipboard.Paths.Where(path => pathExists(path) && isEditablePath(path)).ToArray())
         {
             string destination = Path.Combine(target, Path.GetFileName(source));
             if (pathExists(destination))

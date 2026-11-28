@@ -105,7 +105,12 @@ public sealed partial class ParticleEditor : UserControl
         DockPanel.SetDock(solo, Dock.Bottom);
         trackPanel.Children.Add(solo);
         trackPanel.Children.Add(trackList);
-        root.Children.Add(trackPanel);
+        Border trackContainer = new()
+        {
+            Background = EditorTheme.Brush("Surface"),
+            Child = trackPanel,
+        };
+        root.Children.Add(trackContainer);
         Grid preview = new() { RowDefinitions = new RowDefinitions("*,Auto,260") };
         preview.Children.Add(createPreview());
         Control playback = createPlaybackToolbar();
@@ -127,11 +132,21 @@ public sealed partial class ParticleEditor : UserControl
         }
         inspector.RequiredWidthChanged += (_, _) => updateInspectorWidth();
         root.LayoutUpdated += (_, _) => updateInspectorWidth();
-        Grid.SetColumn(inspector, 4);
-        root.Children.Add(inspector);
+        Border inspectorContainer = new()
+        {
+            Background = EditorTheme.Brush("Surface"),
+            Child = inspector,
+        };
+        Grid.SetColumn(inspectorContainer, 4);
+        root.Children.Add(inspectorContainer);
         foreach (int column in new[] { 1, 3 })
         {
-            GridSplitter splitter = new() { Width = 5, HorizontalAlignment = HorizontalAlignment.Stretch, Background = Brushes.DimGray };
+            GridSplitter splitter = new()
+            {
+                Width = 5,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                ResizeDirection = GridResizeDirection.Columns,
+            };
             Grid.SetColumn(splitter, column);
             root.Children.Add(splitter);
             EditorLayoutService.BindColumns(root, splitter, "ParticleEditor.Columns", 0, 2, 4);

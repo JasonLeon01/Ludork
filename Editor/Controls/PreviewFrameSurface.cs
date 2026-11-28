@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using Ludork.Services;
 using System.Runtime.InteropServices;
 
 namespace Ludork.Controls;
@@ -15,7 +16,7 @@ public class PreviewFrameSurface : Border
     public PreviewFrameSurface()
     {
         Child = image;
-        Background = new SolidColorBrush(Color.Parse("#161B22"));
+        Background = EditorTheme.Brush("Canvas");
         ClipToBounds = true;
         MinWidth = 360;
         MinHeight = 240;

@@ -443,7 +443,7 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
         {
             Text = LuaTypeReference.Parse(sourceClass).TypeName,
             FontSize = 12,
-            Foreground = new SolidColorBrush(Color.Parse("#909090")),
+            Foreground = EditorTheme.Brush("TextMuted"),
             TextTrimming = TextTrimming.CharacterEllipsis,
         };
         ToolTip.SetTip(title, sourceClass);

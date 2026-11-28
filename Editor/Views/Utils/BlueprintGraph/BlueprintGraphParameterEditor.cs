@@ -182,7 +182,7 @@ public sealed class BlueprintGraphParameterEditor : ContentControl
         IBrush? normalBorder = input.BorderBrush;
         void showError()
         {
-            input.BorderBrush = model.TextDraft?.Error is null ? normalBorder : Brushes.OrangeRed;
+            input.BorderBrush = model.TextDraft?.Error is null ? normalBorder : Ludork.Services.EditorTheme.Brush("Error");
             ToolTip.SetTip(input, model.TextDraft?.Error);
         }
         showError();

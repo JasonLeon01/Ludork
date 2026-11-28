@@ -52,7 +52,7 @@ internal sealed class EditorNotificationService : IDisposable
     {
         Dispatcher.UIThread.VerifyAccess();
         if (disposed || backend is null || !desktop.Windows.Contains(project) || !desktop.Windows.Contains(target)
-            || desktop.MainWindow != project || desktop.Windows.Any(window => window.IsActive))
+            || desktop.Windows.Any(window => window.IsActive && belongsToProject(window, project)))
             return;
         uint? notificationId = null;
         try
@@ -106,7 +106,7 @@ internal sealed class EditorNotificationService : IDisposable
             remove(args.Id);
             if (args.Status is EditorNotificationStatus.Denied or EditorNotificationStatus.Failed)
                 Trace.WriteLine("System notification was not shown: " + (args.Error ?? args.Status.ToString()));
-            if (args.Status != EditorNotificationStatus.Activated || desktop.MainWindow != entry.Project
+            if (args.Status != EditorNotificationStatus.Activated
                 || !desktop.Windows.Contains(entry.Project) || !desktop.Windows.Contains(entry.Target))
                 return;
             restore(entry.Project);
@@ -134,6 +134,14 @@ internal sealed class EditorNotificationService : IDisposable
         {
             Trace.WriteLine("Could not close system notification: " + exception.Message);
         }
+    }
+
+    private static bool belongsToProject(Window window, Window project)
+    {
+        for (Window? current = window; current is not null; current = current.Owner as Window)
+            if (current == project)
+                return true;
+        return false;
     }
 
     private static void restore(Window window)

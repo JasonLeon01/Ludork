@@ -36,18 +36,22 @@ internal sealed class PluginUninstallDialog : Window
         {
             Content = LocaleService.Get("PLUGIN_UNREGISTER_ONLY"),
         };
+        unregister.Classes.Add("dialog");
         unregister.Click += (_, _) => Close(
             (PluginUninstallChoice?)PluginUninstallChoice.UnregisterOnly);
         Button delete = new()
         {
             Content = LocaleService.Get("PLUGIN_UNREGISTER_DELETE"),
         };
+        delete.Classes.Add("dialog");
+        delete.Classes.Add("danger");
         delete.Click += (_, _) => Close(
             (PluginUninstallChoice?)PluginUninstallChoice.UnregisterAndDelete);
         Button cancel = new()
         {
             Content = LocaleService.Get("CANCEL"),
         };
+        cancel.Classes.Add("dialog");
         cancel.Click += (_, _) => Close((PluginUninstallChoice?)null);
 
         StackPanel buttons = new()
@@ -56,18 +60,27 @@ internal sealed class PluginUninstallDialog : Window
             HorizontalAlignment = HorizontalAlignment.Right,
             Spacing = 8,
         };
+        buttons.Children.Add(cancel);
         buttons.Children.Add(unregister);
         buttons.Children.Add(delete);
-        buttons.Children.Add(cancel);
+        Border footer = new()
+        {
+            Padding = new Thickness(20, 12),
+            Child = buttons,
+        };
+        footer.Classes.Add("editor-panel-footer");
+        Border body = new()
+        {
+            Padding = new Thickness(24, 20),
+            Child = messageText,
+        };
         Grid layout = new()
         {
-            Margin = new Thickness(22),
             RowDefinitions = new RowDefinitions("*,Auto"),
-            RowSpacing = 16,
         };
-        layout.Children.Add(messageText);
-        Grid.SetRow(buttons, 1);
-        layout.Children.Add(buttons);
+        layout.Children.Add(body);
+        Grid.SetRow(footer, 1);
+        layout.Children.Add(footer);
         Content = layout;
     }
 

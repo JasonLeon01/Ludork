@@ -480,6 +480,7 @@ public partial class MainWindow
         bool hasExport = projectRunner?.ExportState.HasSuccessfulExport == true;
         ExportButton.IsEnabled = viewModel is not null && (projectOperations?.State ?? ProjectRunState.Idle) == ProjectRunState.Idle;
         PlayButton.IsEnabled = viewModel is not null && !busy && (playing || hasBuild && hasExport);
+        PlayButton.Classes.Set("playing", playing);
         PlayIcon.Source = EditorIconResources.GetImage(playing ? "EditorImage.Stop" : "EditorImage.Play");
         string playTip = LocaleService.Get(playing ? "RUN_STOP" : !hasBuild ? "RUN_BUILD_REQUIRED" : !hasExport ? "RUN_EXPORT_REQUIRED" : "RUN_PLAY");
         ToolTip.SetTip(PlayButtonHint, playTip);

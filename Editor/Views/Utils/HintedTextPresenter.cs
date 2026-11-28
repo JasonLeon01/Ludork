@@ -25,6 +25,7 @@ public sealed class HintedTextPresenter : StackPanel
     private readonly TextBlock textBlock;
     private readonly Border hintBorder;
     private readonly TextBlock hintBlock;
+    private TopLevel? topLevel;
 
     public static IDataTemplate StringItemTemplate { get; } =
         new FuncDataTemplate<string>((text, _) => new HintedTextPresenter { Text = text });
@@ -100,12 +101,20 @@ public sealed class HintedTextPresenter : StackPanel
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs args)
     {
         base.OnAttachedToVisualTree(args);
+        topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel is not null)
+            topLevel.Opened += onHintsInvalidated;
         TextHintService.Invalidated += onHintsInvalidated;
         update();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs args)
     {
+        if (topLevel is not null)
+        {
+            topLevel.Opened -= onHintsInvalidated;
+            topLevel = null;
+        }
         TextHintService.Invalidated -= onHintsInvalidated;
         base.OnDetachedFromVisualTree(args);
     }
@@ -123,7 +132,7 @@ public sealed class HintedTextPresenter : StackPanel
         textBlock.Text = Text ?? string.Empty;
         textBlock.IsVisible = ShowText;
         IsHitTestVisible = ShowText;
-        string? hint = TextHintService.Resolve(Text);
+        string? hint = TextHintService.Resolve(Text, ProjectWindowContext.Find(this)?.GameData.ProjectPath);
         hintBlock.Text = hint ?? string.Empty;
         hintBorder.IsVisible = !string.IsNullOrEmpty(hint);
     }

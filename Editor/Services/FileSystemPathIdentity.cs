@@ -1,6 +1,9 @@
+using Microsoft.Win32.SafeHandles;
 using System;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Ludork.Services;
 
@@ -40,4 +43,52 @@ internal static class FileSystemPathIdentity
         }
         return current;
     }
+
+    internal static string GetKey(string path)
+    {
+        string fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        if (OperatingSystem.IsMacOS())
+        {
+            IntPtr resolved = realpath(fullPath, IntPtr.Zero);
+            if (resolved == IntPtr.Zero)
+                return fullPath;
+            try
+            {
+                return Marshal.PtrToStringUTF8(resolved)!;
+            }
+            finally
+            {
+                free(resolved);
+            }
+        }
+        if (!OperatingSystem.IsWindows())
+            return fullPath;
+        const uint openExisting = 3;
+        const uint backupSemantics = 0x02000000;
+        using SafeFileHandle handle = CreateFileW(fullPath, 0, FileShare.ReadWrite | FileShare.Delete,
+            IntPtr.Zero, openExisting, backupSemantics, IntPtr.Zero);
+        if (handle.IsInvalid)
+            return fullPath.ToUpperInvariant();
+        StringBuilder buffer = new(512);
+        uint length = GetFinalPathNameByHandleW(handle, buffer, (uint)buffer.Capacity, 0);
+        if (length >= buffer.Capacity)
+        {
+            buffer.EnsureCapacity(checked((int)length + 1));
+            length = GetFinalPathNameByHandleW(handle, buffer, (uint)buffer.Capacity, 0);
+        }
+        return length > 0 && length < buffer.Capacity ? buffer.ToString() : fullPath.ToUpperInvariant();
+    }
+
+    [DllImport("/usr/lib/libSystem.B.dylib", EntryPoint = "realpath$DARWIN_EXTSN", ExactSpelling = true)]
+    private static extern IntPtr realpath([MarshalAs(UnmanagedType.LPUTF8Str)] string path, IntPtr result);
+
+    [DllImport("/usr/lib/libSystem.B.dylib", ExactSpelling = true)]
+    private static extern void free(IntPtr pointer);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
+    private static extern SafeFileHandle CreateFileW(string file, uint access, FileShare share,
+        IntPtr security, uint creation, uint flags, IntPtr template);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
+    private static extern uint GetFinalPathNameByHandleW(SafeFileHandle handle, StringBuilder path, uint size, uint flags);
 }

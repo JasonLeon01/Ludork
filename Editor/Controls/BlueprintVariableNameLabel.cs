@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Threading;
+using Ludork.Services;
 using System;
 
 namespace Ludork.Controls;
@@ -19,6 +20,7 @@ internal sealed class BlueprintVariableNameLabel : TextBlock
         displayName = display;
         variableName = variable;
         Text = display;
+        Foreground = EditorTheme.Brush("TextMuted");
         timer.Tick += (_, _) => showDisplayName();
         if (!string.Equals(displayName, variableName, StringComparison.Ordinal))
             Cursor = new Cursor(StandardCursorType.Hand);

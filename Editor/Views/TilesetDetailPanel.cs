@@ -163,7 +163,7 @@ internal sealed class TilesetDetailPanel : Grid
     {
         string fileName = fileBox.Text ?? string.Empty;
         bool missing = fileName.Length != 0 && !imageEditor.HasImage;
-        fileBox.BorderBrush = new SolidColorBrush(missing ? Color.Parse("#b94a48") : EditorInputs.ReadOnlyBorderColor);
+        fileBox.BorderBrush = missing ? EditorTheme.Brush("Error") : new SolidColorBrush(EditorInputs.ReadOnlyBorderColor);
         ToolTip.SetTip(fileBox, missing ? fileName : null);
     }
 

@@ -48,12 +48,18 @@
     </Style>
     <Style Selector="Button, ToggleButton, ComboBox">
         <Setter Property="MinHeight" Value="{DynamicResource Editor.FieldHeight}" />
-        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="CornerRadius" Value="{DynamicResource Editor.RadiusSm}" />
     </Style>
     <Style Selector="Button, ToggleButton">
         <Setter Property="Padding" Value="8,4" />
         <Setter Property="MinWidth" Value="0" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.09" />
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.09" />
+            </Transitions>
+        </Setter>
     </Style>
     <Style Selector="Button:pressed">
         <Setter Property="RenderTransform" Value="none" />
@@ -87,6 +93,106 @@
     <Style Selector="Button.disclosure:pointerover">
         <Setter Property="Foreground" Value="{DynamicResource Editor.TextBrush}" />
     </Style>
+    <Style Selector="Button.breadcrumb">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="MinHeight" Value="24" />
+        <Setter Property="Padding" Value="6,2" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Foreground" Value="{DynamicResource Editor.TextBrush}" />
+    </Style>
+    <Style Selector="Button.breadcrumb:pointerover">
+        <Setter Property="Background" Value="{DynamicResource Editor.HoverBrush}" />
+    </Style>
+    <Style Selector="Button.playAction">
+        <Setter Property="Background" Value="{DynamicResource Editor.SuccessMutedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.SuccessBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="Button.playAction:pointerover">
+        <Setter Property="Background" Value="{DynamicResource Editor.HoverBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.SuccessBrush}" />
+    </Style>
+    <Style Selector="Button.playAction:disabled">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.playAction.playing">
+        <Setter Property="Background" Value="{DynamicResource Editor.ErrorMutedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.ErrorBrush}" />
+    </Style>
+    <Style Selector="Button.playAction.playing:pointerover">
+        <Setter Property="Background" Value="{DynamicResource Editor.HoverBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.ErrorBrush}" />
+    </Style>
+    <Style Selector="Button.viewportOption">
+        <Setter Property="Background" Value="{DynamicResource Editor.OverlayBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.BorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Width" Value="28" />
+        <Setter Property="Height" Value="26" />
+        <Setter Property="MinHeight" Value="26" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+    <Style Selector="Button.viewportOption:pointerover">
+        <Setter Property="Background" Value="{DynamicResource Editor.HoverBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.BorderStrongBrush}" />
+    </Style>
+    <Style Selector="Button.dialog">
+        <Setter Property="MinWidth" Value="84" />
+        <Setter Property="Padding" Value="14,5" />
+    </Style>
+    <Style Selector="Button.accent">
+        <Setter Property="Background" Value="{DynamicResource Editor.AccentBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource Editor.TextOnAccentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.AccentBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button.accent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Editor.AccentHoverBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.AccentHoverBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource Editor.TextOnAccentBrush}" />
+    </Style>
+    <Style Selector="Button.accent:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Editor.AccentPressedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.AccentPressedBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource Editor.TextOnAccentBrush}" />
+    </Style>
+    <Style Selector="Button.accent:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Editor.SurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.BorderSubtleBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource Editor.TextDisabledBrush}" />
+    </Style>
+    <Style Selector="Button.danger">
+        <Setter Property="Background" Value="{DynamicResource Editor.ErrorMutedBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource Editor.ErrorBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.ErrorBrush}" />
+    </Style>
+    <Style Selector="Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Editor.ErrorBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.ErrorBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource Editor.TextOnAccentBrush}" />
+    </Style>
+    <Style Selector="Button.danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Editor.ErrorMutedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.ErrorBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource Editor.ErrorBrush}" />
+    </Style>
+    <Style Selector="Button.windowClose">
+        <Setter Property="Width" Value="30" />
+        <Setter Property="Height" Value="30" />
+        <Setter Property="MinHeight" Value="30" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="{DynamicResource Editor.RadiusSm}" />
+    </Style>
+    <Style Selector="Button.windowClose:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Editor.ErrorMutedBrush}" />
+    </Style>
     <Style Selector="TextBox.ludork-editable, TextBox.ludork-readonly, NumericUpDown.ludork-editable">
         <Setter Property="MinHeight" Value="{DynamicResource Editor.FieldHeight}" />
         <Setter Property="Height" Value="{DynamicResource Editor.FieldHeight}" />
@@ -96,6 +202,12 @@
         <Setter Property="Foreground" Value="{DynamicResource Editor.TextBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Editor.BorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="TextBox.ludork-editable:pointerover /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.BorderStrongBrush}" />
+    </Style>
+    <Style Selector="TextBox.ludork-editable:focus /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.AccentBrush}" />
     </Style>
     <Style Selector="TextBox.ludork-readonly">
         <Setter Property="Background" Value="{DynamicResource Editor.SurfaceBrush}" />
@@ -151,8 +263,35 @@
             </ControlTemplate>
         </Setter>
     </Style>
+    <Style Selector="Border.editor-panel">
+        <Setter Property="Background" Value="{DynamicResource Editor.SurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.BorderSubtleBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource Editor.RadiusMd}" />
+        <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+    <Style Selector="Border.editor-panel-header">
+        <Setter Property="Background" Value="{DynamicResource Editor.SurfaceElevatedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.BorderSubtleBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+    </Style>
+    <Style Selector="Border.editor-panel-footer">
+        <Setter Property="Background" Value="{DynamicResource Editor.SurfaceElevatedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.BorderSubtleBrush}" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+    </Style>
+    <Style Selector="Border.editor-canvas">
+        <Setter Property="Background" Value="{DynamicResource Editor.CanvasBrush}" />
+    </Style>
+    <Style Selector="TextBlock.panelTitle">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="Margin" Value="12,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
     <Style Selector="ListBox, TreeView">
-        <Setter Property="Background" Value="{DynamicResource Editor.BackgroundBrush}" />
+        <Setter Property="Background" Value="{DynamicResource Editor.SurfaceBrush}" />
     </Style>
     <Style Selector="ListBoxItem, TreeViewItem">
         <Setter Property="MinHeight" Value="28" />
@@ -192,7 +331,8 @@
         <Setter Property="HorizontalAlignment" Value="Stretch" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="Background" Value="{DynamicResource Editor.SurfaceBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Editor.BorderBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.BorderSubtleBrush}" />
+        <Setter Property="CornerRadius" Value="4" />
     </Style>
     <Style Selector="Expander /template/ ToggleButton#ExpanderHeader">
         <Setter Property="MinHeight" Value="{DynamicResource Editor.FieldHeight}" />
@@ -212,13 +352,50 @@
         <Setter Property="Height" Value="8" />
     </Style>
     <Style Selector="GridSplitter">
-        <Setter Property="Background" Value="{DynamicResource Editor.BackgroundBrush}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Background="Transparent">
+                    <Border Name="PART_Indicator"
+                            Background="{DynamicResource Editor.BorderSubtleBrush}"
+                            CornerRadius="1" />
+                </Border>
+            </ControlTemplate>
+        </Setter>
     </Style>
-    <Style Selector="GridSplitter:pointerover">
+    <Style Selector="GridSplitter[ResizeDirection=Columns] /template/ Border#PART_Indicator">
+        <Setter Property="Width" Value="1" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+    </Style>
+    <Style Selector="GridSplitter[ResizeDirection=Rows] /template/ Border#PART_Indicator">
+        <Setter Property="Height" Value="1" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="GridSplitter:pointerover /template/ Border#PART_Indicator, GridSplitter:pressed /template/ Border#PART_Indicator">
+        <Setter Property="Background" Value="{DynamicResource Editor.AccentBrush}" />
+    </Style>
+    <Style Selector="GridSplitter[ResizeDirection=Columns]:pointerover /template/ Border#PART_Indicator, GridSplitter[ResizeDirection=Columns]:pressed /template/ Border#PART_Indicator">
+        <Setter Property="Width" Value="2" />
+    </Style>
+    <Style Selector="GridSplitter[ResizeDirection=Rows]:pointerover /template/ Border#PART_Indicator, GridSplitter[ResizeDirection=Rows]:pressed /template/ Border#PART_Indicator">
+        <Setter Property="Height" Value="2" />
+    </Style>
+    <Style Selector="GridSplitter.gutter /template/ Border#PART_Indicator">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="GridSplitter.gutter[ResizeDirection=Columns] /template/ Border#PART_Indicator">
+        <Setter Property="Margin" Value="0,6" />
+    </Style>
+    <Style Selector="GridSplitter.gutter[ResizeDirection=Rows] /template/ Border#PART_Indicator">
+        <Setter Property="Margin" Value="6,0" />
+    </Style>
+    <Style Selector="GridSplitter.gutter:pointerover /template/ Border#PART_Indicator, GridSplitter.gutter:pressed /template/ Border#PART_Indicator">
         <Setter Property="Background" Value="{DynamicResource Editor.AccentBrush}" />
     </Style>
     <Style Selector="Separator">
-        <Setter Property="Background" Value="{DynamicResource Editor.BorderBrush}" />
+        <Setter Property="Background" Value="{DynamicResource Editor.BorderSubtleBrush}" />
         <Setter Property="Margin" Value="4" />
     </Style>
 </Styles>

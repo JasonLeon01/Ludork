@@ -41,7 +41,7 @@ internal sealed class MaterialNumericEditor : StackPanel
             TextBlock error = new()
             {
                 Text = $"{LocaleService.Get("MATERIAL_OUTSIDE_RANGE")}: {current}",
-                Foreground = Brushes.OrangeRed,
+                Foreground = EditorTheme.Brush("Error"),
                 TextWrapping = TextWrapping.Wrap,
                 IsVisible = currentNumber < minimum || currentNumber > maximum,
             };

@@ -52,10 +52,10 @@ public sealed class AnimationPreview : Control, IDisposable
     {
         base.Render(context);
         Rect bounds = new(Bounds.Size);
-        context.FillRectangle(EditorTheme.Brush("Background"), bounds);
+        context.FillRectangle(EditorTheme.Brush("Canvas"), bounds);
         Point center = new(bounds.Width / 2, bounds.Height / 2);
-        context.DrawLine(new Pen(EditorTheme.Brush("Border"), 1), new Point(center.X, 0), new Point(center.X, bounds.Height));
-        context.DrawLine(new Pen(EditorTheme.Brush("Border"), 1), new Point(0, center.Y), new Point(bounds.Width, center.Y));
+        context.DrawLine(new Pen(EditorTheme.Brush("BorderSubtle"), 1), new Point(center.X, 0), new Point(center.X, bounds.Height));
+        context.DrawLine(new Pen(EditorTheme.Brush("BorderSubtle"), 1), new Point(0, center.Y), new Point(bounds.Width, center.Y));
 
         JsonArray assets = getData()["assets"] as JsonArray ?? [];
         foreach (AnimationTimelineSegment item in timelineIndex.ActiveAt(CurrentTime))

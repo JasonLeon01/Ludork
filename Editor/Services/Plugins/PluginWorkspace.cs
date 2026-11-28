@@ -32,14 +32,14 @@ public sealed class PluginWorkspace : IEditorPluginRuntime, IDisposable
     public async Task InitializeProjectAsync(string projectPath, CancellationToken cancellationToken = default,
         IProgress<EditorOperationProgress>? progress = null)
     {
-        string key = EditorProjectIdentity.NormalizePath(projectPath);
+        string key = FileSystemPathIdentity.GetKey(projectPath);
         await initializationGate.WaitAsync(cancellationToken);
         try
         {
-            if (GetProjectHost(key) is not null)
+            if (GetProjectHost(projectPath) is not null)
                 return;
             await GlobalHost.InitializeAsync(cancellationToken, progress);
-            PluginHost host = new(editorLanguage, PluginPaths.ForProject(GlobalHost.Environment, key))
+            PluginHost host = new(editorLanguage, PluginPaths.ForProject(GlobalHost.Environment, projectPath))
             {
                 GlobalHost = GlobalHost,
             };
@@ -69,7 +69,7 @@ public sealed class PluginWorkspace : IEditorPluginRuntime, IDisposable
         if (string.IsNullOrWhiteSpace(projectPath))
             return null;
         lock (projectLock)
-            return projects.GetValueOrDefault(EditorProjectIdentity.NormalizePath(projectPath));
+            return projects.GetValueOrDefault(FileSystemPathIdentity.GetKey(projectPath));
     }
 
     public PluginManagementService GetManagement(string? projectPath)

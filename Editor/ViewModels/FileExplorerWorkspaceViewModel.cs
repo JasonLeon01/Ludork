@@ -11,6 +11,7 @@ namespace Ludork.ViewModels;
 
 public sealed class FileExplorerWorkspaceViewModel : ViewModelBase, IDisposable
 {
+    private readonly FileExplorerClipboard clipboard = new();
     private readonly string projectPath;
     private readonly ProjectConfigService projectConfig;
     private readonly ProjectDataStore gameData;
@@ -171,7 +172,7 @@ public sealed class FileExplorerWorkspaceViewModel : ViewModelBase, IDisposable
 
     private FileExplorerTabViewModel createTab(int number, FileExplorerTabState? state)
     {
-        FileExplorerViewModel explorer = new(projectPath, projectConfig, gameData, previewService, referenceIndex, state)
+        FileExplorerViewModel explorer = new(projectPath, projectConfig, gameData, previewService, referenceIndex, clipboard, state)
         {
             IsReadOnly = isReadOnly,
         };

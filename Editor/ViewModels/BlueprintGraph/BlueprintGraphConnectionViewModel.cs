@@ -24,7 +24,7 @@ public sealed class BlueprintGraphConnectionViewModel : ConnectionViewModelBase
     public BlueprintGraphConnection Model { get; }
     public bool IsTypeCompatible { get; }
     public string? Diagnostic { get; }
-    public IBrush Stroke => !IsTypeCompatible ? Brushes.OrangeRed : Model.Kind == BlueprintGraphPortKind.Exec
+    public IBrush Stroke => !IsTypeCompatible ? Ludork.Services.EditorTheme.Brush("Error") : Model.Kind == BlueprintGraphPortKind.Exec
         ? BlueprintGraphBrushes.Execution
         : BlueprintGraphBrushes.Parameter;
 

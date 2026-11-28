@@ -38,11 +38,10 @@ public sealed class WorldMapPanel : Grid, IDisposable
 
         TextBlock childTitle = new()
         {
-            Height = 32,
-            FontSize = 14,
-            FontWeight = FontWeight.Bold,
+            FontSize = 13,
+            FontWeight = FontWeight.SemiBold,
             HorizontalAlignment = HorizontalAlignment.Left,
-            Margin = new Thickness(8, 0),
+            Margin = new Thickness(12, 0),
             VerticalAlignment = VerticalAlignment.Center,
             Text = LocaleService.Get("WORLD_CHILD_MAPS"),
         };
@@ -61,8 +60,15 @@ public sealed class WorldMapPanel : Grid, IDisposable
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
         };
-        Grid listArea = new() { RowDefinitions = new RowDefinitions("32,*") };
-        listArea.Children.Add(childTitle);
+        Grid listArea = new() { RowDefinitions = new RowDefinitions("32,*"), Background = EditorTheme.Brush("Surface") };
+        Border listHeader = new()
+        {
+            Background = EditorTheme.Brush("SurfaceElevated"),
+            BorderBrush = EditorTheme.Brush("BorderSubtle"),
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Child = childTitle,
+        };
+        listArea.Children.Add(listHeader);
         Grid listBody = new();
         listBody.Children.Add(childList);
         listBody.Children.Add(emptyText);
@@ -80,7 +86,7 @@ public sealed class WorldMapPanel : Grid, IDisposable
         {
             Margin = new Thickness(8, 4),
             Padding = new Thickness(8, 4),
-            Background = new SolidColorBrush(Color.FromArgb(180, 25, 25, 25)),
+            Background = EditorTheme.Brush("Overlay"),
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Bottom,
         };
@@ -99,9 +105,24 @@ public sealed class WorldMapPanel : Grid, IDisposable
         previewArea.Children.Add(canvasScroll);
         Button options = new()
         {
-            Content = "▾", Width = 28, Height = 24, Padding = new Thickness(0), Margin = new Thickness(8),
-            HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(8),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Top,
+            Content = new Viewbox
+            {
+                Width = 12,
+                Height = 12,
+                Child = new Avalonia.Controls.Shapes.Path
+                {
+                    Data = StreamGeometry.Parse("M4,6L8,10L12,6"),
+                    Stroke = EditorTheme.Brush("Text"),
+                    StrokeThickness = 1.6,
+                    StrokeLineCap = PenLineCap.Round,
+                    StrokeJoin = PenLineJoin.Round,
+                },
+            },
         };
+        options.Classes.Add("viewportOption");
         ToolTip.SetTip(options, LocaleService.Get("MAP_VIEWPORT_OPTIONS"));
         Avalonia.Automation.AutomationProperties.SetName(options, LocaleService.Get("MAP_VIEWPORT_OPTIONS"));
         options.Click += (_, _) => ViewportOptionsRequested?.Invoke(options, EventArgs.Empty);
@@ -228,7 +249,7 @@ public sealed class WorldMapPanel : Grid, IDisposable
         {
             Text = item.PlacementText,
             FontSize = 11,
-            Foreground = new SolidColorBrush(item.IsPlaced ? Color.Parse("#8fd694") : Color.Parse("#b0b0b0")),
+            Foreground = EditorTheme.Brush(item.IsPlaced ? "Success" : "TextMuted"),
         };
         StackPanel content = new()
         {
@@ -240,7 +261,7 @@ public sealed class WorldMapPanel : Grid, IDisposable
         {
             Padding = new Thickness(4),
             Margin = new Thickness(2),
-            BorderBrush = new SolidColorBrush(item.IsPlaced ? Color.Parse("#547f58") : Color.Parse("#3a3a3a")),
+            BorderBrush = EditorTheme.Brush(item.IsPlaced ? "Success" : "BorderSubtle"),
             BorderThickness = new Thickness(1),
             Background = EditorTheme.Brush("Background"),
             Child = content,

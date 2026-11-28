@@ -10,20 +10,31 @@
         Background="{DynamicResource Editor.BackgroundBrush}"
         FontFamily="{DynamicResource Editor.FontFamily}"
         Icon="/Editor/Assets/icon.ico">
-    <Grid Margin="24" RowDefinitions="Auto,*,Auto">
-        <TextBlock x:Name="MessageText"
-                   Grid.Row="0"
-                   TextWrapping="Wrap"
-                   VerticalAlignment="Center"
-                   FontSize="16" />
-        <ListBox x:Name="DocumentList" Grid.Row="1" Margin="0,16" />
-        <StackPanel Grid.Row="2"
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Right"
-                    Spacing="8">
-            <Button x:Name="SaveButton" Click="onSave" />
-            <Button x:Name="DiscardButton" Click="onDiscard" />
-            <Button x:Name="CancelButton" Click="onCancel" />
-        </StackPanel>
+    <Grid RowDefinitions="*,Auto">
+        <Grid Margin="24,20,24,16" RowDefinitions="Auto,*" RowSpacing="14">
+            <TextBlock x:Name="MessageText"
+                       Grid.Row="0"
+                       TextWrapping="Wrap"
+                       VerticalAlignment="Center"
+                       FontSize="15"
+                       FontWeight="SemiBold" />
+            <Border Grid.Row="1"
+                    Background="{DynamicResource Editor.SurfaceBrush}"
+                    BorderBrush="{DynamicResource Editor.BorderSubtleBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{DynamicResource Editor.RadiusMd}"
+                    ClipToBounds="True">
+                <ListBox x:Name="DocumentList" Background="Transparent" />
+            </Border>
+        </Grid>
+        <Border Grid.Row="1" Classes="editor-panel-footer" Padding="20,12">
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Spacing="8">
+                <Button x:Name="CancelButton" Classes="dialog" Click="onCancel" />
+                <Button x:Name="DiscardButton" Classes="dialog danger" Click="onDiscard" />
+                <Button x:Name="SaveButton" Classes="dialog accent" Click="onSave" />
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

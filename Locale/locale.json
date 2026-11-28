@@ -1319,6 +1319,30 @@
     "zh_CN": "最近项目",
     "en_GB": "Recent Projects"
   },
+  "DESKTOP_RECENT": {
+    "en_GB": "Recent",
+    "zh_CN": "最近项目"
+  },
+  "NEW_WINDOW": {
+    "en_GB": "New Window",
+    "zh_CN": "新建窗口"
+  },
+  "OPEN_PROJECT_DIALOG": {
+    "en_GB": "Open Project…",
+    "zh_CN": "打开项目…"
+  },
+  "KEEP_RUNNING_IN_BACKGROUND": {
+    "en_GB": "Keep Running After Closing the Last Window",
+    "zh_CN": "关闭最后一个窗口后保持运行"
+  },
+  "CLOSE_WINDOW": {
+    "en_GB": "Close Window",
+    "zh_CN": "关闭窗口"
+  },
+  "QUIT_LUDORK": {
+    "en_GB": "Quit Ludork",
+    "zh_CN": "退出 Ludork"
+  },
   "START_NO_RECENT_PROJECTS": {
     "zh_CN": "暂无最近项目",
     "en_GB": "No recent projects yet"

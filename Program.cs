@@ -2,12 +2,15 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using Avalonia.Threading;
 using Ludork.Services;
 
 namespace Ludork;
 
 sealed class Program
 {
+    private static EditorLaunchService? launches;
+
     [STAThread]
     public static void Main(string[] args)
     {
@@ -37,8 +40,18 @@ sealed class Program
             ShellAssociationService.NotifyChanged();
             return;
         }
-        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        string? argument = Array.Find(args, value => value.EndsWith(".proj", StringComparison.OrdinalIgnoreCase));
+        string? projectPath = argument is null ? null : Path.GetFullPath(argument);
+        using EditorLaunchService instance = new();
+        if (!instance.AcquireOrForward(projectPath))
+            return;
+        launches = instance;
+        BuildAvaloniaApp().StartWithClassicDesktopLifetime(projectPath is null ? [] : [projectPath]);
     }
+
+    internal static void ListenForLaunches(Func<string?, bool> activate)
+        => launches?.Listen(async (path, token) => await Dispatcher.UIThread.InvokeAsync(
+            () => activate(path), DispatcherPriority.Normal, token));
 
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()

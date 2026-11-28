@@ -6,8 +6,8 @@ using Avalonia.Platform.Storage;
 using Ludork.Plugin.Abstractions;
 using Ludork.Services;
 using Ludork.ViewModels;
+using Ludork.Views.Utils;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -15,11 +15,6 @@ namespace Ludork.Views;
 
 public partial class StartWindow : Window
 {
-    private static readonly FilePickerFileType ProjectFileType = new("Project Files")
-    {
-        Patterns = ["*.proj"],
-    };
-
     private readonly EditorSettings editorSettings;
 
     public StartWindow() : this(EditorLayoutService.Settings ?? new EditorSettings())
@@ -55,18 +50,17 @@ public partial class StartWindow : Window
 
     private async void onOpenProject(object? sender, RoutedEventArgs args)
     {
-        IStorageFolder? startLocation = await StorageProvider.TryGetFolderFromPathAsync(
-            new Uri(Path.GetFullPath(editorSettings.getLastPathOrHome()))
-        );
-        IReadOnlyList<IStorageFile> files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = LocaleService.Get("SELECT_PROJ_FILE"),
-            AllowMultiple = false,
-            SuggestedStartLocation = startLocation,
-            FileTypeFilter = [ProjectFileType],
-        });
-        if (files.Count > 0)
-            openProject(files[0].Path.LocalPath);
+        string? path = await ProjectFilePicker.PickAsync(this, editorSettings);
+        if (path is not null)
+            openProject(path);
+    }
+
+    private void onCloseWindow(object? sender, RoutedEventArgs args) => Close();
+
+    protected override void OnClosed(EventArgs args)
+    {
+        (DataContext as StartViewModel)?.Dispose();
+        base.OnClosed(args);
     }
 
     private void onRecentProject(object? sender, RoutedEventArgs args)

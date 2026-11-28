@@ -104,7 +104,7 @@ internal sealed class ReferenceTreeGraphControl : Control
     public override void Render(DrawingContext context)
     {
         base.Render(context);
-        context.FillRectangle(new SolidColorBrush(Color.Parse("#202124")), new Rect(Bounds.Size));
+        context.FillRectangle(EditorTheme.Brush("Canvas"), new Rect(Bounds.Size));
         Matrix transform = new(scale, 0, 0, scale, translation.X, translation.Y);
         using (context.PushTransform(transform))
         {

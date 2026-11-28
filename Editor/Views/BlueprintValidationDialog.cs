@@ -40,8 +40,8 @@ public sealed class BlueprintValidationDialog : Window
         };
         Border detailsHost = new()
         {
-            Background = new SolidColorBrush(Color.Parse("#202124")),
-            BorderBrush = Ludork.Services.EditorTheme.Brush("Border"),
+            Background = EditorTheme.Brush("Canvas"),
+            BorderBrush = EditorTheme.Brush("BorderSubtle"),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(4),
             Child = new ScrollViewer
@@ -59,16 +59,21 @@ public sealed class BlueprintValidationDialog : Window
         };
         if (allowContinue)
         {
-            Button continueButton = new() { Content = LocaleService.Get("SAVE_ANYWAY") };
-            continueButton.Click += (_, _) => Close(true);
-            buttons.Children.Add(continueButton);
             Button cancelButton = new() { Content = LocaleService.Get("CANCEL") };
+            cancelButton.Classes.Add("dialog");
             cancelButton.Click += (_, _) => Close(false);
             buttons.Children.Add(cancelButton);
+            Button continueButton = new() { Content = LocaleService.Get("SAVE_ANYWAY") };
+            continueButton.Classes.Add("dialog");
+            continueButton.Classes.Add("danger");
+            continueButton.Click += (_, _) => Close(true);
+            buttons.Children.Add(continueButton);
         }
         else
         {
             Button confirmButton = new() { Content = LocaleService.Get("CONFIRM") };
+            confirmButton.Classes.Add("dialog");
+            confirmButton.Classes.Add("accent");
             confirmButton.Click += (_, _) => Close();
             buttons.Children.Add(confirmButton);
         }

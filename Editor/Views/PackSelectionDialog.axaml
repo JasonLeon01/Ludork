@@ -11,11 +11,14 @@
         Background="{DynamicResource Editor.BackgroundBrush}"
         FontFamily="{DynamicResource Editor.FontFamily}"
         Icon="/Editor/Assets/icon.ico">
-    <Grid Margin="24" RowDefinitions="Auto,*,Auto" RowSpacing="16">
-        <TextBlock x:Name="DescriptionText" TextWrapping="Wrap" />
-        <Grid x:Name="OptionsPanel" Grid.Row="1" ColumnDefinitions="170,*" ColumnSpacing="24">
-            <ListBox x:Name="PlatformList" SelectionMode="Single" />
-            <ScrollViewer x:Name="OptionsScroll" Grid.Column="1"
+    <Grid RowDefinitions="*,Auto">
+        <Grid Margin="24,20,24,16" RowDefinitions="Auto,*" RowSpacing="16">
+            <TextBlock x:Name="DescriptionText" TextWrapping="Wrap" Foreground="{DynamicResource Editor.TextMutedBrush}" />
+            <Grid x:Name="OptionsPanel" Grid.Row="1" ColumnDefinitions="170,*" ColumnSpacing="20">
+                <Border Classes="editor-panel">
+                    <ListBox x:Name="PlatformList" Background="Transparent" SelectionMode="Single" Padding="4" />
+                </Border>
+                <ScrollViewer x:Name="OptionsScroll" Grid.Column="1"
                           HorizontalScrollBarVisibility="Disabled"
                           VerticalScrollBarVisibility="Auto">
                 <StackPanel Spacing="20" Margin="0,0,12,0">
@@ -108,14 +111,17 @@
                     <ContentControl x:Name="HarmonySigningHost" IsVisible="False" />
                     <ContentControl x:Name="AndroidSigningHost" IsVisible="False" />
                 </StackPanel>
-            </ScrollViewer>
+                </ScrollViewer>
+            </Grid>
         </Grid>
-        <StackPanel Grid.Row="2" Orientation="Horizontal"
-                    HorizontalAlignment="Right" VerticalAlignment="Bottom" Spacing="8">
-            <Border x:Name="ConfirmButtonHint" Background="Transparent">
-                <Button x:Name="ConfirmButton" IsEnabled="False" Click="onConfirm" />
-            </Border>
-            <Button x:Name="CancelButton" Click="onCancel" />
-        </StackPanel>
+        <Border Grid.Row="1" Classes="editor-panel-footer" Padding="20,12">
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="8">
+                <Button x:Name="CancelButton" Classes="dialog" Click="onCancel" />
+                <Border x:Name="ConfirmButtonHint" Background="Transparent">
+                    <Button x:Name="ConfirmButton" Classes="dialog accent" IsEnabled="False" Click="onConfirm" />
+                </Border>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

@@ -20,7 +20,7 @@
             <Setter Property="Background" Value="{DynamicResource Editor.SurfaceBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource Editor.BorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="CornerRadius" Value="{DynamicResource Editor.RadiusLg}" />
         </Style>
         <Style Selector="ToggleButton.templateCard:pointerover">
             <Setter Property="Background" Value="{DynamicResource Editor.HoverBrush}" />
@@ -33,12 +33,12 @@
         <Style Selector="Border.templateIcon">
             <Setter Property="Width" Value="58" />
             <Setter Property="Height" Value="58" />
-            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="CornerRadius" Value="{DynamicResource Editor.RadiusLg}" />
             <Setter Property="Background" Value="{DynamicResource Editor.HoverBrush}" />
         </Style>
         <Style Selector="Border.badge">
-            <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="Padding" Value="9,3" />
+            <Setter Property="CornerRadius" Value="{DynamicResource Editor.RadiusSm}" />
+            <Setter Property="Padding" Value="8,3" />
             <Setter Property="Background" Value="{DynamicResource Editor.HoverBrush}" />
         </Style>
         <Style Selector="TextBlock.badgeText">
@@ -137,7 +137,7 @@
                     BorderThickness="1,0,0,0" Padding="24,0,0,0">
                 <Grid RowDefinitions="Auto,*,Auto" RowSpacing="18">
                     <Grid ColumnDefinitions="86,*" ColumnSpacing="20">
-                        <Border Width="86" Height="86" CornerRadius="18" Background="{DynamicResource Editor.SurfaceBrush}">
+                        <Border Width="86" Height="86" CornerRadius="{DynamicResource Editor.RadiusLg}" Background="{DynamicResource Editor.SurfaceBrush}">
                             <Grid>
                                 <Viewbox x:Name="StandaloneHeroIcon" Width="54" Height="54">
                                     <Canvas Width="40" Height="40">
@@ -193,8 +193,8 @@
                 </Grid>
             </Border>
         </Grid>
-        <Border x:Name="ProjectSettingsPanel" Grid.Row="2" Background="{DynamicResource Editor.BackgroundBrush}"
-                BorderBrush="{DynamicResource Editor.BorderBrush}" BorderThickness="0,1,0,0" Padding="28,18">
+        <Border x:Name="ProjectSettingsPanel" Grid.Row="2" Background="{DynamicResource Editor.SurfaceBrush}"
+                BorderBrush="{DynamicResource Editor.BorderSubtleBrush}" BorderThickness="0,1,0,0" Padding="28,18">
             <StackPanel Spacing="10">
                 <TextBlock x:Name="ProjectSettingsTitle" FontSize="14"
                            FontWeight="Bold" Foreground="{DynamicResource Editor.TextBrush}" />
@@ -244,8 +244,7 @@
                            Foreground="{DynamicResource Editor.ErrorBrush}" TextWrapping="Wrap" />
             </StackPanel>
         </Border>
-        <Border Grid.Row="3" Background="{DynamicResource Editor.BackgroundBrush}" BorderBrush="{DynamicResource Editor.BorderBrush}"
-                BorderThickness="0,1,0,0" Padding="28,14">
+        <Border Grid.Row="3" Classes="editor-panel-footer" Padding="28,14">
             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
                 <StackPanel VerticalAlignment="Center" Spacing="5">
                     <TextBlock x:Name="ProgressText" Foreground="{DynamicResource Editor.TextMutedBrush}" IsVisible="False"
@@ -256,8 +255,7 @@
                 <Button x:Name="CancelButton" Grid.Column="1"
                         Classes="footerButton" Click="onCancel" />
                 <Button x:Name="CreateButton" Grid.Column="2" Classes="footerButton accent"
-                        Background="{DynamicResource Editor.AccentBrush}" Foreground="{DynamicResource Editor.TextOnAccentBrush}"
-                        FontWeight="Bold" Click="onCreate" />
+                        Click="onCreate" />
             </Grid>
         </Border>
     </Grid>

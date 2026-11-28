@@ -29,7 +29,8 @@
                     <NativeMenuItem Header="{Binding Save}" Command="{Binding SaveCommand}" Gesture="{OnPlatform Default=Ctrl+S, macOS=Meta+S}" />
                     <NativeMenuItem Header="{Binding PackProject}" IsEnabled="{Binding CanEdit}" Click="onPackProject" />
                     <NativeMenuItemSeparator />
-                    <NativeMenuItem Header="{Binding Exit}" Command="{Binding ExitCommand}" Gesture="{OnPlatform Default=Ctrl+W, macOS=Meta+W}" />
+                    <NativeMenuItem Header="{Binding QuitApplication}" IsVisible="{OnPlatform Default=True, macOS=False}" Click="onQuitApplication" />
+                    <NativeMenuItem Header="{Binding CloseWindow}" Command="{Binding ExitCommand}" Gesture="{OnPlatform Default=Ctrl+W, macOS=Meta+W}" />
                 </NativeMenu>
             </NativeMenuItem>
             <NativeMenuItem Header="{Binding Edit}">
@@ -138,36 +139,28 @@
 
     <Window.Styles>
         <Style Selector="Border.surface">
-            <Setter Property="Background" Value="{DynamicResource Editor.BackgroundBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource Editor.BorderBrush}" />
-            <Setter Property="BorderThickness" Value="0" />
-        </Style>
-        <Style Selector="GridSplitter">
             <Setter Property="Background" Value="{DynamicResource Editor.SurfaceBrush}" />
-        </Style>
-        <Style Selector="TextBlock.panelTitle">
-            <Setter Property="Height" Value="32" />
-            <Setter Property="FontSize" Value="14" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="HorizontalAlignment" Value="Left" />
-            <Setter Property="Margin" Value="12,0" />
-            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Editor.BorderSubtleBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
         </Style>
         <Style Selector="ToggleButton.mode">
             <Setter Property="Width" Value="48" />
             <Setter Property="Height" Value="48" />
-            <Setter Property="Background" Value="{DynamicResource Editor.SurfaceBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource Editor.BackgroundBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="CornerRadius" Value="0" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
+        <Style Selector="ToggleButton.mode:pointerover">
+            <Setter Property="Background" Value="{DynamicResource Editor.HoverBrush}" />
+        </Style>
         <Style Selector="ToggleButton.mode:checked">
             <Setter Property="Background" Value="{DynamicResource Editor.AccentMutedBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource Editor.AccentBrush}" />
-            <Setter Property="BorderThickness" Value="0,0,2,0" />
+            <Setter Property="BorderThickness" Value="2,0,0,0" />
         </Style>
         <Style Selector="ToggleButton.layerVisibility > Image">
             <Setter Property="Source" Value="{StaticResource EditorImage.VisibilityHidden}" />
@@ -182,11 +175,14 @@
             <Setter Property="HorizontalAlignment" Value="Center" />
         </Style>
         <Style Selector="TreeView.actorOutliner">
-            <Setter Property="Background" Value="{DynamicResource Editor.BackgroundBrush}" />
+            <Setter Property="Background" Value="{DynamicResource Editor.SurfaceBrush}" />
         </Style>
         <Style Selector="TreeView.actorOutliner TreeViewItem">
             <Setter Property="Padding" Value="4,6" />
             <Setter Property="IsExpanded" Value="True" />
+        </Style>
+        <Style Selector="TreeView.mapList">
+            <Setter Property="Background" Value="{DynamicResource Editor.SurfaceBrush}" />
         </Style>
         <Style Selector="TreeView.mapList TreeViewItem">
             <Setter Property="Padding" Value="4,6" />
@@ -198,298 +194,339 @@
     <DockPanel x:Name="WindowContent">
         <NativeMenuBar DockPanel.Dock="Top" />
 
-        <Grid x:Name="MainLayoutGrid" Margin="8,0,8,8">
+        <Grid x:Name="MainLayoutGrid" Margin="6">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="4" />
+                <ColumnDefinition Width="6" />
                 <ColumnDefinition Width="400" MinWidth="320" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="*" MinHeight="320" />
-                <RowDefinition Height="4" />
+                <RowDefinition Height="6" />
                 <RowDefinition Height="240" MinHeight="160" />
             </Grid.RowDefinitions>
 
             <Grid x:Name="UpperGrid" Grid.Row="0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="320" MinWidth="160" />
-                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="6" />
                     <ColumnDefinition Width="*" MinWidth="640" />
                 </Grid.ColumnDefinitions>
 
-                <Grid Grid.Column="0" RowDefinitions="32,*" ColumnDefinitions="8,*,8" IsEnabled="{Binding CanEdit}">
-                    <TextBlock Grid.Row="0"
-                               Grid.ColumnSpan="3"
-                               Classes="panelTitle"
-                               Text="{Binding MapList}" />
-                    <Border Grid.Row="1"
-                            Grid.Column="0"
-                            Background="Transparent"
-                            IsEnabled="{Binding #MapList.IsEnabled}"
-                            ContextRequested="onMapListContextRequested" />
-                    <TreeView x:Name="MapList"
-                              Classes="mapList"
-                              Grid.Row="1"
-                              Grid.Column="1"
-                              Padding="0,0,0,24"
-                              ItemsSource="{Binding MapWorkspace.Maps}"
-                              SelectedItem="{Binding MapWorkspace.SelectedMap}"
-                              DoubleTapped="onMapListDoubleTapped"
-                              KeyDown="onMapListKeyDown">
-                        <TreeView.ItemTemplate>
-                            <TreeDataTemplate x:DataType="vm:MapListItemViewModel"
-                                              ItemsSource="{Binding Children}">
-                                <Grid ColumnDefinitions="18,*,Auto">
-                                    <Image Grid.Column="0" Width="16" Height="16"
-                                           Source="{StaticResource EditorImage.World}"
-                                           IsVisible="{Binding IsWorld}"
-                                           VerticalAlignment="Center" />
-                                    <Image Grid.Column="0" Width="16" Height="16"
-                                           Source="{StaticResource EditorImage.Map}"
-                                           IsVisible="{Binding IsMap}"
-                                           VerticalAlignment="Center" />
-                                    <utils:HintedTextPresenter Grid.Column="1"
-                                                               Text="{Binding DisplayName}"
-                                                               ToolTip.Tip="{Binding Key}" />
-                                    <TextBlock Grid.Column="2" Text="*" IsVisible="{Binding IsModified}" Margin="4,0" VerticalAlignment="Center" />
-                                </Grid>
-                            </TreeDataTemplate>
-                        </TreeView.ItemTemplate>
-                    </TreeView>
-                    <Canvas x:Name="MapListDropOverlay"
-                            Grid.Row="1"
-                            Grid.Column="1"
-                            ClipToBounds="True"
-                            IsHitTestVisible="False">
-                        <Border x:Name="MapListDropHighlight"
-                                IsVisible="False"
-                                BorderBrush="{DynamicResource Editor.AccentBrush}"
-                                BorderThickness="1"
-                                CornerRadius="3">
-                            <Border.Background>
-                                <SolidColorBrush Color="{DynamicResource Editor.AccentColor}" Opacity="0.3" />
-                            </Border.Background>
+                <Border Grid.Column="0" Classes="editor-panel" IsEnabled="{Binding CanEdit}">
+                    <Grid RowDefinitions="32,*" ColumnDefinitions="8,*,8">
+                        <Border Grid.Row="0" Grid.ColumnSpan="3" Classes="editor-panel-header">
+                            <TextBlock Classes="panelTitle"
+                                       Text="{Binding MapList}" />
                         </Border>
-                        <Line x:Name="MapListDropLine"
-                              IsVisible="False"
-                              Stroke="{DynamicResource Editor.AccentBrush}"
-                              StrokeThickness="2"
-                              StrokeDashArray="3,2" />
-                    </Canvas>
-                    <Border Grid.Row="1"
-                            Grid.Column="2"
-                            Background="Transparent"
-                            IsEnabled="{Binding #MapList.IsEnabled}"
-                            ContextRequested="onMapListContextRequested" />
-                </Grid>
-
-                <GridSplitter x:Name="UpperLeftSplitter" Grid.Column="1" ResizeDirection="Columns" />
-
-                <Grid x:Name="CenterArea" Grid.Column="2" RowDefinitions="Auto,*">
-                    <Grid x:Name="MapEditToolbar"
-                          Grid.Row="0"
-                          ColumnDefinitions="*,Auto,Auto"
-                          Background="{DynamicResource Editor.SurfaceBrush}">
-                        <ScrollViewer x:Name="LayerTabsScroll" Grid.Column="0"
-                                      Classes="no-auto-hide"
-                                      HorizontalScrollBarVisibility="Auto"
-                                      VerticalScrollBarVisibility="Disabled">
-                            <TabStrip x:Name="LayerTabs"
-                                      Classes="layerTabs"
-                                      Height="{DynamicResource Editor.TabHeight}"
-                                      MinWidth="120"
-                                      HorizontalAlignment="Left"
-                                      ItemsSource="{Binding MapWorkspace.LayerTabs}"
-                                      SelectedItem="{Binding MapWorkspace.SelectedLayerTab, Mode=TwoWay}">
-                                <TabStrip.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:LayerTabViewModel">
-                                        <Grid ColumnDefinitions="*,Auto"
-                                              HorizontalAlignment="Stretch">
-                                            <TextBlock Grid.Column="0"
-                                                       Classes.overviewLayerName="{Binding IsOverview}"
-                                                       Text="{Binding Name}"
-                                                       VerticalAlignment="Center" />
-                                            <ToggleButton Grid.Column="1"
-                                                          Classes="toolbar layerVisibility"
-                                                          Width="28"
-                                                          Height="28"
-                                                          Margin="8,0,0,0"
-                                                          Padding="0"
-                                                          VerticalAlignment="Center"
-                                                          Focusable="False"
-                                                          IsVisible="{Binding ShowLayerActions}"
-                                                          IsChecked="{Binding LayerVisible, Mode=OneWay}"
-                                                          ToolTip.Tip="{Binding VisibilityTooltip}"
-                                                          Click="onLayerVisibilityClick">
-                                                <Image Width="16"
-                                                       Height="16" />
-                                            </ToggleButton>
-                                        </Grid>
-                                    </DataTemplate>
-                                </TabStrip.ItemTemplate>
-                            </TabStrip>
-                        </ScrollViewer>
-
-                        <StackPanel x:Name="RunButtons"
-                                    Grid.Column="2"
-                                    Orientation="Horizontal"
-                                    Spacing="4"
-                                    Margin="8,0"
-                                    VerticalAlignment="Center">
-                            <ProgressBar x:Name="ProjectOperationProgress"
-                                         Width="48" Height="6" Margin="0,0,4,0"
-                                         VerticalAlignment="Center"
-                                         IsIndeterminate="True" IsVisible="False" />
-                            <Button x:Name="ConstructButton" Classes="toolbar" IsVisible="False" Click="onConstructClick">
-                                <Image Width="16" Height="16" Source="{StaticResource EditorImage.Construct}" />
-                            </Button>
-                            <Button x:Name="CompilerMenuButton" Classes="toolbar" IsVisible="False"
-                                    MinWidth="16" Width="18" Padding="1" Content="▾">
-                                <Button.Flyout>
-                                    <MenuFlyout>
-                                        <MenuItem x:Name="ChangeCompilerMenuItem" Click="onChangeCompilerClick" />
-                                    </MenuFlyout>
-                                </Button.Flyout>
-                            </Button>
-                            <Button x:Name="ExportButton" Classes="toolbar" Click="onExportClick">
-                                <Image Width="16" Height="16" Source="{StaticResource EditorImage.Export}" />
-                            </Button>
-                            <Border x:Name="PlayButtonHint" Background="Transparent">
-                                <Button x:Name="PlayButton" Classes="toolbar" Click="onPlayClick">
-                                    <Image x:Name="PlayIcon" Width="16" Height="16" Source="{StaticResource EditorImage.Play}" />
-                                </Button>
-                            </Border>
-                        </StackPanel>
-                    </Grid>
-
-                    <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
-                        <Grid x:Name="EditModeToggles"
-                              Grid.Column="0"
-                              RowDefinitions="48,48"
-                              Width="48"
-                              VerticalAlignment="Top">
-                            <ToggleButton x:Name="TileModeToggle" Grid.Row="0" Classes="mode" IsChecked="True" Click="onTileModeClick">
-                                <Grid RowDefinitions="28,16">
-                                    <Image Grid.Row="0" Width="16" Height="16" Source="{StaticResource EditorImage.ModeTile}" />
-                                    <TextBlock Grid.Row="1" Text="{OnPlatform Default=Ctrl+1, macOS=⌘1}" FontSize="12" Foreground="{DynamicResource Editor.TextMutedBrush}" HorizontalAlignment="Center" />
-                                </Grid>
-                            </ToggleButton>
-                            <ToggleButton x:Name="ActorModeToggle" Grid.Row="1" Classes="mode" Click="onActorModeClick">
-                                <Grid RowDefinitions="28,16">
-                                    <Image Grid.Row="0" Width="16" Height="16" Source="{StaticResource EditorImage.ModeActor}" />
-                                    <TextBlock Grid.Row="1" Text="{OnPlatform Default=Ctrl+2, macOS=⌘2}" FontSize="12" Foreground="{DynamicResource Editor.TextMutedBrush}" HorizontalAlignment="Center" />
-                                </Grid>
-                            </ToggleButton>
-                        </Grid>
-                        <ScrollViewer x:Name="EditorScroll"
-                                      Grid.Column="1"
-                                      MinWidth="576"
-                                      HorizontalScrollBarVisibility="Auto"
-                                      VerticalScrollBarVisibility="Auto">
-                            <controls:MapPanel x:Name="EditorPanel" />
-                        </ScrollViewer>
-                        <controls:WorldMapPanel x:Name="WorldEditorPanel"
-                                                Grid.Column="1"
-                                                IsVisible="False" />
-                        <Button x:Name="ViewportOptionsButton" Grid.Column="1"
-                                HorizontalAlignment="Left" VerticalAlignment="Top"
-                                Width="28" Height="24" Padding="0" Margin="8"
-                                Content="▾" Click="onViewportOptionsClick" />
-                        <Border x:Name="LiveDebugBanner" Grid.Column="1"
-                                HorizontalAlignment="Left" VerticalAlignment="Top"
-                                Background="{DynamicResource Editor.OverlayBrush}" CornerRadius="4" Padding="10,6" Margin="44,8,8,8"
-                                IsVisible="False" IsHitTestVisible="False">
-                            <TextBlock x:Name="LiveDebugStatus" Foreground="{DynamicResource Editor.TextMutedBrush}" />
-                        </Border>
-                        <Border x:Name="GameViewport"
+                        <Border Grid.Row="1"
+                                Grid.Column="0"
+                                Background="Transparent"
+                                IsEnabled="{Binding #MapList.IsEnabled}"
+                                ContextRequested="onMapListContextRequested" />
+                        <TreeView x:Name="MapList"
+                                  Classes="mapList"
+                                  Grid.Row="1"
+                                  Grid.Column="1"
+                                  Padding="0,4,0,24"
+                                  ItemsSource="{Binding MapWorkspace.Maps}"
+                                  SelectedItem="{Binding MapWorkspace.SelectedMap}"
+                                  DoubleTapped="onMapListDoubleTapped"
+                                  KeyDown="onMapListKeyDown">
+                            <TreeView.ItemTemplate>
+                                <TreeDataTemplate x:DataType="vm:MapListItemViewModel"
+                                                  ItemsSource="{Binding Children}">
+                                    <Grid ColumnDefinitions="18,*,Auto">
+                                        <Image Grid.Column="0" Width="16" Height="16"
+                                               Source="{StaticResource EditorImage.World}"
+                                               IsVisible="{Binding IsWorld}"
+                                               VerticalAlignment="Center" />
+                                        <Image Grid.Column="0" Width="16" Height="16"
+                                               Source="{StaticResource EditorImage.Map}"
+                                               IsVisible="{Binding IsMap}"
+                                               VerticalAlignment="Center" />
+                                        <utils:HintedTextPresenter Grid.Column="1"
+                                                                   Text="{Binding DisplayName}"
+                                                                   ToolTip.Tip="{Binding Key}" />
+                                        <Ellipse Grid.Column="2" Width="6" Height="6"
+                                                 Fill="{DynamicResource Editor.AccentBrush}"
+                                                 IsVisible="{Binding IsModified}"
+                                                 Margin="6,0,2,0" VerticalAlignment="Center" />
+                                    </Grid>
+                                </TreeDataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
+                        <Canvas x:Name="MapListDropOverlay"
+                                Grid.Row="1"
                                 Grid.Column="1"
-                                Background="{DynamicResource Editor.BackgroundBrush}"
-                                IsVisible="False">
-                            <controls:AspectRatioPanel x:Name="GameAspectPanel">
-                                <controls:GamePanel x:Name="GamePanel" />
-                            </controls:AspectRatioPanel>
-                        </Border>
+                                ClipToBounds="True"
+                                IsHitTestVisible="False">
+                            <Border x:Name="MapListDropHighlight"
+                                    IsVisible="False"
+                                    BorderBrush="{DynamicResource Editor.AccentBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="{DynamicResource Editor.RadiusSm}">
+                                <Border.Background>
+                                    <SolidColorBrush Color="{DynamicResource Editor.AccentColor}" Opacity="0.3" />
+                                </Border.Background>
+                            </Border>
+                            <Line x:Name="MapListDropLine"
+                                  IsVisible="False"
+                                  Stroke="{DynamicResource Editor.AccentBrush}"
+                                  StrokeThickness="2"
+                                  StrokeDashArray="3,2" />
+                        </Canvas>
+                        <Border Grid.Row="1"
+                                Grid.Column="2"
+                                Background="Transparent"
+                                IsEnabled="{Binding #MapList.IsEnabled}"
+                                ContextRequested="onMapListContextRequested" />
                     </Grid>
+                </Border>
+
+                <GridSplitter x:Name="UpperLeftSplitter" Grid.Column="1" Classes="gutter" ResizeDirection="Columns" />
+
+                <Grid x:Name="CenterArea" Grid.Column="2">
+                    <Border Classes="editor-panel">
+                        <Grid RowDefinitions="Auto,*">
+                            <Border Grid.Row="0" Classes="editor-panel-header">
+                                <Grid x:Name="MapEditToolbar"
+                                      ColumnDefinitions="*,Auto,Auto">
+                                    <ScrollViewer x:Name="LayerTabsScroll" Grid.Column="0"
+                                                  Classes="no-auto-hide"
+                                                  HorizontalScrollBarVisibility="Auto"
+                                                  VerticalScrollBarVisibility="Disabled">
+                                        <TabStrip x:Name="LayerTabs"
+                                                  Classes="layerTabs"
+                                                  Background="Transparent"
+                                                  Height="{DynamicResource Editor.TabHeight}"
+                                                  MinWidth="120"
+                                                  HorizontalAlignment="Left"
+                                                  ItemsSource="{Binding MapWorkspace.LayerTabs}"
+                                                  SelectedItem="{Binding MapWorkspace.SelectedLayerTab, Mode=TwoWay}">
+                                            <TabStrip.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:LayerTabViewModel">
+                                                    <Grid ColumnDefinitions="*,Auto"
+                                                          HorizontalAlignment="Stretch">
+                                                        <TextBlock Grid.Column="0"
+                                                                   Classes.overviewLayerName="{Binding IsOverview}"
+                                                                   Text="{Binding Name}"
+                                                                   VerticalAlignment="Center" />
+                                                        <ToggleButton Grid.Column="1"
+                                                                      Classes="toolbar layerVisibility"
+                                                                      Width="28"
+                                                                      Height="28"
+                                                                      Margin="8,0,0,0"
+                                                                      Padding="0"
+                                                                      VerticalAlignment="Center"
+                                                                      Focusable="False"
+                                                                      IsVisible="{Binding ShowLayerActions}"
+                                                                      IsChecked="{Binding LayerVisible, Mode=OneWay}"
+                                                                      ToolTip.Tip="{Binding VisibilityTooltip}"
+                                                                      Click="onLayerVisibilityClick">
+                                                            <Image Width="16"
+                                                                   Height="16" />
+                                                        </ToggleButton>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </TabStrip.ItemTemplate>
+                                        </TabStrip>
+                                    </ScrollViewer>
+
+                                    <StackPanel x:Name="RunButtons"
+                                                Grid.Column="2"
+                                                Orientation="Horizontal"
+                                                Spacing="4"
+                                                Margin="8,0"
+                                                VerticalAlignment="Center">
+                                        <ProgressBar x:Name="ProjectOperationProgress"
+                                                     Width="48" Height="6" Margin="0,0,4,0"
+                                                     VerticalAlignment="Center"
+                                                     IsIndeterminate="True" IsVisible="False" />
+                                        <Button x:Name="ConstructButton" Classes="toolbar" IsVisible="False" Click="onConstructClick">
+                                            <Image Width="16" Height="16" Source="{StaticResource EditorImage.Construct}" />
+                                        </Button>
+                                        <Button x:Name="CompilerMenuButton" Classes="toolbar" IsVisible="False"
+                                                MinWidth="16" Width="18" Padding="2">
+                                            <Viewbox Width="10" Height="10">
+                                                <Path Data="{StaticResource EditorIcon.ChevronDown}"
+                                                      Stroke="{DynamicResource Editor.TextMutedBrush}"
+                                                      StrokeThickness="1.6"
+                                                      StrokeLineCap="Round"
+                                                      StrokeJoin="Round" />
+                                            </Viewbox>
+                                            <Button.Flyout>
+                                                <MenuFlyout>
+                                                    <MenuItem x:Name="ChangeCompilerMenuItem" Click="onChangeCompilerClick" />
+                                                </MenuFlyout>
+                                            </Button.Flyout>
+                                        </Button>
+                                        <Button x:Name="ExportButton" Classes="toolbar" Click="onExportClick">
+                                            <Image Width="16" Height="16" Source="{StaticResource EditorImage.Export}" />
+                                        </Button>
+                                        <Border x:Name="PlayButtonHint" Background="Transparent">
+                                            <Button x:Name="PlayButton" Classes="toolbar playAction" Click="onPlayClick">
+                                                <Image x:Name="PlayIcon" Width="16" Height="16" Source="{StaticResource EditorImage.Play}" />
+                                            </Button>
+                                        </Border>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
+                                <Border Grid.Column="0"
+                                        Background="{DynamicResource Editor.SurfaceBrush}"
+                                        BorderBrush="{DynamicResource Editor.BorderSubtleBrush}"
+                                        BorderThickness="0,0,1,0">
+                                    <Grid x:Name="EditModeToggles"
+                                          RowDefinitions="48,48"
+                                          Width="48"
+                                          VerticalAlignment="Top">
+                                        <ToggleButton x:Name="TileModeToggle" Grid.Row="0" Classes="mode" IsChecked="True" Click="onTileModeClick">
+                                            <StackPanel Spacing="3" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                <Image Width="18" Height="18" Source="{StaticResource EditorImage.ModeTile}" HorizontalAlignment="Center" />
+                                                <TextBlock Text="{OnPlatform Default=Ctrl+1, macOS=⌘1}" FontSize="10" Foreground="{DynamicResource Editor.TextMutedBrush}" HorizontalAlignment="Center" />
+                                            </StackPanel>
+                                        </ToggleButton>
+                                        <ToggleButton x:Name="ActorModeToggle" Grid.Row="1" Classes="mode" Click="onActorModeClick">
+                                            <StackPanel Spacing="3" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                <Image Width="18" Height="18" Source="{StaticResource EditorImage.ModeActor}" HorizontalAlignment="Center" />
+                                                <TextBlock Text="{OnPlatform Default=Ctrl+2, macOS=⌘2}" FontSize="10" Foreground="{DynamicResource Editor.TextMutedBrush}" HorizontalAlignment="Center" />
+                                            </StackPanel>
+                                        </ToggleButton>
+                                    </Grid>
+                                </Border>
+                                <Grid Grid.Column="1" Background="{DynamicResource Editor.CanvasBrush}">
+                                    <ScrollViewer x:Name="EditorScroll"
+                                                  MinWidth="576"
+                                                  HorizontalScrollBarVisibility="Auto"
+                                                  VerticalScrollBarVisibility="Auto">
+                                        <controls:MapPanel x:Name="EditorPanel" />
+                                    </ScrollViewer>
+                                    <controls:WorldMapPanel x:Name="WorldEditorPanel"
+                                                            IsVisible="False" />
+                                    <Button x:Name="ViewportOptionsButton"
+                                            Classes="viewportOption"
+                                            HorizontalAlignment="Left" VerticalAlignment="Top"
+                                            Margin="8" Click="onViewportOptionsClick">
+                                        <Viewbox Width="12" Height="12">
+                                            <Path Data="{StaticResource EditorIcon.ChevronDown}"
+                                                  Stroke="{DynamicResource Editor.TextBrush}"
+                                                  StrokeThickness="1.6"
+                                                  StrokeLineCap="Round"
+                                                  StrokeJoin="Round" />
+                                        </Viewbox>
+                                    </Button>
+                                    <Border x:Name="LiveDebugBanner"
+                                            HorizontalAlignment="Left" VerticalAlignment="Top"
+                                            Background="{DynamicResource Editor.OverlayBrush}"
+                                            BorderBrush="{DynamicResource Editor.BorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="4" Padding="10,6" Margin="44,8,8,8"
+                                            IsVisible="False" IsHitTestVisible="False">
+                                        <TextBlock x:Name="LiveDebugStatus" Foreground="{DynamicResource Editor.TextMutedBrush}" />
+                                    </Border>
+                                    <Border x:Name="GameViewport"
+                                            Background="{DynamicResource Editor.CanvasBrush}"
+                                            IsVisible="False">
+                                        <controls:AspectRatioPanel x:Name="GameAspectPanel">
+                                            <controls:GamePanel x:Name="GamePanel" />
+                                        </controls:AspectRatioPanel>
+                                    </Border>
+                                </Grid>
+                            </Grid>
+                        </Grid>
+                    </Border>
                 </Grid>
 
             </Grid>
 
-            <GridSplitter x:Name="UpperLowerSplitter" Grid.Row="1" ResizeDirection="Rows" />
+            <GridSplitter x:Name="UpperLowerSplitter" Grid.Row="1" Classes="gutter" ResizeDirection="Rows" />
 
             <Grid x:Name="LowerGrid" Grid.Row="2">
-                <TabControl x:Name="BottomTabs" SelectionChanged="onBottomTabSelectionChanged"
-                            TemplateApplied="onBottomTabsTemplateApplied">
-                    <TabControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal" />
-                        </ItemsPanelTemplate>
-                    </TabControl.ItemsPanel>
-                    <TabControl.Template>
-                        <ControlTemplate>
-                            <Grid RowDefinitions="Auto,*" Background="{TemplateBinding Background}">
-                                <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Left">
-                                    <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                                                  VerticalScrollBarVisibility="Disabled">
-                                        <ItemsPresenter Name="PART_ItemsPresenter"
-                                                        ItemsPanel="{TemplateBinding ItemsPanel}" />
-                                    </ScrollViewer>
-                                    <Button x:Name="NewExplorerButton" Grid.Column="1"
-                                            Classes="toolbar" Content="+" FontSize="20"
-                                            Margin="4,2,4,0" VerticalAlignment="Top"
-                                            IsEnabled="False" />
+                <Border Classes="editor-panel">
+                    <TabControl x:Name="BottomTabs" SelectionChanged="onBottomTabSelectionChanged"
+                                TemplateApplied="onBottomTabsTemplateApplied">
+                        <TabControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </TabControl.ItemsPanel>
+                        <TabControl.Template>
+                            <ControlTemplate>
+                                <Grid RowDefinitions="Auto,*" Background="{TemplateBinding Background}">
+                                    <Border Grid.Row="0" Classes="editor-panel-header">
+                                        <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Left">
+                                            <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                                          VerticalScrollBarVisibility="Disabled">
+                                                <ItemsPresenter Name="PART_ItemsPresenter"
+                                                                ItemsPanel="{TemplateBinding ItemsPanel}" />
+                                            </ScrollViewer>
+                                            <Button x:Name="NewExplorerButton" Grid.Column="1"
+                                                    Classes="toolbar"
+                                                    Margin="4,0" VerticalAlignment="Center"
+                                                    IsEnabled="False">
+                                                <Viewbox Width="14" Height="14">
+                                                    <Path Data="{StaticResource EditorIcon.Plus}"
+                                                          Stroke="{DynamicResource Editor.TextMutedBrush}"
+                                                          StrokeThickness="1.6"
+                                                          StrokeLineCap="Round" />
+                                                </Viewbox>
+                                            </Button>
+                                        </Grid>
+                                    </Border>
+                                    <Panel Grid.Row="1" ClipToBounds="True">
+                                        <ContentPresenter Name="PART_SelectedContentHost2"
+                                                          IsVisible="False"
+                                                          HorizontalContentAlignment="Stretch"
+                                                          VerticalContentAlignment="Stretch" />
+                                        <ContentPresenter Name="PART_SelectedContentHost"
+                                                          HorizontalContentAlignment="Stretch"
+                                                          VerticalContentAlignment="Stretch" />
+                                    </Panel>
                                 </Grid>
-                                <Panel Grid.Row="1" ClipToBounds="True">
-                                    <ContentPresenter Name="PART_SelectedContentHost2"
-                                                      IsVisible="False"
-                                                      HorizontalContentAlignment="Stretch"
-                                                      VerticalContentAlignment="Stretch" />
-                                    <ContentPresenter Name="PART_SelectedContentHost"
-                                                      HorizontalContentAlignment="Stretch"
-                                                      VerticalContentAlignment="Stretch" />
-                                </Panel>
-                            </Grid>
-                        </ControlTemplate>
-                    </TabControl.Template>
-                    <TabItem x:Name="ConsoleTab" Header="{Binding Console}">
-                        <Border x:Name="ConsolePanel" Classes="surface">
-                            <Grid RowDefinitions="*,Auto">
-                                <Border Grid.Row="0" Background="{DynamicResource Editor.BackgroundBrush}">
-                                    <avaloniaEdit:TextEditor x:Name="ConsoleOutput"
-                                                             IsReadOnly="True"
-                                                             WordWrap="False"
-                                                             ShowLineNumbers="False"
-                                                             Background="{DynamicResource Editor.BackgroundBrush}"
-                                                             Foreground="{DynamicResource Editor.TextBrush}"
-                                                             FontFamily="Cascadia Mono,Menlo,Monaco,Consolas"
-                                                             HorizontalScrollBarVisibility="Auto"
-                                                             VerticalScrollBarVisibility="Auto" />
-                                </Border>
-                                <Border Grid.Row="1"
-                                        Background="{DynamicResource Editor.BackgroundBrush}"
-                                        BorderBrush="{DynamicResource Editor.BorderBrush}"
-                                        BorderThickness="0,1,0,0"
-                                        Padding="8">
-                                    <Grid ColumnDefinitions="*,Auto">
-                                        <TextBox x:Name="ConsoleInput"
-                                                 Grid.Column="0"
-                                                 FontFamily="Cascadia Mono,Menlo,Monaco,Consolas"
-                                                 IsEnabled="False" />
-                                        <Button x:Name="ConsoleSendButton"
-                                                Grid.Column="1"
-                                                MinWidth="88"
-                                                Margin="8,0,0,0"
-                                                IsEnabled="False" />
-                                    </Grid>
-                                </Border>
-                            </Grid>
-                        </Border>
-                    </TabItem>
-                </TabControl>
+                            </ControlTemplate>
+                        </TabControl.Template>
+                        <TabItem x:Name="ConsoleTab" Header="{Binding Console}">
+                            <Border x:Name="ConsolePanel" Classes="surface">
+                                <Grid RowDefinitions="*,Auto">
+                                    <Border Grid.Row="0" Background="{DynamicResource Editor.CanvasBrush}">
+                                        <avaloniaEdit:TextEditor x:Name="ConsoleOutput"
+                                                                 IsReadOnly="True"
+                                                                 WordWrap="False"
+                                                                 ShowLineNumbers="False"
+                                                                 Background="{DynamicResource Editor.CanvasBrush}"
+                                                                 Foreground="{DynamicResource Editor.TextBrush}"
+                                                                 FontFamily="{DynamicResource Editor.MonoFontFamily}"
+                                                                 HorizontalScrollBarVisibility="Auto"
+                                                                 VerticalScrollBarVisibility="Auto" />
+                                    </Border>
+                                    <Border Grid.Row="1"
+                                            Classes="editor-panel-footer"
+                                            Padding="8">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBox x:Name="ConsoleInput"
+                                                     Grid.Column="0"
+                                                     FontFamily="{DynamicResource Editor.MonoFontFamily}"
+                                                     IsEnabled="False" />
+                                            <Button x:Name="ConsoleSendButton"
+                                                    Grid.Column="1"
+                                                    MinWidth="88"
+                                                    Margin="8,0,0,0"
+                                                    IsEnabled="False" />
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+                            </Border>
+                        </TabItem>
+                    </TabControl>
+                </Border>
             </Grid>
 
             <GridSplitter x:Name="UpperRightSplitter"
                           Grid.Column="1"
                           Grid.RowSpan="3"
+                          Classes="gutter"
                           ResizeDirection="Columns" />
 
             <Grid x:Name="RightModePanel"
@@ -499,29 +536,36 @@
                 <views:TileSelectPanel x:Name="RightList"
                                        DataContext="{Binding TileSelect}" />
                 <Grid x:Name="ActorModePanel"
-                      RowDefinitions="*,4,2*"
+                      RowDefinitions="*,6,2*"
                       IsVisible="False">
-                    <Grid x:Name="ActorOutlinerPanel" Grid.Row="0" RowDefinitions="32,*">
-                        <TextBlock Grid.Row="0"
-                                   Classes="panelTitle"
-                                   Text="{Binding WorldOutliner}" />
-                        <TreeView x:Name="ActorOutliner"
-                                  Grid.Row="1"
-                                  Classes="actorOutliner"
-                                  SelectionMode="Multiple"
-                                  ItemsSource="{Binding MapWorkspace.ActorOutlinerItems}"
-                                  SelectionChanged="onActorOutlinerSelectionChanged">
-                            <TreeView.ItemTemplate>
-                                <TreeDataTemplate x:DataType="vm:ActorOutlinerItemViewModel"
-                                                  ItemsSource="{Binding Children}">
-                                    <TextBlock Text="{Binding Name}"
-                                               TextTrimming="CharacterEllipsis"
-                                               ToolTip.Tip="{Binding Description}" />
-                                </TreeDataTemplate>
-                            </TreeView.ItemTemplate>
-                        </TreeView>
+                    <Grid x:Name="ActorOutlinerPanel" Grid.Row="0">
+                        <Border Classes="editor-panel">
+                            <Grid RowDefinitions="32,*">
+                                <Border Grid.Row="0" Classes="editor-panel-header">
+                                    <TextBlock Classes="panelTitle"
+                                               Text="{Binding WorldOutliner}" />
+                                </Border>
+                                <TreeView x:Name="ActorOutliner"
+                                          Grid.Row="1"
+                                          Classes="actorOutliner"
+                                          Padding="4"
+                                          SelectionMode="Multiple"
+                                          ItemsSource="{Binding MapWorkspace.ActorOutlinerItems}"
+                                          SelectionChanged="onActorOutlinerSelectionChanged">
+                                    <TreeView.ItemTemplate>
+                                        <TreeDataTemplate x:DataType="vm:ActorOutlinerItemViewModel"
+                                                          ItemsSource="{Binding Children}">
+                                            <TextBlock Text="{Binding Name}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding Description}" />
+                                        </TreeDataTemplate>
+                                    </TreeView.ItemTemplate>
+                                </TreeView>
+                            </Grid>
+                        </Border>
                     </Grid>
                     <GridSplitter x:Name="ActorOutlinerSplitter" Grid.Row="1"
+                                  Classes="gutter"
                                   ResizeDirection="Rows" />
                     <controls:ActorInfoPanel x:Name="ActorInfoPanel"
                                              Grid.Row="2" />

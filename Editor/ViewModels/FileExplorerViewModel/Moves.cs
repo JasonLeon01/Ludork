@@ -124,8 +124,8 @@ public sealed partial class FileExplorerViewModel
             });
             if (cut && rollbackFailed)
             {
-                clipboardPaths.RemoveAll(path => !pathExists(path) || transferred.Any(move => pathsEqual(path, move.OldPath)));
-                clipboardCut = clipboardPaths.Count != 0;
+                clipboard.Paths.RemoveAll(path => !pathExists(path) || transferred.Any(move => pathsEqual(path, move.OldPath)));
+                clipboard.Cut = clipboard.Paths.Count != 0;
             }
             if (transferred.Count == 0)
                 return new FileOperationResult(false, errors);
@@ -143,8 +143,8 @@ public sealed partial class FileExplorerViewModel
         }
         if (cut && committed)
         {
-            clipboardPaths.Clear();
-            clipboardCut = false;
+            clipboard.Paths.Clear();
+            clipboard.Cut = false;
         }
         try
         {

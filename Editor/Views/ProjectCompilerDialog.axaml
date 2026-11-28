@@ -6,11 +6,15 @@
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource Editor.BackgroundBrush}"
         FontFamily="{DynamicResource Editor.FontFamily}" Icon="/Editor/Assets/icon.ico">
-    <StackPanel Margin="24" Spacing="18">
-        <utils:CompilerSelectionControl x:Name="CompilerSelection" />
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-            <Button x:Name="CancelButton" MinWidth="90" Click="onCancel" />
-            <Button x:Name="ConfirmButton" MinWidth="90" Click="onConfirm" />
+    <Grid RowDefinitions="*,Auto">
+        <StackPanel Margin="24,20" Spacing="16">
+            <utils:CompilerSelectionControl x:Name="CompilerSelection" />
         </StackPanel>
-    </StackPanel>
+        <Border Grid.Row="1" Classes="editor-panel-footer" Padding="20,12">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                <Button x:Name="CancelButton" Classes="dialog" Click="onCancel" />
+                <Button x:Name="ConfirmButton" Classes="dialog accent" Click="onConfirm" />
+            </StackPanel>
+        </Border>
+    </Grid>
 </Window>

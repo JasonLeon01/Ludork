@@ -194,6 +194,7 @@ public sealed class ProjectExternalChangeService : IDisposable
         {
             if (disposed)
                 return;
+            bool changed = false;
             foreach (KeyValuePair<string, string?> pair in fingerprints)
             {
                 if (DataConfig.isAnimationCache(pair.Key))
@@ -202,11 +203,15 @@ public sealed class ProjectExternalChangeService : IDisposable
                     && !ProjectDiskSnapshot.IsWithin(pair.Key, Path.Combine(gameData.ProjectPath, "Assets")))
                     continue;
                 if (pair.Value is null)
-                    baseline.Remove(pair.Key);
-                else
+                    changed |= baseline.Remove(pair.Key);
+                else if (baseline.GetValueOrDefault(pair.Key) != pair.Value)
+                {
                     baseline[pair.Key] = pair.Value;
+                    changed = true;
+                }
             }
-            baselineRevision++;
+            if (changed)
+                baselineRevision++;
         }
     }
 

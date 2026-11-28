@@ -8,40 +8,52 @@
         Background="{DynamicResource Editor.BackgroundBrush}"
         FontFamily="{DynamicResource Editor.FontFamily}"
         Icon="/Editor/Assets/icon.ico">
-    <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
-        <TextBlock x:Name="TypeLabel"
-                   Grid.Row="0" />
-        <StackPanel Grid.Row="1"
-                    Orientation="Horizontal"
-                    Spacing="24">
-            <RadioButton x:Name="PlainOption"
-                         GroupName="TextConfigType"
-                         IsChecked="True" />
-            <RadioButton x:Name="RichOption"
-                         GroupName="TextConfigType" />
-        </StackPanel>
-        <TextBlock x:Name="PathLabel"
-                   Grid.Row="2"
-                   Margin="0,8,0,0" />
-        <Grid Grid.Row="3"
-              ColumnDefinitions="*,Auto"
-              ColumnSpacing="8">
-            <TextBox x:Name="PathBox"
-                     Grid.Column="0" />
-            <Button x:Name="BrowseButton"
-                    Grid.Column="1"
-                    Content="..."
-                    Click="onBrowse" />
+    <Grid RowDefinitions="*,Auto">
+        <Grid Margin="24,20" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="8">
+            <TextBlock x:Name="TypeLabel"
+                       Grid.Row="0"
+                       Foreground="{DynamicResource Editor.TextMutedBrush}" />
+            <StackPanel Grid.Row="1"
+                        Orientation="Horizontal"
+                        Spacing="24">
+                <RadioButton x:Name="PlainOption"
+                             GroupName="TextConfigType"
+                             IsChecked="True" />
+                <RadioButton x:Name="RichOption"
+                             GroupName="TextConfigType" />
+            </StackPanel>
+            <TextBlock x:Name="PathLabel"
+                       Grid.Row="2"
+                       Margin="0,8,0,0"
+                       Foreground="{DynamicResource Editor.TextMutedBrush}" />
+            <Grid Grid.Row="3"
+                  ColumnDefinitions="*,Auto"
+                  ColumnSpacing="8">
+                <TextBox x:Name="PathBox"
+                         Grid.Column="0" />
+                <Button x:Name="BrowseButton"
+                        Grid.Column="1"
+                        Width="32"
+                        Padding="0"
+                        Click="onBrowse">
+                    <Viewbox Width="14" Height="14">
+                        <Path Data="{StaticResource EditorIcon.Ellipsis}"
+                              Fill="{DynamicResource Editor.TextBrush}" />
+                    </Viewbox>
+                </Button>
+            </Grid>
         </Grid>
-        <StackPanel Grid.Row="4"
-                    Margin="0,16,0,0"
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Right"
-                    Spacing="8">
-            <Button x:Name="ConfirmButton"
-                    Click="onConfirm" />
-            <Button x:Name="CancelButton"
-                    Click="onCancel" />
-        </StackPanel>
+        <Border Grid.Row="1" Classes="editor-panel-footer" Padding="20,12">
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Spacing="8">
+                <Button x:Name="CancelButton"
+                        Classes="dialog"
+                        Click="onCancel" />
+                <Button x:Name="ConfirmButton"
+                        Classes="dialog accent"
+                        Click="onConfirm" />
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

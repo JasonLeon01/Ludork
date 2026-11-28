@@ -30,6 +30,7 @@ public sealed class EditorSettings
     public int UpperRightWidth { get; set; } = 400;
     public int LowerAreaHeight { get; set; } = 240;
     public string Language { get; set; } = getDefaultLanguage();
+    public bool KeepRunningInBackground { get; set; } = true;
     public string LastOpenPath { get; set; } = string.Empty;
     public bool FileExplorerIconView { get; set; } = true;
     public double FileExplorerZoom { get; set; } = 100;
@@ -38,6 +39,7 @@ public sealed class EditorSettings
     public IReadOnlyList<string> RecentProjectPaths => recentProjectPaths;
     public string? LastError { get; private set; }
     public event EventHandler<string>? SaveFailed;
+    public event EventHandler? RecentProjectsChanged;
     public static string ConfigPath => EditorPaths.ConfigFilePath;
 
     public static EditorSettings Load(string? path = null)
@@ -77,6 +79,7 @@ public sealed class EditorSettings
         settings.UpperRightWidth = readPositiveInt(values, "upperrightwidth", settings.UpperRightWidth);
         settings.LowerAreaHeight = readPositiveInt(values, "lowerareaheight", settings.LowerAreaHeight);
         settings.Language = readText(values, "language", settings.Language);
+        settings.KeepRunningInBackground = readBool(values, "keeprunninginbackground", true);
         settings.LastOpenPath = readText(values, "lastopenpath", string.Empty);
         for (int index = 0; index < MaxRecentProjectCount; index++)
         {
@@ -184,6 +187,7 @@ public sealed class EditorSettings
         if (recentProjectPaths.Count > MaxRecentProjectCount)
             recentProjectPaths.RemoveRange(MaxRecentProjectCount, recentProjectPaths.Count - MaxRecentProjectCount);
         Save();
+        RecentProjectsChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void removeMissingRecentProjects()
@@ -211,6 +215,7 @@ public sealed class EditorSettings
         recentProjectPaths.Clear();
         recentProjectPaths.AddRange(validPaths);
         Save();
+        RecentProjectsChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public bool Save()
@@ -263,6 +268,7 @@ public sealed class EditorSettings
         main.Remove("lowerleftwidth");
         main["lowerareaheight"] = LowerAreaHeight.ToString(CultureInfo.InvariantCulture);
         main["language"] = Language;
+        main["keeprunninginbackground"] = KeepRunningInBackground.ToString();
         main["lastopenpath"] = LastOpenPath;
         main.TryAdd("maximized", "False");
         for (int index = 0; index < MaxRecentProjectCount; index++)
@@ -293,15 +299,8 @@ public sealed class EditorSettings
         return text.ToString();
     }
 
-    private static bool pathsEqual(string left, string right)
-    {
-        StringComparison comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
-        string leftPath = Path.GetFullPath(left).Normalize(NormalizationForm.FormC);
-        string rightPath = Path.GetFullPath(right).Normalize(NormalizationForm.FormC);
-        return leftPath.Equals(rightPath, comparison);
-    }
+    private static bool pathsEqual(string left, string right) =>
+        left == right || FileSystemPathIdentity.GetKey(left) == FileSystemPathIdentity.GetKey(right);
 
     private Dictionary<string, string> section(string name)
     {

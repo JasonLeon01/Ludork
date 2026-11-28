@@ -1,24 +1,29 @@
 using System;
+using System.Threading.Tasks;
 
 namespace Ludork.Services;
 
 public sealed class EditorEditOperationService
 {
     public event EventHandler? Changed;
-    public bool IsBusy { get; private set; }
+    private TaskCompletionSource? operation;
+    public bool IsBusy => operation is not null;
+    internal Task Completion => operation?.Task ?? Task.CompletedTask;
 
     public bool TryBegin()
     {
         if (IsBusy)
             return false;
-        IsBusy = true;
+        operation = new(TaskCreationOptions.RunContinuationsAsynchronously);
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
     }
 
     public void Complete()
     {
-        IsBusy = false;
+        TaskCompletionSource? completed = operation;
+        operation = null;
+        completed?.TrySetResult();
         Changed?.Invoke(this, EventArgs.Empty);
     }
 }

@@ -36,8 +36,8 @@ public sealed class ConfigDictPanel : Border
         this.fileName = fileName;
         this.data = data;
         resourceDocument = gameData.GetDocument("Configs", fileName);
-        Background = Ludork.Services.EditorTheme.Brush("Surface");
-        BorderBrush = new SolidColorBrush(Color.FromRgb(96, 96, 96));
+        Background = EditorTheme.Brush("Surface");
+        BorderBrush = EditorTheme.Brush("BorderSubtle");
         BorderThickness = new Thickness(1);
         CornerRadius = new CornerRadius(6);
         Padding = new Thickness(8);
@@ -133,7 +133,7 @@ public sealed class ConfigDictPanel : Border
         };
         TextBlock diagnostic = new()
         {
-            Foreground = Brushes.OrangeRed,
+            Foreground = EditorTheme.Brush("Error"),
             TextWrapping = TextWrapping.Wrap,
             IsVisible = false,
         };
@@ -426,7 +426,7 @@ public sealed class ConfigDictPanel : Border
     private static Button createMinusButton() => new()
     {
         Content = "-",
-        Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60)),
+        Foreground = EditorTheme.Brush("Error"),
     };
 
     private async Task<string?> selectFileName(JsonObject value, string current)

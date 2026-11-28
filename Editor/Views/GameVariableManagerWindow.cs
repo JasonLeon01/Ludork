@@ -159,16 +159,20 @@ public sealed class GameVariableManagerWindow : Window
 
         GridSplitter splitter = new()
         {
-            Width = 4,
-            Background = new SolidColorBrush(Color.FromRgb(50, 50, 50)),
+            Width = 5,
             ResizeDirection = GridResizeDirection.Columns,
             VerticalAlignment = VerticalAlignment.Stretch,
         };
+        Border leftPane = new()
+        {
+            Background = EditorTheme.Brush("Surface"),
+            Child = left,
+        };
         Grid manager = new()
         {
-            ColumnDefinitions = new ColumnDefinitions("240,4,*"),
+            ColumnDefinitions = new ColumnDefinitions("240,5,*"),
         };
-        manager.Children.Add(left);
+        manager.Children.Add(leftPane);
         Grid.SetColumn(splitter, 1);
         manager.Children.Add(splitter);
         EditorLayoutService.BindColumns(manager, splitter, "GameVariableManager.Columns", 0, 2);
@@ -179,11 +183,13 @@ public sealed class GameVariableManagerWindow : Window
         {
             VerticalAlignment = VerticalAlignment.Center,
             TextWrapping = TextWrapping.Wrap,
-            Foreground = new SolidColorBrush(Color.Parse("#ffdddd")),
+            Foreground = EditorTheme.Brush("Error"),
         };
         errorBar = new Border
         {
-            Background = new SolidColorBrush(Color.Parse("#6b2929")),
+            Background = EditorTheme.Brush("ErrorMuted"),
+            BorderBrush = EditorTheme.Brush("Error"),
+            BorderThickness = new Thickness(0, 0, 0, 1),
             Padding = new Thickness(12, 8),
             Child = errorText,
             IsVisible = false,

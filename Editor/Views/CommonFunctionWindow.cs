@@ -121,15 +121,22 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
             ContextRequestedEvent,
             onListContextRequested,
             RoutingStrategies.Bubble);
+        Border listPane = new()
+        {
+            Background = EditorTheme.Brush("Surface"),
+            BorderBrush = EditorTheme.Brush("BorderSubtle"),
+            BorderThickness = new Thickness(0, 0, 1, 0),
+            Child = functionList,
+        };
         graphHost = new Border
         {
-            Background = new SolidColorBrush(Color.Parse("#1c1c1c")),
+            Background = EditorTheme.Brush("Canvas"),
         };
         Grid root = new()
         {
             ColumnDefinitions = new ColumnDefinitions("Auto,*"),
         };
-        root.Children.Add(functionList);
+        root.Children.Add(listPane);
         Grid.SetColumn(graphHost, 1);
         root.Children.Add(graphHost);
         return root;

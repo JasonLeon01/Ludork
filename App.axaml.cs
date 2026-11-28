@@ -1,17 +1,15 @@
-using Ludork.Composition;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using System;
-using System.IO;
+using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Ludork.Services;
 using Ludork.Services.Plugins;
-using Ludork.ViewModels;
 using Ludork.Views;
 using Ludork.Views.Utils;
 
@@ -21,8 +19,9 @@ public partial class App : Application
 {
     private EditorSettings? editorSettings;
     private AboutDialog? aboutDialog;
-    private string? pendingProjectPath;
-    private bool openingProject;
+    private IClassicDesktopStyleApplicationLifetime? desktopLifetime;
+    private readonly List<string> initialProjects = [];
+    private bool ready;
     internal EditorNotificationService? Notifications { get; private set; }
 
     public override void Initialize()
@@ -38,6 +37,13 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            desktopLifetime = desktop;
+            if (OperatingSystem.IsMacOS() || OperatingSystem.IsWindows())
+                desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            desktop.ShutdownRequested += onShutdownRequested;
+            IDisposable activation = Window.IsActiveProperty.Changed.AddClassHandler<Window>(
+                (window, _) => trackActiveWindow(window));
+            desktop.Exit += (_, _) => activation.Dispose();
             IActivatableLifetime? activatableLifetime = this.TryGetFeature<IActivatableLifetime>();
             if (activatableLifetime is not null)
                 activatableLifetime.Activated += onActivated;
@@ -55,17 +61,31 @@ public partial class App : Application
             NativeMenu? applicationMenu = NativeMenu.GetMenu(this);
             if (applicationMenu?.Items.FirstOrDefault() is NativeMenuItem aboutMenuItem)
                 aboutMenuItem.Header = LocaleService.Get("ABOUT_TITLE");
-            string? projectArgument = pendingProjectPath ?? (desktop.Args ?? Array.Empty<string>())
-                .FirstOrDefault(argument => !string.IsNullOrWhiteSpace(argument) && !argument.StartsWith("--"));
-            pendingProjectPath = null;
-            StartWindow startWindow = new(editorSettings)
+            initializeDesktopMenus();
+            desktop.Exit += (_, _) => disposeDesktopMenus();
+            string? projectArgument = desktop.Args?.FirstOrDefault(argument =>
+                !string.IsNullOrWhiteSpace(argument) && !argument.StartsWith("--", StringComparison.Ordinal));
+            if (projectArgument is not null)
+                initialProjects.Add(projectArgument);
+            StartWindow startWindow = createStartWindow();
+            startWindow.Opened += (_, _) =>
             {
-                DataContext = new StartViewModel(editorSettings),
+                ready = true;
+                Dispatcher.UIThread.Post(() =>
+                {
+                    foreach (string path in initialProjects)
+                        openExternalProject(path);
+                    initialProjects.Clear();
+                });
             };
-            registerPluginFailureNotification(startWindow);
-            if (!string.IsNullOrWhiteSpace(projectArgument))
-                startWindow.Opened += (_, _) => openProject(startWindow, projectArgument);
             desktop.MainWindow = startWindow;
+            Program.ListenForLaunches(path =>
+            {
+                if (quitDecision is not null)
+                    return false;
+                ActivateFromLaunch(path);
+                return true;
+            });
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -99,104 +119,33 @@ public partial class App : Application
 
     private void onOpenAbout(object? sender, EventArgs args)
     {
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
-            && desktop.MainWindow is Window owner)
-        {
+        if (rootWindows.FirstOrDefault() is Window owner && quitDecision is null)
             showAbout(owner);
+    }
+
+    internal void ActivateFromLaunch(string? projectFilePath)
+    {
+        if (!ready)
+        {
+            if (projectFilePath is not null)
+                initialProjects.Add(projectFilePath);
+            return;
         }
+        if (projectFilePath is null)
+            restoreWindow();
+        else
+            openExternalProject(projectFilePath);
     }
 
     private void onActivated(object? sender, ActivatedEventArgs args)
     {
-        if (args is not FileActivatedEventArgs fileArgs)
-            return;
-        IStorageItem? projectItem = fileArgs.Files.FirstOrDefault(item =>
-            item.Path.IsFile
-            && item.Path.LocalPath.EndsWith(".proj", StringComparison.OrdinalIgnoreCase)
-            && File.Exists(item.Path.LocalPath));
-        if (projectItem is null)
-            return;
-        string projectPath = projectItem.Path.LocalPath;
-        if (ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop
-            || editorSettings is null
-            || desktop.MainWindow is null)
+        if (args is FileActivatedEventArgs fileArgs)
         {
-            pendingProjectPath = projectPath;
-            return;
+            foreach (IStorageItem item in fileArgs.Files.Where(item => item.Path.IsFile
+                && item.Path.LocalPath.EndsWith(".proj", StringComparison.OrdinalIgnoreCase)))
+                ActivateFromLaunch(item.Path.LocalPath);
         }
-        openProject(desktop.MainWindow, projectPath);
-    }
-
-    public async void openProject(Window currentWindow, string projectFilePath)
-    {
-        if (openingProject || ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
-            return;
-        openingProject = true;
-        using CancellationTokenSource cancellation = new();
-        void cancel(object? sender, EventArgs args) => cancellation.Cancel();
-        currentWindow.Closed += cancel;
-        try
-        {
-            MainWindow? mainWindow = await createProjectWindowAsync(currentWindow, projectFilePath, cancellation.Token);
-            if (mainWindow is null)
-                return;
-            currentWindow.Closed -= cancel;
-            desktop.MainWindow = mainWindow;
-            mainWindow.Show();
-            if (currentWindow is MainWindow previousMain)
-                previousMain.CloseForProjectSwitch();
-            else
-                currentWindow.Close();
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
-            or InvalidOperationException or System.Text.Json.JsonException or ProjectStateCheckException)
-        {
-            if (!cancellation.IsCancellationRequested)
-                await AlertDialog.ShowAsync(currentWindow, LocaleService.Get("ERROR"), exception.Message);
-        }
-        finally
-        {
-            currentWindow.Closed -= cancel;
-            openingProject = false;
-        }
-    }
-
-    private async Task<MainWindow?> createProjectWindowAsync(Window owner, string projectFilePath, CancellationToken token)
-    {
-        if (editorSettings is null || !Path.IsPathFullyQualified(projectFilePath))
-            return null;
-        string fullPath = Path.GetFullPath(projectFilePath);
-        if (!fullPath.EndsWith(".proj", StringComparison.OrdinalIgnoreCase) || !File.Exists(fullPath))
-            return null;
-        string? projectPath = Path.GetDirectoryName(fullPath);
-        if (string.IsNullOrWhiteSpace(projectPath))
-            return null;
-
-        string? error = ProjectVersionService.GetOpenError(fullPath);
-        if (error is not null)
-        {
-            await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), error);
-            return null;
-        }
-        ProjectDataStore? gameData = await EditorProjectOpenWorkflow.LoadAsync(owner, projectPath, pluginWorkspace, token);
-        if (token.IsCancellationRequested)
-        {
-            gameData?.Dispose();
-            token.ThrowIfCancellationRequested();
-        }
-        if (gameData is null)
-        {
-            (ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.Shutdown();
-            return null;
-        }
-        TextHintService.SetProjectPath(projectPath);
-        EditorProjectSession session = new(gameData);
-        MainWindow mainWindow = new(editorSettings, session);
-        registerPluginFailureNotification(mainWindow);
-        editorSettings.recordOpenedProject(fullPath);
-        return mainWindow;
+        else if (args.Kind == ActivationKind.Reopen)
+            ActivateFromLaunch(null);
     }
 }

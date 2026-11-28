@@ -23,7 +23,7 @@ public sealed class AddParamDialog : Window
     private readonly StackPanel baseRow = new() { Spacing = 4 };
     private readonly StackPanel defaultRow = new() { Spacing = 4 };
     private readonly TextBlock typeTip = new() { TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = EditorTheme.Brush("TextMuted") };
-    private readonly TextBlock error = new() { Foreground = Brushes.OrangeRed, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock error = new() { Foreground = EditorTheme.Brush("Error"), TextWrapping = TextWrapping.Wrap };
 
     private AddParamDialog(
         string projectPath,

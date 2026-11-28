@@ -15,7 +15,7 @@ namespace Ludork.Controls;
 
 public sealed partial class ActorInfoPanel : UserControl
 {
-    private const double ClassContentMinimumWidth = 379;
+    private const double ClassContentMinimumWidth = 288;
     private readonly ActorInfoViewModel viewModel = new();
     private readonly Dictionary<string, Button> resetButtons = new(StringComparer.Ordinal);
     private ProjectDataStore? historyData;
@@ -30,7 +30,6 @@ public sealed partial class ActorInfoPanel : UserControl
     {
         InitializeComponent();
         DataContext = viewModel;
-        TitleContainer.Background = EditorTheme.Brush("Input");
         NoSelectionLabel.Foreground = EditorTheme.Brush("TextMuted");
         TitleLabel.Text = LocaleService.Get("ACTOR_INFO");
         TagLabel.Text = LocaleService.Get("TAG");

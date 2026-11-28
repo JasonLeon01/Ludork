@@ -241,8 +241,8 @@ public sealed class AnimationEditor : UserControl
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             Content = assetGrid,
         };
-        assetSelectionBox.Background = new SolidColorBrush(Color.Parse("#338ab4f8"));
-        assetSelectionBox.BorderBrush = new SolidColorBrush(Color.Parse("#8ab4f8"));
+        assetSelectionBox.Background = EditorTheme.Brush("SelectionFill");
+        assetSelectionBox.BorderBrush = EditorTheme.Brush("Accent");
         assetSelectionBox.BorderThickness = new Thickness(1);
         assetSelectionBox.CornerRadius = new CornerRadius(2);
         assetSelectionBox.IsHitTestVisible = false;
@@ -284,7 +284,7 @@ public sealed class AnimationEditor : UserControl
         Grid.SetColumn(right, 1);
         right.Children.Add(preview);
         Grid timelineArea = new() { RowDefinitions = new RowDefinitions("28,*"), RowSpacing = 0 };
-        Border toolbar = new() { Background = EditorTheme.Brush("Surface"), BorderBrush = EditorTheme.Brush("Border"), BorderThickness = new Thickness(0, 0, 0, 1) };
+        Border toolbar = new() { Background = EditorTheme.Brush("SurfaceElevated"), BorderBrush = EditorTheme.Brush("BorderSubtle"), BorderThickness = new Thickness(0, 0, 0, 1) };
         StackPanel transport = new() { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(8, 2) };
         playbackButton = new Button
         {

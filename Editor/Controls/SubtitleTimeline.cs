@@ -14,15 +14,15 @@ namespace Ludork.Controls;
 public sealed class SubtitleTimeline : Panel
 {
     private readonly Func<JsonArray> getSections;
-    private readonly TimelinePlayhead playhead = new(Brushes.OrangeRed, 2);
+    private readonly TimelinePlayhead playhead = new(EditorTheme.Brush("Error"), 2);
     private readonly TimelineIntervalIndex<SectionEntry> intervals = new([], item => item.Start, item => item.End);
     private readonly List<SectionEntry> candidates = [];
     private readonly Dictionary<long, FormattedText> rulerLabels = [];
     private readonly Dictionary<int, FormattedText> sectionLabels = [];
     private readonly List<long> obsoleteTicks = [];
     private readonly List<int> obsoleteSections = [];
-    private static readonly Pen SelectedPen = new(Brushes.White);
-    private static readonly Pen SectionPen = new(Brushes.Gray);
+    private static Pen SelectedPen => new(EditorTheme.Brush("Accent"));
+    private static Pen SectionPen => new(EditorTheme.Brush("Border"));
     private SectionEntry?[] sectionEntries = [];
     private JsonArray? indexedSections;
     private readonly TimelineDrawingLayer contentLayer;
@@ -226,7 +226,7 @@ public sealed class SubtitleTimeline : Panel
         {
             Rect rectangle = sectionRectangle(entry);
             bool selected = entry.Index == SelectedIndex;
-            context.FillRectangle(selected ? Brushes.SteelBlue : Brushes.DarkSlateGray, rectangle, 4);
+            context.FillRectangle(selected ? EditorTheme.Brush("AccentMuted") : EditorTheme.Brush("SurfaceElevated"), rectangle, 4);
             context.DrawRectangle(selected ? SelectedPen : SectionPen, rectangle, 4);
             using (context.PushClip(rectangle))
             {

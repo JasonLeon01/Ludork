@@ -35,15 +35,15 @@ public sealed class ReferenceTreeWindow : Window
         MinWidth = 640;
         MinHeight = 420;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = new SolidColorBrush(Color.Parse("#202124"));
-        FontFamily = Ludork.Services.EditorTheme.FontFamily;
+        Background = EditorTheme.Brush("Background");
+        FontFamily = EditorTheme.FontFamily;
         EditorWindowIcon.Apply(this);
         EditorLayoutService.AttachWindow(this, nameof(ReferenceTreeWindow));
         graph = new ReferenceTreeGraphControl(nodeId);
         graph.NodeOpenRequested += onNodeOpenRequested;
         statusText = new TextBlock
         {
-            Foreground = Brushes.LightGray,
+            Foreground = EditorTheme.Brush("TextMuted"),
             VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
         };
@@ -63,10 +63,17 @@ public sealed class ReferenceTreeWindow : Window
         status.Children.Add(statusText);
         Grid.SetColumn(retryButton, 1);
         status.Children.Add(retryButton);
+        Border statusHeader = new()
+        {
+            Background = EditorTheme.Brush("SurfaceElevated"),
+            BorderBrush = EditorTheme.Brush("BorderSubtle"),
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Child = status,
+        };
         loadingText = new TextBlock
         {
             Text = LocaleService.Get("LOADING"),
-            Foreground = Brushes.LightGray,
+            Foreground = EditorTheme.Brush("TextMuted"),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
             IsHitTestVisible = false,
@@ -75,7 +82,7 @@ public sealed class ReferenceTreeWindow : Window
         {
             RowDefinitions = new RowDefinitions("40,*"),
         };
-        content.Children.Add(status);
+        content.Children.Add(statusHeader);
         Grid.SetRow(graph, 1);
         content.Children.Add(graph);
         Grid.SetRow(loadingText, 1);

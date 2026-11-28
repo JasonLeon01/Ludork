@@ -29,7 +29,7 @@ public sealed class MapEditWindow : Window
     private readonly NumericUpDown heightBox = EditorInputs.CreateNumericUpDown(13, 1, 32768, 1);
     private readonly TextBox bgmBox = EditorInputs.CreateReadOnlyTextBox();
     private readonly TextBox bgsBox = EditorInputs.CreateReadOnlyTextBox();
-    private readonly TextBlock errorText = new() { Foreground = Brushes.IndianRed, TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock errorText = new() { Foreground = EditorTheme.Brush("Error"), TextWrapping = TextWrapping.Wrap };
     private readonly Button ambientButton = new();
     private readonly Border ambientSwatch = new();
     private readonly TextBlock ambientValue = new() { VerticalAlignment = VerticalAlignment.Center };

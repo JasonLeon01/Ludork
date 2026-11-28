@@ -25,7 +25,7 @@ public sealed class WorldMapEditWindow : Window
     private readonly NumericUpDown heightBox = EditorInputs.CreateNumericUpDown(192, 1, 32768, 1);
     private readonly TextBlock errorText = new()
     {
-        Foreground = Brushes.IndianRed,
+        Foreground = EditorTheme.Brush("Error"),
         TextWrapping = TextWrapping.Wrap,
     };
 

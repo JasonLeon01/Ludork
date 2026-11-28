@@ -114,6 +114,12 @@ public partial class FileExplorerPanel : UserControl
         return located;
     }
 
+    private void onClearSearch(object? sender, RoutedEventArgs args)
+    {
+        SearchBox.Text = string.Empty;
+        SearchBox.Focus();
+    }
+
     private async void onUp(object? sender, RoutedEventArgs args)
     {
         if (DataContext is FileExplorerViewModel viewModel)

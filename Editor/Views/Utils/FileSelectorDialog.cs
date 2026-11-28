@@ -157,7 +157,7 @@ public sealed class FileSelectorDialog : Window
         _save = save;
         _allowMultiple = allowMultiple && !save;
         _allowEmpty = allowEmpty && !save && !_allowMultiple;
-        MainViewModel? project = FindProject(owner);
+        MainViewModel? project = ProjectWindowContext.Find(owner);
         _assetPaths = assetPaths ?? project?.GameData.AssetPaths;
         EditorThumbnailService? projectThumbnails = project?.GameData.Thumbnails;
         _thumbnails = projectThumbnails ?? new EditorThumbnailService();
@@ -388,16 +388,6 @@ public sealed class FileSelectorDialog : Window
             _opened = true;
             await refreshDirectoryAsync(initialSelection);
         };
-    }
-
-    internal static MainViewModel? FindProject(Window? owner)
-    {
-        for (Window? window = owner; window is not null; window = window.Owner as Window)
-        {
-            if (window.DataContext is MainViewModel main)
-                return main;
-        }
-        return null;
     }
 
     private bool canGoUp =>

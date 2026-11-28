@@ -2,19 +2,23 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="Ludork.Views.Utils.ConfirmationDialog"
         Width="440"
-        Height="180"
+        MinHeight="156"
+        MaxHeight="480"
+        SizeToContent="Height"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource Editor.BackgroundBrush}"
         FontFamily="{DynamicResource Editor.FontFamily}"
         Icon="/Editor/Assets/icon.ico">
-    <Grid Margin="24" RowDefinitions="*,Auto">
-        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,0,12">
+    <Grid RowDefinitions="*,Auto">
+        <ScrollViewer Grid.Row="0" Margin="24,20" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <TextBlock x:Name="MessageText" TextWrapping="Wrap" VerticalAlignment="Center" />
         </ScrollViewer>
-        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-            <Button x:Name="ConfirmButton" Click="onConfirm" />
-            <Button x:Name="CancelButton" Click="onCancel" />
-        </StackPanel>
+        <Border Grid.Row="1" Classes="editor-panel-footer" Padding="20,12">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                <Button x:Name="CancelButton" Classes="dialog" Click="onCancel" />
+                <Button x:Name="ConfirmButton" Classes="dialog accent" Click="onConfirm" />
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>
