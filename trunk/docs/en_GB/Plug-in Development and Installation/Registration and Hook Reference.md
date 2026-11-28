@@ -4,7 +4,7 @@ Reference for every registration method, command context, host bridge and lifecy
 
 ## Scope and execution order
 
-- **Active scope:** The start page loads global plug-ins only. A project window combines global plug-ins with that project's plug-ins across menus, map context menus, text hints, Export/Run/Pack hooks and export-participant fingerprints. Switching projects deactivates the previous project's registrations.
+- **Active scope:** The start page loads global plug-ins only. A project window combines global plug-ins with that project's plug-ins across menus, map context menus, text hints, Export/Run/Pack hooks and export-participant fingerprints. Each window resolves these registrations against its own project, even when another project window has focus.
 - **Source precedence:** Within each scope, working-directory and user registrations merge by plug-in ID with the working-directory copy winning; only the selected copy contributes commands, providers and hooks.
 - **Ordering and uniqueness:** Global plug-ins run before project plug-ins for providers and hooks. Menu items sort by menu location and `Order` (global commands win ties). Plug-in IDs and command IDs must be unique within the effective global-plus-current-project set — ordinary menu commands and map context-menu commands share one command-ID namespace. Conflicting registrations fail rather than overwriting earlier ones. Independent project scopes may reuse IDs, and one project's load failure never blocks global or other-project plug-ins.
 

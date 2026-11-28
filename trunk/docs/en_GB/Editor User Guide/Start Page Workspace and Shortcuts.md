@@ -4,9 +4,15 @@ Navigate the Ludork editor workspace, manage global preferences and user data, b
 
 ## Start page
 
-The Start page displays up to three recently opened projects alongside **New Project** and **Open Project**. Opening a validated `.proj` file moves it to the top of the list; unavailable entries are pruned automatically when the page loads. Opening `Main.proj` replaces the active project only after unsaved-work checks pass.
+The Start page offers **New Project**, **Open Project** and up to three recently opened projects. It shares the list with the **Recent** desktop menu. A successfully opened project moves to the top, and unavailable files drop out of the list.
 
 Drag and drop an existing `.proj` file anywhere onto the Start page to open it (if multiple files are dropped, the first existing `.proj` is opened and the rest are ignored). Projects with an unsupported version cannot be opened; see [Main.proj](<Project Settings and Asset Layout.md#mainproj>).
+
+On macOS, right-click Ludork in the Dock or click its menu bar icon. On Windows, right-click its notification area icon. Choose **New Window** for another Start page, or **Open Project…** or **Recent** to open another project alongside the current one. Opening a `.proj` file from Finder or File Explorer has the same effect. If the project is already open, Ludork brings its window forward. Inside a project window, **File → Open Project** switches the project in that window after you resolve any unsaved changes.
+
+**Close Window** closes that project and stops its running game. By default Ludork stays running after its last window closes. Launching Ludork again, clicking its Dock icon or left-clicking its Windows notification area icon brings back the last active window, or opens a Start page if all windows have closed.
+
+Choose **Quit Ludork** to exit the application. Each project with unsaved changes prompts before any project window closes. Cancelling a prompt or a failed save keeps the windows open. To exit automatically when the last window closes, clear **Keep Running After Closing the Last Window** in the desktop menu. Clearing it while all windows are closed exits Ludork immediately.
 
 ## Main workspace
 
@@ -18,7 +24,7 @@ Drag and drop an existing `.proj` file anywhere onto the Start page to open it (
 | **Bottom strip** | **File Explorer** tabs and **Console**. |
 | **Toolbar** | **Construct → Export → Play** / **Stop** (Standalone projects hide **Construct**). See [Run, Debug and Package](<Run Debug and Package.md>). |
 
-Resource windows display a loading indicator while opening; if loading fails, click **Retry**.
+Resource windows display a loading indicator while opening; if loading fails, click **Retry**. Clicking a task completion notification returns you to the project or result window that produced it.
 
 ## Online documentation
 
@@ -62,7 +68,7 @@ Project files, build outputs and `EditorCache` stay inside each project, game ru
 
 > **Warning:** On Windows, MSI and EXE uninstallers select **Delete user data** by default, deleting the verified initiating user's entire `~/Ludork` directory — including all plug-ins, registrations, preferences, logs, template caches, browser data and signing indexes.
 >
-> Close Ludork and back up needed files before uninstalling, or clear the option to keep your data. Projects outside `~/Ludork` (such as `~/LudorkProjects`) and other users' data are never deleted. Removing the macOS application leaves `~/Ludork` intact.
+> Quit Ludork and back up needed files before uninstalling, or clear the option to keep your data. Projects outside `~/Ludork` (such as `~/LudorkProjects`) and other users' data are never deleted. Removing the macOS application leaves `~/Ludork` intact.
 
 | Uninstaller | Flag | Behaviour |
 |---|---|---|
@@ -75,7 +81,7 @@ If manual cleanup is required, sign in as the intended user, back up anything ne
 
 Apart from the working-directory plug-in scan, legacy storage locations are not read or migrated automatically (Windows previously stored data in the installation directory and repository runs could use the working directory or repository; macOS previously kept settings and signing indexes in `~/Library/Application Support/Ludork`, while published plug-ins and template caches already used `~/Ludork`).
 
-1. Close Ludork and back up needed files **before uninstalling an older version**.
+1. Quit Ludork and back up needed files **before uninstalling an older version**.
 2. Install the new version. To keep existing plug-ins, clear the EXE installer's **Install Official Plug-ins** option or pass `INSTALL_OFFICIAL_PLUGINS=0` to MSI (restoring plug-ins before an install with that option enabled overwrites them).
 3. Restore preferences in the [current platform format](#global-editor-preferences), signing indexes, template caches and local server settings into `~/Ludork`, backing up any existing destination files first. Restore `Plugins` and `plugins.json` together from the same backup.
 
@@ -92,7 +98,8 @@ The primary modifier is `Ctrl` on Windows and `Command` on macOS.
 | `Ctrl/Command+S` | Save |
 | `Ctrl/Command+Z` | Undo |
 | `Ctrl/Command+Shift+Z` or `Ctrl/Command+Y` | Redo |
-| `Ctrl/Command+W` | Exit or close the project window |
+| `Ctrl/Command+W` | Close the current project window |
+| `Command+Q` (macOS) | Quit Ludork |
 | `Ctrl/Command+1` | Tile mode |
 | `Ctrl/Command+2` | Actor mode |
 | `F1` | Ludork Documentation |
@@ -140,7 +147,7 @@ Displayed field defaults are written only when edited. Clearable file fields lis
 
 ### File operations, deletion and reference tree
 
-- **Context menus and drag-and-drop:** Right-click an entry for item actions or empty space for the current directory menu. Pasting or dropping targets a folder directly, a file's containing folder, or the current directory on empty space (including expanded folders and search results); `Ctrl/Command+V` uses the selected entry or current directory if none or multiple are selected.
+- **Context menus and drag-and-drop:** Right-click an entry for item actions or empty space for the current directory menu. File Explorer tabs share copied and cut files within the same project. Pasting or dropping targets a folder directly, a file's containing folder, or the current directory on empty space (including expanded folders and search results); `Ctrl/Command+V` uses the selected entry or current directory if none or multiple are selected.
   - Drag any selected entry to move the group (clicking and releasing without dragging selects just that entry; folders cannot move into themselves or descendants). Right-click and choose **Show in File Explorer** (Windows) or **Show in Finder** (macOS) to reveal the right-clicked entry only (disabled for unsaved entries; never saves pending changes).
 - **Duplicating and move conflicts:** Duplicate a folder in place with `Ctrl/Command+C` followed by `Ctrl/Command+V` (conflicts append `_copy`, `_copy2`, placed before file extensions; copied folders appear once complete). A cut or drag causing duplicate destinations or name collisions rejects the entire move (leaving the cut clipboard ready after fixing conflicts). On disk error during a move, the editor attempts rollback, reporting any unreturned file and keeping remaining items on the cut clipboard.
 - **Reference tree and creation:** The reference tree shows outgoing and incoming references. Create, rename and move managed resources in the editor so recognised references update automatically (update arbitrary strings and source code manually). Creating or copying a managed resource leaves it unsaved without a creation Undo step; renames appear immediately and Global Save commits paths and references together. [Fixed resource directories](<Project Settings and Asset Layout.md#fixed-resource-directories>) enforce additional path restrictions.

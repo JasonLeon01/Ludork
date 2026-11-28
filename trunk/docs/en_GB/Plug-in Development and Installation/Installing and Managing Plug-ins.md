@@ -66,7 +66,7 @@ Each project scope has its own registry and data, and the **Plug-in Manager** se
 
 [Official Blueprint AI](<Official Plug-ins/Blueprint AI.md>), [Official Locale Tools](<Official Plug-ins/Locale Tools.md>), [Official Random Map](<Official Plug-ins/Random Map.md>), [Official Mota Map Fill](<Official Plug-ins/Mota Map Fill.md>) and [Official Resource Cleanup](<Official Plug-ins/Resource Cleanup.md>) ship as global plug-ins with a generated `plugins.json`. Once installed, they load on the next editor start without the third-party trust dialog. Official distributions include no project plug-ins.
 
-> **Warning:** Close Ludork and back up anything you need before installing official plug-ins. Installation replaces the entire `~/Ludork/Plugins` directory and `~/Ludork/plugins.json` — it does not merge them. Existing third-party source, registrations, `Plugins/.data` and all project plug-ins, registries and data under `Plugins/__ProjectPlugins` are permanently removed. Other editor settings and template caches are preserved.
+> **Warning:** Quit Ludork and back up anything you need before installing official plug-ins. Installation replaces the entire `~/Ludork/Plugins` directory and `~/Ludork/plugins.json` — it does not merge them. Existing third-party source, registrations, `Plugins/.data` and all project plug-ins, registries and data under `Plugins/__ProjectPlugins` are permanently removed. Other editor settings and template caches are preserved.
 
 An ordinary installation failure rolls back to the previous installation; if rollback cannot finish, follow the reported recovery instructions. Successful replacement deletes the temporary backup, reporting cleanup failure separately if it cannot be removed.
 
@@ -86,7 +86,7 @@ The macOS DMG keeps plug-ins outside `Ludork.app`: Finder displays `Ludork.app`,
 
 ### Repository and portable installation
 
-Repository checkouts load registered plug-ins directly. To install a separate user copy outside the checkout, build Toolchain, close Ludork and run:
+Repository checkouts load registered plug-ins directly. To install a separate user copy outside the checkout, build Toolchain, quit Ludork and run:
 
 ```sh
 .tools/Toolchain/ludork-editor editor-official-plugins prepare Plugins obj/official-plugins
@@ -105,7 +105,7 @@ Run these commands as your normal user without **Run as administrator** or `sudo
 
 Creation and import compile source before registration. Global plug-ins compile and load at editor startup. Each project's plug-ins compile and load once before its first project window opens in that session (shown in the project-opening progress dialog), and that result is reused when switching or reopening projects.
 
-Any creation, import, uninstall or direct source edit requires an editor restart — reopening a project does not reload plug-ins, and there is no hot enable or disable switch. Treat **Loaded** as the active enabled state.
+After creating, importing, uninstalling or editing a plug-in, choose **Quit Ludork** and launch the editor again. Closing every window can leave the editor and its plug-ins running under the [background preference](<../Editor User Guide/Start Page Workspace and Shortcuts.md#start-page>). Plug-ins have no hot enable or disable switch. **Loaded** identifies a plug-in active in the current session.
 
 Open **Plug-ins → Manage Plug-ins** to inspect plug-in diagnostics and states (**Loaded**, **Invalid Manifest**, **Compilation Failed**, **Initialisation Failed**, **Pending Restart**, **Unregistered; Active Until Restart** and **Pending Deletion**) before replacing or deleting installed source.
 
