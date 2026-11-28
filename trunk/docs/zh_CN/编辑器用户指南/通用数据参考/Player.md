@@ -22,4 +22,4 @@
 
 ## 编辑说明
 
-在 Game 项目中，`Bravor` 成员配置了 `MAXHP = 2000` 与 `HP = 1000`。运行时会将所选成员复制到 `PlayerAttributeSet` 中；`BP_Actor_Braver.json` 蓝图仅保存成员 `ID`。
+在 Game 项目中，`Bravor` 成员配置了 `MAXHP = 2000` 与 `HP = 1000`。运行时会将所选成员复制到 `PlayerAttributeSet` 中；`Data/Blueprints/Players/BP_Bravor.json` 蓝图仅保存成员 `ID`。

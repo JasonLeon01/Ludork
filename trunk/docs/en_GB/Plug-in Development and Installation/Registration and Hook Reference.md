@@ -20,7 +20,7 @@ Reference for every registration method, command context, host bridge and lifecy
 | `Label` | Already-localised displayed text |
 | `Handler` | Asynchronous `PluginMenuHandler` |
 
-The `PluginMenuContext` passed to `Handler` supplies the optional project path, editor language, read-only plug-in directory, writable plug-in data directory, message UI, text-hint invalidation, plug-in-scoped secret store, optional Blueprint assistant and resource-cleanup host bridges, and a `CancellationToken`. Avalonia source plug-ins referencing `Ludork.Plugin.Avalonia` can cast `UserInterface` to `IAvaloniaPluginUserInterface` to obtain the real owner window. Return `PluginResult.Completed()` on success or `PluginResult.Failed(error)` on a handled failure.
+The `PluginMenuContext` passed to `Handler` supplies the optional project path, editor language, read-only plug-in directory, writable plug-in data directory, message UI, text-hint invalidation, plug-in-scoped secret store, optional host bridges (Blueprint assistant, project Blueprint workspace and resource cleanup) and a `CancellationToken`. Avalonia source plug-ins referencing `Ludork.Plugin.Avalonia` can cast `UserInterface` to `IAvaloniaPluginUserInterface` to obtain the real owner window. Return `PluginResult.Completed()` on success or `PluginResult.Failed(error)` on a handled failure.
 
 ## Map item context-menu commands
 
@@ -132,6 +132,21 @@ A Blueprint assistant registers an ordinary `PluginMenuCommand` and owns its UI,
 These methods fetch the fixed website's search index on demand for the editor-selected documentation version and language (matching [online documentation](<../Editor User Guide/Start Page Workspace and Shortcuts.md#online-documentation>)), sharing one cached snapshot per request workspace. They accept queries and document keys only (never project paths or arbitrary URLs). Missing or invalid indexes and network failures return tool errors without switching version or language.
 
 Documentation results are capped at 12,000 characters: continue reads from `nextLine` when present, and inspect `truncatedLine` when an oversized line's tail was omitted (continuation resumes at the following line). API catalogue metadata remains authoritative for concrete Blueprint APIs; see [Official Blueprint AI](<Official Plug-ins/Blueprint AI.md#official-documentation>).
+
+## Project Blueprint workspace
+
+Inside a project window, `PluginMenuContext.BlueprintWorkspace` exposes `IPluginBlueprintWorkspace` with the absolute `ProjectPath`. Call `CaptureAsync(cancellationToken)` for an `IPluginBlueprintSnapshot` reflecting current in-memory Blueprint edits; if the project cannot be edited, the workspace throws `PluginWorkspaceUnavailableException`.
+
+| Snapshot member | Meaning |
+|---|---|
+| `GeneralData` | Maps each General Data type key to its enum module (`EnumModule`) and member IDs (`Members`) |
+| `ManagedBlueprintPaths`, `PathComparer` | Absolute paths already managed by the editor and the project filesystem's path comparer |
+| `DescribeClass(reference)` | Canonical reference, ancestry and editable field schemas for a Lua class, or `null` if unknown |
+| `ResolveBlueprints(additional, fields, cancellationToken)` | Effective class ancestry and requested field values across managed Blueprints and extra `PluginBlueprintSource(Path, Data)` entries |
+| `CheckDestination(projectRelativePath)` | Validates a project-relative `.json` path under `Data/Blueprints`, returning `Available`, `Occupied` or `Invalid` |
+| `CreateAsync(blueprints, cancellationToken)` | Atomically creates a batch of `PluginBlueprintCreation(Path, Parent, Attributes)` files with initial event graphs and refreshes the editor |
+
+Each additional source passed to `ResolveBlueprints` must specify an absolute `.json` path under `Data` and a Blueprint JSON object; managed Blueprints take precedence on matching paths, and each `PluginResolvedBlueprint` identifies its Blueprint by absolute `Path`. For `CreateAsync`, every parent must derive from `Engine.Actor` (a Lua class, an existing project Blueprint or another entry in the same batch), all destinations must be available and distinct, and the captured document revision must still be current (a stale revision throws `PluginWorkspaceUnavailableException`; capture a fresh snapshot to retry). [Official General Data Blueprint Export](<Official Plug-ins/General Data Blueprint Export.md>) uses this workspace to create missing Actor Blueprints.
 
 ## Resource cleanup
 

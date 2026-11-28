@@ -20,7 +20,7 @@
 | `Label` | 已本地化的显示文本 |
 | `Handler` | 异步 `PluginMenuHandler` 委托 |
 
-传入 `Handler` 的 `PluginMenuContext` 提供可选的项目路径、编辑器语言、只读插件目录、可写插件数据目录、消息 UI、文本提示刷新触发器、按插件隔离的密钥存储、可选的蓝图助手与资源清理宿主桥，以及 `CancellationToken`。引用 `Ludork.Plugin.Avalonia` 的源码插件可将 `UserInterface` 转换为 `IAvaloniaPluginUserInterface` 以获取真实的父窗口。成功时返回 `PluginResult.Completed()`，已处理的失败返回 `PluginResult.Failed(error)`。
+传入 `Handler` 的 `PluginMenuContext` 提供可选的项目路径、编辑器语言、只读插件目录、可写插件数据目录、消息 UI、文本提示刷新触发器、按插件隔离的密钥存储、可选的宿主桥（蓝图助手、项目蓝图工作区与资源清理），以及 `CancellationToken`。引用 `Ludork.Plugin.Avalonia` 的源码插件可将 `UserInterface` 转换为 `IAvaloniaPluginUserInterface` 以获取真实的父窗口。成功时返回 `PluginResult.Completed()`，已处理的失败返回 `PluginResult.Failed(error)`。
 
 ## 地图项右键菜单命令
 
@@ -132,6 +132,21 @@
 这两个方法会按需拉取固定官网上对应编辑器所选文档版本与语言的搜索索引（与[在线文档](<../编辑器用户指南/启动页、工作区与快捷键.md#在线文档>)保持一致），并在单轮请求工作区内复用同一缓存快照。它们仅接受查询词与文档键（不接受项目路径或任意 URL）。索引缺失、无效或网络故障时会返回工具错误，且不会切换文档版本或语言。
 
 文档结果上限为 12,000 个字符：若存在 `nextLine`，可从该行继续读取；若存在 `truncatedLine`，说明某超长单行尾部被截断，续读应从下一行开始。具体蓝图 API 仍以 API 目录元数据为准；详见 [Blueprint AI 官方文档查询](<官方插件/Blueprint AI.md#官方文档>)。
+
+## 项目蓝图工作区
+
+在项目窗口中，`PluginMenuContext.BlueprintWorkspace` 暴露 `IPluginBlueprintWorkspace`（其 `ProjectPath` 为项目根目录的绝对路径）。调用 `CaptureAsync(cancellationToken)` 可获取包含当前内存蓝图编辑的 `IPluginBlueprintSnapshot`；若项目当前不可编辑，工作区会抛出 `PluginWorkspaceUnavailableException`。
+
+| 快照成员 | 含义 |
+|---|---|
+| `GeneralData` | 按通用数据类型键映射其枚举模块名（`EnumModule`）与成员 ID 列表（`Members`） |
+| `ManagedBlueprintPaths`、`PathComparer` | 编辑器已托管蓝图的绝对路径集合，以及项目文件系统的路径比较器 |
+| `DescribeClass(reference)` | 返回 Lua 类的规范引用、继承链与可编辑字段 Schema；未知类返回 `null` |
+| `ResolveBlueprints(additional, fields, cancellationToken)` | 结合托管蓝图与额外的 `PluginBlueprintSource(Path, Data)` 条目，解析类继承链及所选字段的生效值 |
+| `CheckDestination(projectRelativePath)` | 检查 `Data/Blueprints` 下以 `.json` 结尾的项目相对路径，返回 `Available`、`Occupied` 或 `Invalid` |
+| `CreateAsync(blueprints, cancellationToken)` | 批量原子创建 `PluginBlueprintCreation(Path, Parent, Attributes)` 蓝图文件（含初始事件图）并刷新编辑器 |
+
+传给 `ResolveBlueprints` 的每个额外来源须提供项目 `Data` 目录下的绝对 `.json` 路径及蓝图 JSON 对象；路径已被编辑器托管时以托管版本为准，返回的 `PluginResolvedBlueprint` 以绝对路径 `Path` 标识蓝图。调用 `CreateAsync` 时，各父类须派生自 `Engine.Actor`（可为 Lua 类、已有项目蓝图或同一批次中的另一份蓝图），所有目标路径须可用且互不重复，且文档 revision 须与快照一致（若 revision 已变更则抛出 `PluginWorkspaceUnavailableException`，需重新获取快照后重试）。[通用数据蓝图导出](<官方插件/通用数据蓝图导出.md>)即通过此工作区批量创建缺失的 Actor 蓝图。
 
 ## 资源清理
 

@@ -33,6 +33,8 @@ return PluginResult.Completed();
 
 - **原子文件辅助方法（`Ludork.Plugin.Abstractions.FilePersistence`）**：`WriteAllTextAtomic` 与 `WriteAllTextAtomicAsync` 写入无 BOM 的 UTF-8 文本；`WriteAtomic` 与 `WriteAtomicAsync` 用于基于流的其他格式。各方法均先写入同目录临时文件、刷盘后再替换目标，失败时自动清理临时文件。异步重载会在替换前检查取消信号；同步 `beforeCommit` 回调在临时文件关闭后运行。业务校验、多文件事务与回滚仍由调用方负责。
 - **自定义事务原语**：`CreateTemporaryPath`、`WriteDurable`（创建新文件并刷盘）、`MoveFile`、`DeleteFile` 与 `MoveDirectory` 用于构建自定义原子流程。移动与删除方法遇到 Windows 瞬态共享或访问失败时最多重试 10 秒，覆盖或删除前会自动清除目标只读属性，并将最终错误传播给调用方。
+- **并行文件批处理（`Ludork.Plugin.Abstractions.FileBatch`）**：`Run` 默认最多使用 `min(inputs.Count, Environment.ProcessorCount)` 个工作线程并发处理独立任务，按输入顺序返回结果并支持取消；带状态的重载还支持限制最大并发数（`maxWorkers`），并为每个工作线程独立创建与释放状态。
+- **Lua 源码辅助工具（`Ludork.Plugin.Abstractions.LuaSourceTokens`、`LuaIdentifier`）**：`LuaSourceTokens.Read(source, token, lineComment)` 对 Lua 源码分词，并通过可选回调以零起始半开区间 `[start, end)` 报告每条单行短注释（自 `--` 起至换行符或文本末尾，忽略长注释与字符串字面量）。`LuaIdentifier.IsValid(name)` 校验单个名称是否为合法的非保留字 Lua 标识符。
 
 ## 保存密钥
 

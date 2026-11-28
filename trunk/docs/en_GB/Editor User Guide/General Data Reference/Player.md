@@ -22,4 +22,4 @@ Defines playable character presets, referencing a `Class` member and setting sta
 
 ## Editing notes
 
-In the Game project, the `Bravor` member sets `MAXHP = 2000` and `HP = 1000`. At runtime, the selected member is copied into `PlayerAttributeSet`; the `BP_Actor_Braver.json` Blueprint stores only the member `ID`.
+In the Game project, the `Bravor` member sets `MAXHP = 2000` and `HP = 1000`. At runtime, the selected member is copied into `PlayerAttributeSet`; the `Data/Blueprints/Players/BP_Bravor.json` Blueprint stores only the member `ID`.

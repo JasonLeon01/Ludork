@@ -64,7 +64,7 @@ Each project scope has its own registry and data, and the **Plug-in Manager** se
 
 ## Official release plug-ins
 
-[Official Blueprint AI](<Official Plug-ins/Blueprint AI.md>), [Official Locale Tools](<Official Plug-ins/Locale Tools.md>), [Official Random Map](<Official Plug-ins/Random Map.md>), [Official Mota Map Fill](<Official Plug-ins/Mota Map Fill.md>) and [Official Resource Cleanup](<Official Plug-ins/Resource Cleanup.md>) ship as global plug-ins with a generated `plugins.json`. Once installed, they load on the next editor start without the third-party trust dialog. Official distributions include no project plug-ins.
+The [official plug-ins](<Official Plug-ins/Overview.md#included-plug-ins>) ship as global plug-ins with a generated `plugins.json`. Once installed, they load on the next editor start without the third-party trust dialog. Official distributions include no project plug-ins.
 
 > **Warning:** Quit Ludork and back up anything you need before installing official plug-ins. Installation replaces the entire `~/Ludork/Plugins` directory and `~/Ludork/plugins.json` — it does not merge them. Existing third-party source, registrations, `Plugins/.data` and all project plug-ins, registries and data under `Plugins/__ProjectPlugins` are permanently removed. Other editor settings and template caches are preserved.
 

@@ -1,6 +1,6 @@
 # Official Plug-ins Overview
 
-Ludork ships five official C# plug-ins covering localisation, procedural map layout, Mota Actor placement, Blueprint AI assistance and resource cleanup. Their source directories under `Plugins/` also serve as reference implementations of the public plug-in API.
+Ludork ships official C# plug-ins for localisation, map generation, Blueprint authoring and resource management. Their source directories under `Plugins/` also serve as reference implementations of the public plug-in API.
 
 ## Included plug-ins
 
@@ -11,6 +11,7 @@ Ludork ships five official C# plug-ins covering localisation, procedural map lay
 | [Official Mota Map Fill](<Mota Map Fill.md>) | Populates map regions with doors, enemies and rewards using a saved player's battle damage |
 | [Official Blueprint AI](<Blueprint AI.md>) | Discusses one existing Blueprint and applies a validated, reviewable proposal as a single Undo step |
 | [Official Resource Cleanup](<Resource Cleanup.md>) | Finds statically unreferenced resources, protects keep-listed paths and moves confirmed candidates to the system Trash |
+| [Official General Data Blueprint Export](<General Data Blueprint Export.md>) | Creates missing Actor Blueprints for General Data members |
 
 For workbook authoring, Export integration and runtime `{ID}` resolution with Official Locale Tools, see [Game Localisation Workflow](<Game Localisation Workflow.md>).
 

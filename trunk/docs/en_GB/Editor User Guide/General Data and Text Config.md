@@ -42,6 +42,8 @@ New and edited fields write complete recursive `type` objects — such as `{ "li
 - **Schema edits:** Renaming a field preserves member values; changing only the default leaves existing members unchanged. Changing a field's type or a container's item/key/value type asks for confirmation and resets every existing member's field to the new default. Removing a field does not automatically update scripts that read it.
 - **Member graphs:** Support only declared type events and synchronous nodes, with no inheritance, Parent or `self` node; use global nodes and `GameplayEventData`. Runtime code activates member graphs explicitly (see [General Data event execution](<../Lua and Blueprint Scripting/Blueprint Scripting/Execution Flow Events and Variables.md#events>)).
 
+To generate missing Actor Blueprints for a declared General Data type in bulk, use [Official General Data Blueprint Export](<../Plug-in Development and Installation/Official Plug-ins/General Data Blueprint Export.md>).
+
 ## Search and views
 
 Search filters case-insensitively across member IDs and direct scalar fields (strings, numbers, booleans), excluding containers and graphs. Each type remembers its search query, selection and Form/Table mode while the window stays open.
